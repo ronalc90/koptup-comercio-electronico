@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.011',
+    date: '2026-04-22',
+    highlights: [
+      'Pruebas automatizadas: 52 unit tests con Vitest cubriendo las funciones puras de la app (formato de moneda, parseo de montos, generación de códigos de pedido, normalización de vendedor, intenciones del librito, matching de fechas naturales).',
+      'Suite E2E con Playwright: 8 pruebas en navegador real. 4 smoke tests sin auth (arranque, login, redirect protegido, password inválido) y 4 autenticadas (navegación entre pantallas, modales de ayuda, toggle Calendario/Lista persistente, librito del asistente).',
+      'Fix: bug real detectado por las pruebas — cuando se guardaban dos "días" del librito en el mismo milisegundo, colisionaba el ID y al borrar uno se borraban los dos. Ahora el id incluye un sufijo aleatorio.',
+      'Nuevos scripts: npm test, npm run test:watch, npm run test:e2e, npm run test:e2e:install.',
+      'Documentación en README sobre cómo correr cada suite y qué variables de entorno esperan las pruebas autenticadas.',
+    ],
+  },
+  {
     version: '1.010',
     date: '2026-04-17',
     highlights: [
