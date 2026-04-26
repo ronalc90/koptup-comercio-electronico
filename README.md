@@ -114,6 +114,44 @@ Abre [http://localhost:3000](http://localhost:3000) — usuario: `Paola`, contra
 
 ---
 
+## Pruebas automatizadas
+
+### Unit tests (Vitest)
+
+Validan funciones puras de `src/lib/` (formato de moneda, parseo de montos,
+códigos de pedido, intenciones del librito, etc.).
+
+```bash
+npm test              # corre la suite completa
+npm run test:watch    # modo watch durante desarrollo
+```
+
+Los archivos viven junto al código que cubren, con sufijo `.test.ts`
+(ej: `src/lib/utils.test.ts`).
+
+### E2E tests (Playwright)
+
+Validan flujos completos en un navegador Chromium real: login, navegación
+entre pantallas, modales de ayuda, toggle Calendario/Lista en Pedidos,
+librito del asistente.
+
+```bash
+npm run test:e2e:install   # sólo la primera vez: instala Chromium
+npm run test:e2e           # corre la suite contra http://localhost:3000
+```
+
+Los tests **autenticados** requieren credenciales reales; si no están
+definidas el suite autenticada se saltea automáticamente:
+
+```bash
+MERAKI_E2E_USER=Paola MERAKI_E2E_PASSWORD='tu-password' npm run test:e2e
+```
+
+Podés apuntar a un preview de Vercel en vez del dev local con
+`MERAKI_E2E_BASE_URL=https://meraki-xxxxx.vercel.app npm run test:e2e`.
+
+---
+
 ## Estructura del Proyecto
 
 ```

@@ -81,8 +81,11 @@ export function saveWorkday(messages: unknown[]): Workday | null {
   const clean = sanitize(messages);
   if (clean.length === 0) return null;
   const now = new Date();
+  // Sufijo aleatorio para evitar colisiones si se guardan dos workdays
+  // dentro del mismo milisegundo (ej: en tests, o guardados rápidos).
+  const suffix = Math.random().toString(36).slice(2, 8);
   const entry: Workday = {
-    id: `wd_${now.getTime()}`,
+    id: `wd_${now.getTime()}_${suffix}`,
     savedAt: now.toISOString(),
     label: buildLabel(now),
     summary: buildSummary(clean),
