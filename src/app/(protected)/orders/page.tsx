@@ -643,7 +643,16 @@ export default function OrdersPage({
 const STATUS_OPTIONS: Order['delivery_status'][] = [
   'Confirmado', 'Enviado', 'Entregado', 'Pagado', 'Devolucion', 'Cancelado',
 ]
-const DELIVERY_TYPES: Order['delivery_type'][] = ['Bogo', 'Bodega', 'Otros']
+// Incluye los valores legacy en el dropdown para que las pantallas filtren
+// correctamente pedidos creados antes de la migración v1.012.
+const DELIVERY_TYPES: Array<{ value: Exclude<Order['delivery_type'], ''>; label: string }> = [
+  { value: 'Mensajeria', label: 'Mensajería' },
+  { value: 'Recogida', label: 'Recogida en tienda' },
+  { value: 'Otro', label: 'Otro' },
+  { value: 'Bogo', label: 'Mensajería (legacy)' },
+  { value: 'Bodega', label: 'Recogida (legacy)' },
+  { value: 'Otros', label: 'Otro (legacy)' },
+]
 
 function statusTone(s: Order['delivery_status']): string {
   if (s === 'Entregado' || s === 'Pagado') return 'bg-emerald-100 text-emerald-700'
@@ -747,7 +756,7 @@ function OrdersList({
             className="rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-purple-300"
           >
             <option value="">Tipo envío</option>
-            {DELIVERY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+            {DELIVERY_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
           <select
             value={filterCity}

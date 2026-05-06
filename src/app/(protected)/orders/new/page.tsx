@@ -12,10 +12,10 @@ import AIOrderInput from '@/components/orders/AIOrderInput'
 import AIInventoryInput from '@/components/inventory/AIInventoryInput'
 import DispatchGuide from '@/components/dispatch/DispatchGuide'
 import { useUser } from '@/lib/UserContext'
-import { isOwnerSupported, isPaymentTimingSupported } from '@/lib/db'
+import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn } from '@/lib/db'
 import { syncInventoryOnOrderSave } from '@/lib/inventorySync'
+import { DELIVERY_TYPE_OPTIONS, type DeliveryType } from '@/lib/types'
 
-type DeliveryType = 'Bogo' | 'Bodega' | 'Otros' | ''
 type DeliveryStatus = 'Confirmado' | 'Entregado' | 'Devolucion' | 'Cancelado'
 type Vendor = 'Paola'
 
@@ -38,7 +38,7 @@ interface OrderForm {
   value_to_collect: string
   payment_timing: PaymentTiming
   prepaid_amount: string
-  payment_cash_bogo: string
+  payment_courier_pending: string
   payment_cash: string
   payment_transfer: string
   delivery_type: DeliveryType
@@ -67,10 +67,10 @@ const EMPTY_FORM: OrderForm = {
   value_to_collect: '',
   payment_timing: 'ContraEntrega',
   prepaid_amount: '',
-  payment_cash_bogo: '',
+  payment_courier_pending: '',
   payment_cash: '',
   payment_transfer: '',
-  delivery_type: '',
+  delivery_type: 'Mensajeria',
   vendor: 'Paola',
   delivery_status: 'Confirmado',
   order_date: '',
@@ -264,6 +264,7 @@ export default function NewOrderPage({
 
       const hasOwner = await isOwnerSupported()
       const hasPaymentTiming = await isPaymentTimingSupported()
+      const courierColumn = await courierPendingColumn()
 
       const valueToCollect = parseFloat(form.value_to_collect) || 0
       const prepaidAmount = normalizePrepaidAmount(form, valueToCollect)
@@ -279,7 +280,7 @@ export default function NewOrderPage({
         detail: composeDetail(form),
         comment: form.comment.trim(),
         value_to_collect: valueToCollect,
-        payment_cash_bogo: parseFloat(form.payment_cash_bogo) || 0,
+        [courierColumn]: parseFloat(form.payment_courier_pending) || 0,
         payment_cash: parseFloat(form.payment_cash) || 0,
         payment_transfer: parseFloat(form.payment_transfer) || 0,
         product_cost,
@@ -406,6 +407,7 @@ export default function NewOrderPage({
               const order_code = generateOrderCode(orderDateObj, sequence);
 
               const hasOwner = await isOwnerSupported();
+              const courierColumnAi = await courierPendingColumn();
               const payload: Record<string, unknown> = {
                 order_code,
                 client_name: parsed.client_name?.trim() ?? '',
@@ -417,11 +419,11 @@ export default function NewOrderPage({
                 detail: parsed.detail?.trim() ?? '',
                 comment: parsed.comment?.trim() ?? '',
                 value_to_collect: parsed.value_to_collect ?? 0,
-                payment_cash_bogo: 0,
+                [courierColumnAi]: 0,
                 payment_cash: 0,
                 payment_transfer: 0,
                 product_cost,
-                delivery_type: '',
+                delivery_type: 'Mensajeria',
                 vendor: 'Paola',
                 delivery_status: 'Confirmado',
                 is_exchange: false,
@@ -767,43 +769,49 @@ export default function NewOrderPage({
             )}
 
             {(form.payment_timing === 'ContraEntrega' || form.payment_timing === 'Mixto') && (
-              <div className="grid gap-4 sm:grid-cols-3">
-                <Field label="Recaudo Bogo (COP)">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    className={inputCls}
-                    placeholder="0"
-                    value={form.payment_cash_bogo}
-                    onChange={(e) => setField('payment_cash_bogo', e.target.value)}
-                    disabled={saving}
-                  />
-                </Field>
-                <Field label="Recaudo Caja (COP)">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    className={inputCls}
-                    placeholder="0"
-                    value={form.payment_cash}
-                    onChange={(e) => setField('payment_cash', e.target.value)}
-                    disabled={saving}
-                  />
-                </Field>
-                <Field label="Recaudo Transferencia (COP)">
-                  <input
-                    type="number"
-                    min="0"
-                    step="100"
-                    className={inputCls}
-                    placeholder="0"
-                    value={form.payment_transfer}
-                    onChange={(e) => setField('payment_transfer', e.target.value)}
-                    disabled={saving}
-                  />
-                </Field>
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500">
+                  Indicá cómo se recibió el pago según corresponda. Si el mensajero
+                  aún no liquidó la plata, va en <b>Pendiente del mensajero</b>.
+                </p>
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <Field label="Pendiente del mensajero (COP)">
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      className={inputCls}
+                      placeholder="0"
+                      value={form.payment_courier_pending}
+                      onChange={(e) => setField('payment_courier_pending', e.target.value)}
+                      disabled={saving}
+                    />
+                  </Field>
+                  <Field label="Efectivo en caja (COP)">
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      className={inputCls}
+                      placeholder="0"
+                      value={form.payment_cash}
+                      onChange={(e) => setField('payment_cash', e.target.value)}
+                      disabled={saving}
+                    />
+                  </Field>
+                  <Field label="Transferencia / Nequi (COP)">
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      className={inputCls}
+                      placeholder="0"
+                      value={form.payment_transfer}
+                      onChange={(e) => setField('payment_transfer', e.target.value)}
+                      disabled={saving}
+                    />
+                  </Field>
+                </div>
               </div>
             )}
           </div>
@@ -822,9 +830,9 @@ export default function NewOrderPage({
                   disabled={saving}
                 >
                   <option value="">— Seleccionar —</option>
-                  <option value="Bogo">Bogo</option>
-                  <option value="Bodega">Bodega</option>
-                  <option value="Otros">Otros</option>
+                  {DELIVERY_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
                 </select>
               </Field>
               <Field label="Estado">

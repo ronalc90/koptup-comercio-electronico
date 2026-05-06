@@ -21,7 +21,11 @@ const ORDER_COLUMNS: Record<string, string> = {
   'PAGO ANTICIPADO': 'prepaid_amount',
   'GASTOS OP': 'operating_cost',
   'COSTO PRODUCTO': 'product_cost',
-  'EFECTIVO BOGO': 'payment_cash_bogo',
+  // El nombre nuevo (v1.012) y los alias legacy mapean al mismo campo lógico.
+  // En runtime, antes de insertar, este alias se reescribe al nombre real
+  // según haya corrido la migración SQL o no.
+  'PENDIENTE MENSAJERO': 'payment_courier_pending',
+  'EFECTIVO BOGO': 'payment_courier_pending',
   'CAJA': 'payment_cash',
   'TRANSFERENCIA': 'payment_transfer',
   'ES CAMBIO?': 'is_exchange',
@@ -176,7 +180,7 @@ export async function POST(request: NextRequest) {
           if (val !== null && val !== undefined && val !== '') hasData = true;
 
           // Type-specific transformations
-          if (['value_to_collect', 'payment_cash_bogo', 'payment_cash', 'payment_transfer',
+          if (['value_to_collect', 'payment_courier_pending', 'payment_cash', 'payment_transfer',
                'product_cost', 'operating_cost', 'prepaid_amount', 'cost', 'reference', 'quantity'].includes(dbField)) {
             record[dbField] = cleanCurrency(val);
           } else if (dbField === 'is_exchange') {
@@ -226,6 +230,20 @@ export async function POST(request: NextRequest) {
 
       if (rows.length > 0) {
         const table = type === 'orders' ? 'orders' : type === 'inventory' ? 'inventory' : 'products';
+        // Si la migración SQL aún no corrió (columna `payment_courier_pending`
+        // todavía se llama `payment_cash_bogo`), reescribimos el alias para no
+        // fallar el insert.
+        if (table === 'orders') {
+          const { error: probe } = await supabase.from('orders').select('payment_courier_pending').limit(1);
+          if (probe) {
+            for (const r of rows) {
+              if ('payment_courier_pending' in r) {
+                r.payment_cash_bogo = r.payment_courier_pending;
+                delete r.payment_courier_pending;
+              }
+            }
+          }
+        }
         // Insert in batches of 50
         for (let i = 0; i < rows.length; i += 50) {
           const batch = rows.slice(i, i + 50);

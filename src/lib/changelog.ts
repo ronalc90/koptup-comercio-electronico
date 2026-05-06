@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.012',
+    date: '2026-04-29',
+    highlights: [
+      'Renombrado de tipos de envío y canal de pago para que sean nombres claros y genéricos para cualquier tienda (no jerga interna).',
+      'Tipos de envío: "Bogo" → "Mensajería", "Bodega" → "Recogida en tienda", "Otros" → "Otro".',
+      'Recaudo: el campo antes llamado "Bogo" ahora es "Pendiente del mensajero" (efectivo cobrado por el mensajero que aún no ha sido liquidado al negocio).',
+      'Dashboard: la tarjeta "Bogo debe" ahora dice "Pendiente de liquidación" y el subtotal del recaudo dice "Pdte. liquidación".',
+      'Asistente por voz: entiende los nombres nuevos ("el mensajero me liquidó", "lo cobró el courier", "contra entrega") y sigue aceptando los antiguos por compatibilidad.',
+      'Excel: las columnas y hojas exportadas usan los nombres nuevos. Al importar acepta tanto el nombre nuevo "PENDIENTE MENSAJERO" como el legacy "EFECTIVO BOGO".',
+      'Migración SQL automática (DO $$ ... $$ block) — la app sigue funcionando incluso si la columna no fue renombrada todavía, gracias a un fallback en cliente que detecta cuál nombre tiene la BD.',
+      'Tests: 11 nuevos unit tests para los helpers deliveryTypeLabel, normalizeDeliveryType y getCourierPending.',
+    ],
+  },
+  {
     version: '1.011',
     date: '2026-04-22',
     highlights: [

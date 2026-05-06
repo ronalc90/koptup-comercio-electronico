@@ -9,6 +9,69 @@ export interface Product {
   created_at: string;
 }
 
+/**
+ * Tipo de envío del pedido. Los valores se renombraron en v1.012 para que
+ * sean genéricos para cualquier tienda, en vez de la jerga interna anterior:
+ *   Bogo    → Mensajería  (courier que recoge, entrega y cobra)
+ *   Bodega  → Recogida    (cliente pasa a buscar al local)
+ *   Otros   → Otro
+ *
+ * El tipo acepta también los valores legacy para que las pantallas no se
+ * rompan con pedidos viejos en BDs aún no migradas. `deliveryTypeLabel()`
+ * mapea legacy → label amigable.
+ */
+export type DeliveryType =
+  | 'Mensajeria'
+  | 'Recogida'
+  | 'Otro'
+  // Valores legacy — solo lectura tras la migración v1.012
+  | 'Bogo'
+  | 'Bodega'
+  | 'Otros'
+  | '';
+
+export const DELIVERY_TYPE_OPTIONS: Array<{ value: Exclude<DeliveryType, '' | 'Bogo' | 'Bodega' | 'Otros'>; label: string }> = [
+  { value: 'Mensajeria', label: 'Mensajería' },
+  { value: 'Recogida', label: 'Recogida en tienda' },
+  { value: 'Otro', label: 'Otro' },
+];
+
+export function deliveryTypeLabel(t: DeliveryType | null | undefined): string {
+  switch (t) {
+    case 'Mensajeria':
+    case 'Bogo':
+      return 'Mensajería';
+    case 'Recogida':
+    case 'Bodega':
+      return 'Recogida en tienda';
+    case 'Otro':
+    case 'Otros':
+      return 'Otro';
+    default:
+      return '';
+  }
+}
+
+/** Normaliza un delivery_type al valor canónico nuevo (para escrituras). */
+export function normalizeDeliveryType(t: DeliveryType | null | undefined): DeliveryType {
+  switch (t) {
+    case 'Bogo': return 'Mensajeria';
+    case 'Bodega': return 'Recogida';
+    case 'Otros': return 'Otro';
+    default: return t ?? '';
+  }
+}
+
+/**
+ * Devuelve el monto pendiente de liquidación por el mensajero, leyendo
+ * primero el campo nuevo (`payment_courier_pending`) y cayendo al legacy
+ * (`payment_cash_bogo`) por si la migración SQL aún no se aplicó.
+ */
+export function getCourierPending(o: Pick<Order, 'payment_courier_pending' | 'payment_cash_bogo'> | null | undefined): number {
+  if (!o) return 0;
+  return o.payment_courier_pending ?? o.payment_cash_bogo ?? 0;
+}
+
 export type PaymentTiming = 'Anticipado' | 'ContraEntrega' | 'Mixto' | 'Otro' | '';
 
 export const PAYMENT_TIMING_OPTIONS: Array<{ value: Exclude<PaymentTiming, ''>; label: string; short: string }> = [
@@ -30,11 +93,20 @@ export interface Order {
   detail: string;
   comment: string;
   value_to_collect: number;
-  payment_cash_bogo: number;
+  /**
+   * Efectivo recaudado por el mensajero/courier que aún NO se liquidó al
+   * negocio. Renombrado en v1.012 desde `payment_cash_bogo` a un nombre
+   * neutro. Para mantener compatibilidad si la migración SQL aún no
+   * corrió, ambos campos quedan en el tipo: usá `getCourierPending(order)`
+   * para leer y `payment_courier_pending` para escribir.
+   */
+  payment_courier_pending?: number;
+  /** @deprecated v1.012 — usar `payment_courier_pending`. Se elimina cuando la migración SQL haya corrido en todos los entornos. */
+  payment_cash_bogo?: number;
   payment_cash: number;
   payment_transfer: number;
   product_cost: number;
-  delivery_type: 'Bogo' | 'Bodega' | 'Otros' | '';
+  delivery_type: DeliveryType;
   vendor: string;
   delivery_status: 'Confirmado' | 'Enviado' | 'Entregado' | 'Pagado' | 'Devolucion' | 'Cancelado';
   status_complement: string;
@@ -69,17 +141,21 @@ export interface InventoryItem {
 
 export interface DailyKPIs {
   totalOrders: number;
-  deliveredBogo: number;
-  deliveredBodega: number;
-  deliveredOtros: number;
+  /** Pedidos entregados por mensajería (antes deliveredBogo). */
+  deliveredCourier: number;
+  /** Pedidos entregados como recogida en tienda (antes deliveredBodega). */
+  deliveredPickup: number;
+  /** Pedidos entregados con otro tipo de envío (antes deliveredOtros). */
+  deliveredOther: number;
   returns: number;
   exchanges: number;
   cancelled: number;
-  revenueBogo: number;
+  /** Recaudo del mensajero pendiente de liquidación (antes revenueBogo). */
+  revenueCourierPending: number;
   revenueCash: number;
   revenueTransfer: number;
   totalRevenue: number;
-  ordersPaola: number;
+  ordersOwner: number;
   totalCosts: number;
   totalOperatingCosts: number;
   profit: number;

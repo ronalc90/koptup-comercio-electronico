@@ -22,11 +22,11 @@ import { supabase } from '@/lib/supabase'
 import type { Order, DailyKPIs } from '@/lib/types'
 import { cn, formatCurrency, getDayOfWeek, sameVendor } from '@/lib/utils'
 import { useUser } from '@/lib/UserContext'
-import { isOwnerSupported } from '@/lib/db'
+import { isOwnerSupported, courierPendingColumn } from '@/lib/db'
 import WhatsAppLink from '@/components/shared/WhatsAppLink'
+import { DELIVERY_TYPE_OPTIONS as DELIVERY_TYPE_DEFS, getCourierPending } from '@/lib/types'
 
 const DELIVERY_STATUS_OPTIONS = ['Confirmado', 'Enviado', 'Entregado', 'Pagado', 'Devolucion', 'Cancelado'] as const
-const DELIVERY_TYPE_OPTIONS = ['Bogo', 'Bodega', 'Otros', ''] as const
 const VENDOR_OPTIONS = ['Paola']
 
 function padDate(n: number) {
@@ -77,17 +77,18 @@ function computeKPIs(orders: Order[]): DailyKPIs {
   const active = orders.filter((o) => o.delivery_status === 'Confirmado' || o.delivery_status === 'Entregado')
   return {
     totalOrders: orders.length,
-    deliveredBogo: orders.filter((o) => o.delivery_status === 'Entregado' && o.delivery_type === 'Bogo').length,
-    deliveredBodega: orders.filter((o) => o.delivery_status === 'Entregado' && o.delivery_type === 'Bodega').length,
-    deliveredOtros: orders.filter((o) => o.delivery_status === 'Entregado' && o.delivery_type === 'Otros').length,
+    // Acepta valores legacy + canónicos v1.012 para no perder pedidos viejos
+    deliveredCourier: orders.filter((o) => o.delivery_status === 'Entregado' && (o.delivery_type === 'Mensajeria' || o.delivery_type === 'Bogo')).length,
+    deliveredPickup: orders.filter((o) => o.delivery_status === 'Entregado' && (o.delivery_type === 'Recogida' || o.delivery_type === 'Bodega')).length,
+    deliveredOther: orders.filter((o) => o.delivery_status === 'Entregado' && (o.delivery_type === 'Otro' || o.delivery_type === 'Otros')).length,
     returns: orders.filter((o) => o.delivery_status === 'Devolucion').length,
     exchanges: orders.filter((o) => o.is_exchange).length,
     cancelled: orders.filter((o) => o.delivery_status === 'Cancelado').length,
-    revenueBogo: delivered.reduce((s, o) => s + (o.payment_cash_bogo ?? 0), 0),
+    revenueCourierPending: delivered.reduce((s, o) => s + getCourierPending(o), 0),
     revenueCash: delivered.reduce((s, o) => s + (o.payment_cash ?? 0), 0),
     revenueTransfer: delivered.reduce((s, o) => s + (o.payment_transfer ?? 0), 0),
     totalRevenue: delivered.reduce((s, o) => s + (o.value_to_collect ?? 0), 0),
-    ordersPaola: orders.filter((o) => sameVendor(o.vendor, 'Paola')).length,
+    ordersOwner: orders.filter((o) => sameVendor(o.vendor, 'Paola')).length,
     totalCosts: active.reduce((s, o) => s + (o.product_cost ?? 0), 0),
     totalOperatingCosts: active.reduce((s, o) => s + (o.operating_cost ?? 0), 0),
     profit:
@@ -172,9 +173,10 @@ function OrderTableRow({ order, onUpdate }: OrderRowBaseProps) {
           disabled={saving}
           className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs outline-none cursor-pointer disabled:opacity-60"
         >
-          {DELIVERY_TYPE_OPTIONS.map((t) => (
-            <option key={t} value={t}>
-              {t || '—'}
+          <option value="">—</option>
+          {DELIVERY_TYPE_DEFS.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
             </option>
           ))}
         </select>
@@ -280,9 +282,10 @@ function OrderMobileCard({ order, onUpdate }: OrderRowBaseProps) {
                 disabled={saving}
                 className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs outline-none"
               >
-                {DELIVERY_TYPE_OPTIONS.map((t) => (
-                  <option key={t} value={t}>
-                    {t || '—'}
+                <option value="">—</option>
+                {DELIVERY_TYPE_DEFS.map((t) => (
+                  <option key={t.value} value={t.value}>
+                    {t.label}
                   </option>
                 ))}
               </select>
@@ -310,12 +313,12 @@ function OrderMobileCard({ order, onUpdate }: OrderRowBaseProps) {
               <p className="text-[10px] font-semibold text-gray-500 uppercase mb-2">Método de pago</p>
               <div className="grid grid-cols-3 gap-2">
                 <div className="space-y-0.5">
-                  <label className="block text-[10px] text-gray-500">Bogo</label>
+                  <label className="block text-[10px] text-gray-500" title="Efectivo recaudado por el mensajero, pendiente de liquidación">Mensajero</label>
                   <input
                     type="number"
                     inputMode="numeric"
-                    value={order.payment_cash_bogo || ''}
-                    onChange={(e) => handleChange('payment_cash_bogo', Number(e.target.value) || 0)}
+                    value={getCourierPending(order) || ''}
+                    onChange={(e) => handleChange('payment_courier_pending', Number(e.target.value) || 0)}
                     disabled={saving}
                     placeholder="0"
                     className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs outline-none"
@@ -347,7 +350,7 @@ function OrderMobileCard({ order, onUpdate }: OrderRowBaseProps) {
                 </div>
               </div>
               <p className="mt-1 text-[10px] text-gray-400">
-                Valor a cobrar: {formatCurrency(order.value_to_collect)} · Registrado: {formatCurrency((order.payment_cash_bogo || 0) + (order.payment_cash || 0) + (order.payment_transfer || 0))}
+                Valor a cobrar: {formatCurrency(order.value_to_collect)} · Registrado: {formatCurrency(getCourierPending(order) + (order.payment_cash || 0) + (order.payment_transfer || 0))}
               </p>
             </div>
           )}
@@ -400,7 +403,15 @@ export default function DailyOrdersPage({
 
   async function handleUpdateOrder(id: number, changes: Partial<Order>) {
     try {
-      const { error } = await supabase.from('orders').update(changes).eq('id', id)
+      // Si la migración SQL aún no corrió, redirigimos el campo nuevo al
+      // legacy para evitar fallar el update.
+      const courierColumn = await courierPendingColumn()
+      const remapped: Record<string, unknown> = { ...changes }
+      if ('payment_courier_pending' in remapped && courierColumn === 'payment_cash_bogo') {
+        remapped.payment_cash_bogo = remapped.payment_courier_pending
+        delete remapped.payment_courier_pending
+      }
+      const { error } = await supabase.from('orders').update(remapped).eq('id', id)
       if (error) throw error
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...changes } : o)))
       toast.success('Actualizado')
@@ -473,13 +484,13 @@ export default function DailyOrdersPage({
           <span className="text-xs text-gray-500">Entregas</span>
           <div className="flex items-baseline gap-1 font-bold text-gray-900">
             <span className="text-base">
-              {kpis.deliveredBogo + kpis.deliveredBodega + kpis.deliveredOtros}
+              {kpis.deliveredCourier + kpis.deliveredPickup + kpis.deliveredOther}
             </span>
           </div>
           <div className="flex gap-2 text-[10px] text-gray-500">
-            <span>Bogo: {kpis.deliveredBogo}</span>
-            <span>Bod: {kpis.deliveredBodega}</span>
-            <span>Otros: {kpis.deliveredOtros}</span>
+            <span>Mensajería: {kpis.deliveredCourier}</span>
+            <span>Recogida: {kpis.deliveredPickup}</span>
+            <span>Otro: {kpis.deliveredOther}</span>
           </div>
         </div>
         <KPIItem label="Devoluciones" value={kpis.returns} />
@@ -490,13 +501,13 @@ export default function DailyOrdersPage({
           <span className="text-xs text-gray-500">Recaudo</span>
           <div className="font-bold text-gray-900">{formatCurrency(kpis.totalRevenue)}</div>
           <div className="flex flex-col gap-0.5 text-[10px] text-gray-500">
-            <span>Bogo: {formatCurrency(kpis.revenueBogo)}</span>
+            <span title="Pendiente de liquidación por el mensajero">Mensajero: {formatCurrency(kpis.revenueCourierPending)}</span>
             <span>Caja: {formatCurrency(kpis.revenueCash)}</span>
-            <span>Transfer: {formatCurrency(kpis.revenueTransfer)}</span>
+            <span>Transferencia: {formatCurrency(kpis.revenueTransfer)}</span>
           </div>
         </div>
 
-        <KPIItem label="Paola" value={kpis.ordersPaola} />
+        <KPIItem label="Paola" value={kpis.ordersOwner} />
 
         <KPIItem label="Costos" value={formatCurrency(kpis.totalCosts)} />
         <KPIItem label="Gastos Op." value={formatCurrency(kpis.totalOperatingCosts)} />

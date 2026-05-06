@@ -31,6 +31,7 @@ import {
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import type { Order } from '@/lib/types'
+import { getCourierPending } from '@/lib/types'
 import { cn, formatCurrency } from '@/lib/utils'
 import { downloadExcel } from '@/lib/export'
 import { useUser } from '@/lib/UserContext'
@@ -186,14 +187,12 @@ export default function DashboardPage() {
   const activeOrders = orders.filter((o) =>
     ['Confirmado', 'Enviado', 'Entregado', 'Pagado'].includes(o.delivery_status)
   )
-  // Bogo deuda = pedidos Entregados pero aún no Pagados
-  const bogoDebt = delivered.reduce((s, o) => s + o.value_to_collect, 0)
+  // Pendiente de liquidación = pedidos Entregados pero aún no Pagados,
+  // típicamente plata que el mensajero ya cobró pero no nos consignó.
+  const pendingSettlement = delivered.reduce((s, o) => s + o.value_to_collect, 0)
 
   // Revenue: active orders, NOT cancelled/returned
-  const revenueBogo     = activeOrders.reduce((s, o) => s + o.payment_cash_bogo, 0)
-  const revenueCash     = activeOrders.reduce((s, o) => s + o.payment_cash, 0)
-  const revenueTransfer = activeOrders.reduce((s, o) => s + o.payment_transfer, 0)
-  const totalRevenue    = activeOrders.reduce((s, o) => s + o.value_to_collect, 0)
+  const totalRevenue = activeOrders.reduce((s, o) => s + o.value_to_collect, 0)
   const pendingRevenue  = [...confirmed, ...sent].reduce((s, o) => s + o.value_to_collect, 0)
   const paidRevenue     = paid.reduce((s, o) => s + o.value_to_collect, 0)
 
@@ -224,11 +223,11 @@ export default function DashboardPage() {
     .slice(0, 5)
 
   // Payment breakdown for pie chart (only delivered — payments registered at delivery)
-  const deliveredBogo     = delivered.reduce((s, o) => s + o.payment_cash_bogo, 0)
+  const deliveredCourierPending = delivered.reduce((s, o) => s + getCourierPending(o), 0)
   const deliveredCash     = delivered.reduce((s, o) => s + o.payment_cash, 0)
   const deliveredTransfer = delivered.reduce((s, o) => s + o.payment_transfer, 0)
   const paymentPieData = [
-    { name: 'Bogo', value: deliveredBogo },
+    { name: 'Mensajero (pendiente)', value: deliveredCourierPending },
     { name: 'Caja', value: deliveredCash },
     { name: 'Transferencia', value: deliveredTransfer },
   ].filter((d) => d.value > 0)
@@ -346,7 +345,7 @@ export default function DashboardPage() {
                 sub={
                   <SubBreakdown items={[
                     { label: 'Pagado', value: formatCurrency(paidRevenue), color: '#10b981' },
-                    { label: 'Bogo debe', value: formatCurrency(bogoDebt), color: '#f59e0b' },
+                    { label: 'Pdte. liquidación', value: formatCurrency(pendingSettlement), color: '#f59e0b' },
                     { label: 'En ruta', value: formatCurrency(pendingRevenue), color: '#3b82f6' },
                   ]} />
                 }
@@ -385,8 +384,8 @@ export default function DashboardPage() {
                 <p className="text-[10px] text-purple-500 truncate">{formatCurrency(sent.reduce((s,o)=>s+o.value_to_collect,0))}</p>
               </div>
               <div className="rounded-2xl bg-amber-50 border-2 border-amber-200 p-3">
-                <p className="text-[10px] font-semibold text-amber-600 uppercase">🚚 Bogo debe</p>
-                <p className="text-xl font-bold text-amber-700 mt-0.5">{formatCurrency(bogoDebt)}</p>
+                <p className="text-[10px] font-semibold text-amber-600 uppercase">🚚 Pendiente de liquidación</p>
+                <p className="text-xl font-bold text-amber-700 mt-0.5">{formatCurrency(pendingSettlement)}</p>
                 <p className="text-[10px] text-amber-600">{delivered.length} pedido(s) entregados</p>
               </div>
               <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">

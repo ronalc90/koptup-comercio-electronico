@@ -37,6 +37,19 @@ UPDATE inventory SET owner = 'Paola' WHERE owner IS NULL;
 -- v1.010: tipo de pago (anticipado / contra entrega / mixto / otro)
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_timing VARCHAR(20) DEFAULT 'ContraEntrega';
 UPDATE orders SET payment_timing = 'ContraEntrega' WHERE payment_timing IS NULL;
+
+-- v1.012: nombres genéricos para tipo de envío y canal del mensajero.
+-- Se renombra la columna y se normalizan los valores legacy del enum.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.columns
+             WHERE table_name='orders' AND column_name='payment_cash_bogo') THEN
+    ALTER TABLE orders RENAME COLUMN payment_cash_bogo TO payment_courier_pending;
+  END IF;
+END $$;
+UPDATE orders SET delivery_type = 'Mensajeria' WHERE delivery_type = 'Bogo';
+UPDATE orders SET delivery_type = 'Recogida'   WHERE delivery_type = 'Bodega';
+UPDATE orders SET delivery_type = 'Otro'       WHERE delivery_type = 'Otros';
         `.trim(),
         status: 'needs_manual_migration',
       }, { status: 400 });

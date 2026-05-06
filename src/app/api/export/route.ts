@@ -143,7 +143,7 @@ function buildDailySheet(
     { header: 'DETALLE', key: 'detalle', width: 35 },
     { header: 'COMENTARIO', key: 'comentario', width: 25 },
     { header: 'VALOR A COBRAR', key: 'valor_cobrar', width: 18 },
-    { header: 'EFECTIVO BOGO', key: 'bogo', width: 16 },
+    { header: 'PENDIENTE MENSAJERO', key: 'courier_pending', width: 22 },
     { header: 'CAJA', key: 'caja', width: 14 },
     { header: 'TRANSFERENCIA', key: 'transferencia', width: 16 },
     { header: 'COSTO PRODUCTO', key: 'costo', width: 16 },
@@ -166,7 +166,7 @@ function buildDailySheet(
       detalle: o.detail,
       comentario: o.comment,
       valor_cobrar: o.value_to_collect ?? 0,
-      bogo: o.payment_cash_bogo ?? 0,
+      courier_pending: (o.payment_courier_pending ?? o.payment_cash_bogo) ?? 0,
       caja: o.payment_cash ?? 0,
       transferencia: o.payment_transfer ?? 0,
       costo: o.product_cost ?? 0,
@@ -176,7 +176,7 @@ function buildDailySheet(
       comp_estado: o.status_complement ?? '',
       es_cambio: o.is_exchange ? 'Si' : 'No',
     })
-    ;['valor_cobrar', 'bogo', 'caja', 'transferencia', 'costo'].forEach((key) => {
+    ;['valor_cobrar', 'courier_pending', 'caja', 'transferencia', 'costo'].forEach((key) => {
       row.getCell(key).numFmt = MONEY_FORMAT
     })
   })
@@ -205,15 +205,15 @@ function buildGlobalSheet(
   sheet.addRow([
     'Dia',
     '# Pedidos Total',
-    '# Entrega Bogo',
-    '# Entrega Bodega',
-    '# Entrega Otros',
+    '# Entrega Mensajería',
+    '# Recogida en tienda',
+    '# Otro tipo de envío',
     '# Devoluciones',
     '# Cambios',
     '# Cancelados',
-    'Recaudo Bogo',
-    'Recaudo Caja',
-    'Recaudo Transferencia',
+    'Pendiente del mensajero',
+    'Recaudo en caja',
+    'Transferencias',
     'Total Recaudo',
     'Total Costos',
     'Total Gastos Op',
@@ -234,15 +234,16 @@ function buildGlobalSheet(
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`
     const dayOrders = orders.filter((o) => o.order_date === dateStr)
     const delivered = dayOrders.filter((o) => o.delivery_status === 'Entregado')
-    const bogo = delivered.filter((o) => o.delivery_type === 'Bogo')
-    const bodega = delivered.filter((o) => o.delivery_type === 'Bodega')
-    const otros = delivered.filter((o) => o.delivery_type === 'Otros' || (!o.delivery_type && o.delivery_status === 'Entregado'))
+    // Acepta valores legacy + canónicos v1.012
+    const courier = delivered.filter((o) => o.delivery_type === 'Mensajeria' || o.delivery_type === 'Bogo')
+    const pickup = delivered.filter((o) => o.delivery_type === 'Recogida' || o.delivery_type === 'Bodega')
+    const other = delivered.filter((o) => o.delivery_type === 'Otro' || o.delivery_type === 'Otros' || (!o.delivery_type && o.delivery_status === 'Entregado'))
     const devol = dayOrders.filter((o) => o.delivery_status === 'Devolucion')
     const cambios = dayOrders.filter((o) => o.is_exchange)
     const cancelled = dayOrders.filter((o) => o.delivery_status === 'Cancelado')
 
     const active = dayOrders.filter((o) => o.delivery_status === 'Confirmado' || o.delivery_status === 'Entregado')
-    const recaudoBogo = active.reduce((s: number, o) => s + (o.payment_cash_bogo ?? 0), 0)
+    const courierPending = active.reduce((s: number, o) => s + ((o.payment_courier_pending ?? o.payment_cash_bogo) ?? 0), 0)
     const recaudoCaja = active.reduce((s: number, o) => s + (o.payment_cash ?? 0), 0)
     const recaudoTrans = active.reduce((s: number, o) => s + (o.payment_transfer ?? 0), 0)
     const totalRecaudo = active.reduce((s: number, o) => s + (o.value_to_collect ?? 0), 0)
@@ -253,13 +254,13 @@ function buildGlobalSheet(
     const row = sheet.addRow([
       d,
       dayOrders.length,
-      bogo.length,
-      bodega.length,
-      otros.length,
+      courier.length,
+      pickup.length,
+      other.length,
       devol.length,
       cambios.length,
       cancelled.length,
-      recaudoBogo,
+      courierPending,
       recaudoCaja,
       recaudoTrans,
       totalRecaudo,

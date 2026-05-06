@@ -5,7 +5,7 @@ import { Mic, MicOff, Send, Sparkles, Check, X, Loader2, Package, ShoppingBag, S
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/lib/UserContext';
-import { isOwnerSupported, isPaymentTimingSupported } from '@/lib/db';
+import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn } from '@/lib/db';
 import { formatCurrency, generateOrderCode, parseCopAmount, vendorDisplayName } from '@/lib/utils';
 import { syncInventoryOnOrderSave } from '@/lib/inventorySync';
 import type { PaymentTiming } from '@/lib/types';
@@ -339,20 +339,23 @@ export default function AssistantPage() {
 
       // Canal del abono anticipado: si el AI lo dice, registramos el pago recibido.
       const channel = String(orderData.payment_channel_prepaid || '').toLowerCase();
-      let payment_cash = 0, payment_transfer = 0, payment_cash_bogo = 0;
+      let payment_cash = 0, payment_transfer = 0, payment_courier_pending = 0;
       if (prepaidAmount > 0) {
         if (channel === 'transfer' || channel === 'nequi' || channel === 'daviplata') payment_transfer = prepaidAmount;
         else if (channel === 'cash') payment_cash = prepaidAmount;
-        else if (channel === 'bogo') payment_cash_bogo = prepaidAmount;
+        // 'courier' / 'mensajero' / legacy 'bogo' → pendiente de liquidación
+        else if (channel === 'courier' || channel === 'mensajero' || channel === 'bogo') payment_courier_pending = prepaidAmount;
       }
 
+      const courierColumn = await courierPendingColumn();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const basePayload: any = {
         order_code: orderCode, client_name: orderData.client_name || '', phone: String(orderData.phone || ''),
         city: String(orderData.city || 'Bogotá'), address: String(orderData.address || ''), complement: String(orderData.complement || ''),
         product_ref: String(orderData.product_ref || ''), detail: String(orderData.detail || ''), comment: String(orderData.comment || ''),
         value_to_collect: valueToCollect, delivery_status: 'Confirmado', vendor: vendorDisplayName(owner), order_date: dateStr,
-        payment_cash_bogo, payment_cash, payment_transfer, product_cost: 0, operating_cost: 0, prepaid_amount: prepaidAmount, is_exchange: false,
+        [courierColumn]: payment_courier_pending,
+        payment_cash, payment_transfer, product_cost: 0, operating_cost: 0, prepaid_amount: prepaidAmount, is_exchange: false,
         status_complement: '',
       };
       if (hasOwner) basePayload.owner = owner;
@@ -458,7 +461,12 @@ export default function AssistantPage() {
         const ns = String(sd.new_status || 'Entregado');
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const mergedChanges: any = { delivery_status: ns };
-        if (sd.payment_cash_bogo) mergedChanges.payment_cash_bogo = Number(sd.payment_cash_bogo);
+        // El AI puede mandar el campo nuevo (payment_courier_pending) o el legacy (payment_cash_bogo).
+        const courierAmt = sd.payment_courier_pending ?? sd.payment_cash_bogo;
+        if (courierAmt) {
+          const col = await courierPendingColumn();
+          mergedChanges[col] = Number(courierAmt);
+        }
         if (sd.payment_cash) mergedChanges.payment_cash = Number(sd.payment_cash);
         if (sd.payment_transfer) mergedChanges.payment_transfer = Number(sd.payment_transfer);
         await supabase.from('orders').update(mergedChanges).eq('id', order.id);

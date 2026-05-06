@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS orders (
   detail TEXT,
   comment TEXT,
   value_to_collect INTEGER DEFAULT 0,
-  payment_cash_bogo INTEGER DEFAULT 0,
+  -- v1.012: renombrada desde payment_cash_bogo. Efectivo cobrado por el
+  -- mensajero/courier que aún no se ha liquidado al negocio.
+  payment_courier_pending INTEGER DEFAULT 0,
   payment_cash INTEGER DEFAULT 0,
   payment_transfer INTEGER DEFAULT 0,
   product_cost INTEGER DEFAULT 0,

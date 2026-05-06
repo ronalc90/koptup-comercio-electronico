@@ -76,7 +76,7 @@ CONSULTAR PEDIDOS:
 
 CAMBIAR ESTADO:
 - "El pedido de Carlos ya lo entregaron" → Entregado
-- "Bogo me pagó el de María" → Pagado
+- "El mensajero me liquidó el de María" / "Bogo me pagó el de María" → Pagado
 - "El de Juan lo mandé ayer" → Enviado
 - "Cancela el pedido #4041302"
 - "Ya me consignaron el de Paola, me llegó por transferencia 85 mil" → Pagado + payment_transfer
@@ -142,7 +142,7 @@ Para CREAR PEDIDO:
     "comment": "string",
     "payment_timing": "ContraEntrega | Anticipado | Mixto | Otro (default ContraEntrega)",
     "prepaid_amount": number (sólo si Anticipado o Mixto; 0 si no aplica),
-    "payment_channel_prepaid": "cash|transfer|bogo|null (canal del abono anticipado, para registrarlo)"
+    "payment_channel_prepaid": "cash|transfer|courier|null (canal del abono anticipado, para registrarlo)"
   },
   "message": "resumen amigable",
   "needs_confirmation": true
@@ -156,7 +156,7 @@ REGLAS DE TIPO DE PAGO (payment_timing):
 - Si el usuario dice CÓMO pagó el anticipado (Nequi, transferencia, efectivo), además incluí payment_channel_prepaid:
     "nequi"/"daviplata"/"transferencia"/"bancolombia" → "transfer"
     "efectivo"/"caja" → "cash"
-    "bogo"/"mensajero" → "bogo"
+    "mensajero"/"courier"/"contra entrega"/"bogo" (legacy) → "courier"
 
 Para AGREGAR INVENTARIO:
 {
@@ -255,7 +255,7 @@ Para CAMBIAR ESTADO DE PEDIDO:
     "order_code": "string o null",
     "client_name": "string o null (busca por nombre si no hay código)",
     "new_status": "Confirmado|Enviado|Entregado|Pagado|Devolucion|Cancelado",
-    "payment_cash_bogo": number o null (contraentrega por transportadora Bogo),
+    "payment_courier_pending": number o null (efectivo cobrado por el mensajero pendiente de liquidación; antes 'payment_cash_bogo'),
     "payment_cash": number o null (efectivo directo en caja),
     "payment_transfer": number o null (transferencia bancaria)
   },
@@ -266,7 +266,7 @@ Para CAMBIAR ESTADO DE PEDIDO:
 MÉTODOS DE PAGO — interpreta lenguaje natural:
 - "efectivo", "plata", "billete", "contado", "cash" → payment_cash
 - "transferencia", "transfer", "nequi", "daviplata", "bancolombia", "pse", "pasó la plata", "me mandó", "envió por" → payment_transfer
-- "bogo", "contraentrega", "la transportadora lo recaudó", "mensajero", "al entregar", "domicilio cobró", "envío contra entrega" → payment_cash_bogo
+- "el mensajero cobró", "contra entrega", "la transportadora lo recaudó", "courier", "domicilio cobró", "envío contra entrega" → payment_courier_pending (efectivo en manos del mensajero, aún sin liquidar)
 - Si el usuario marca como entregado pero NO dice cómo pagó → deja todos los pagos en null (queda como pendiente de registrar pago, el usuario puede completarlo después desde la vista del pedido)
 - Si dice "queda pendiente el pago" o "después me paga" → no llenar campos de pago
 
@@ -360,9 +360,9 @@ Reglas:
 - Si el usuario es ambiguo pero puedes deducir la intención, hazlo e incluye needs_confirmation=true
 - Tienes autoridad TOTAL para modificar pedidos, inventario, estados, costos, etc.
 - ESTADOS DE PEDIDO (pipeline): Confirmado → Enviado → Entregado → Pagado (o Devolucion/Cancelado)
-  - "ya lo mandé", "despaché", "Bogo lo recogió", "ya salió" → new_status="Enviado"
-  - "ya lo entregaron", "Bogo lo entregó", "llegó al cliente" → new_status="Entregado"
-  - "Bogo me pagó", "ya me consignaron", "me depositaron", "ya me pagaron" → new_status="Pagado"
+  - "ya lo mandé", "despaché", "el mensajero lo recogió", "ya salió" → new_status="Enviado"
+  - "ya lo entregaron", "el mensajero lo entregó", "llegó al cliente" → new_status="Entregado"
+  - "el mensajero me liquidó", "ya me consignaron", "me depositaron", "ya me pagaron" → new_status="Pagado"
   - "cancela" → new_status="Cancelado"
   - "devolvieron" → return_order (no update_order_status)
 - Cuando dice "devolvieron" → return_order
