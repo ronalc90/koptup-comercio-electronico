@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
-import { getServiceClient } from '@/lib/supabase';
+import { getScopedServiceClient } from '@/lib/tenantServer';
 
 const CONFIRMATION_PHRASE = 'Acepto';
 
@@ -35,7 +35,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = getServiceClient();
+    // Cliente acotado al tenant del usuario: el wipe SOLO borra los datos de
+    // su propio negocio, nunca los de otro tenant.
+    const supabase = await getScopedServiceClient(session);
 
     // Borrar usando una condición siempre verdadera en la PK (id > 0).
     const tables = ['orders', 'inventory', 'products', 'expenses'] as const;

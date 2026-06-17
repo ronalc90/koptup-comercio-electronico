@@ -3,4 +3,4 @@
  * Convención: cada cambio/entrega incrementa en 0.001.
  * Se muestra en /settings.
  */
-export const APP_VERSION = '1.012';
+export const APP_VERSION = '1.013';

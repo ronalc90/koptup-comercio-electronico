@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.013',
+    date: '2026-06-16',
+    highlights: [
+      'Plataforma multi-tenant (Fase 1): la misma instalación puede atender varios negocios. Se crean los tenants "Meraki" (pantuflas, maxisacos, bolsos, pocillos) y "PrimeraMayo" (cascos, repuestos y accesorios de moto).',
+      'Aislamiento de datos: cada usuario solo ve los datos de su negocio. Un guard automático acota TODAS las consultas por tenant (en cliente y servidor), sin tocar las pantallas existentes.',
+      'Retrocompatibilidad total: la app sigue funcionando igual antes y después de aplicar la migración SQL; el guard solo se activa cuando la base ya tiene la columna tenant_id.',
+      'Usuarios y roles: tabla de usuarios real con contraseña cifrada (bcrypt) y roles (admin / equipo / solo lectura). Los usuarios actuales (paola, ronald, lizeth) siguen entrando igual.',
+      'Marca por negocio: logo, nombre y colores propios por tenant (visibles en la barra lateral y el tema).',
+      'Agentes IA (Fase 2): Auditor, QA, Inventario, Financiero y Comercial — analizan automáticamente cada negocio y muestran hallazgos en la nueva pantalla "Agentes IA".',
+      'Gate de validación pre-despliegue: lint + typecheck + tests + migraciones + seguridad + aislamiento (npm run validate). No se despliega si algo falla.',
+      'Pruebas: +21 unit tests nuevos (guard de aislamiento, config de tenant, JWT con tenant, y los 5 agentes).',
+    ],
+  },
+  {
     version: '1.012',
     date: '2026-04-29',
     highlights: [

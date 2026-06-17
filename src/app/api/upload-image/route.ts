@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceClient } from '@/lib/supabase';
+import { getRequestScopedClient } from '@/lib/tenantServer';
 
 export async function POST(request: NextRequest) {
   try {
@@ -9,7 +9,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
     }
 
-    const supabase = getServiceClient();
+    // Cliente acotado al tenant + carpeta namespaced por tenant: los assets de
+    // un negocio no colisionan ni se mezclan con los de otro.
+    const { ctx, client: supabase } = await getRequestScopedClient();
 
     // Convert base64 to buffer
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
@@ -23,7 +25,7 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).slice(2, 8);
-    const filePath = `${folder || 'products'}/${timestamp}-${randomId}.${ext}`;
+    const filePath = `t${ctx.tenantId}/${folder || 'products'}/${timestamp}-${randomId}.${ext}`;
 
     const { error } = await supabase.storage
       .from('product-images')

@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { getServiceClient } from '@/lib/supabase';
+import { getRequestScopedClient } from '@/lib/tenantServer';
 
 async function resolveApiKey(): Promise<string | null> {
   try {
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
     const { data, error } = await supabase
       .from('settings')
       .select('value')

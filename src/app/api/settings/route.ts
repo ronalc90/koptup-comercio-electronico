@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceClient } from '@/lib/supabase';
+import { getRequestScopedClient } from '@/lib/tenantServer';
 
 const MASKED_KEYS = ['openai_api_key'];
 
@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const key = searchParams.get('key');
 
   try {
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
 
     if (key) {
       const { data, error } = await supabase
@@ -80,7 +80,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'El campo "value" es requerido' }, { status: 400 });
     }
 
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
 
     const { error } = await supabase
       .from('settings')

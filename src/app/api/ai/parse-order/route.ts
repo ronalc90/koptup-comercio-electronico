@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { getServiceClient } from '@/lib/supabase';
+import { getRequestScopedClient } from '@/lib/tenantServer';
 
 const SYSTEM_PROMPT = `Eres un asistente de "Tu Tienda Meraki", un negocio colombiano de pantuflas, maxisacos y accesorios.
 
@@ -47,7 +47,7 @@ Reglas:
 
 async function resolveApiKey(): Promise<string | null> {
   try {
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
     const { data, error } = await supabase
       .from('settings')
       .select('value')

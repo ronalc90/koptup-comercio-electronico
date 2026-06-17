@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { getServiceClient } from '@/lib/supabase';
+import { getRequestScopedClient } from '@/lib/tenantServer';
 
 async function resolveApiKey(): Promise<string | null> {
   try {
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
     const { data, error } = await supabase.from('settings').select('value').eq('key', 'openai_api_key').maybeSingle();
     if (!error && data?.value?.trim()) return data.value.trim();
   } catch { /* fall through */ }
@@ -394,7 +394,7 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey });
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
 
     const now = new Date();
     const dateInfo = `Fecha y hora actual: ${now.toISOString().slice(0, 10)} (${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}). Mes actual: ${now.getMonth() + 1}, Año: ${now.getFullYear()}.`;

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
-import { getServiceClient } from '@/lib/supabase'
+import { getRequestScopedClient } from '@/lib/tenantServer'
 import { isOwnerSupported } from '@/lib/db'
 
 const HEADER_FILL: ExcelJS.Fill = {
@@ -292,7 +292,7 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get('date')
   const owner = searchParams.get('owner')
 
-  const supabase = getServiceClient()
+  const { client: supabase } = await getRequestScopedClient()
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Tu Tienda Meraki'
   workbook.created = new Date()

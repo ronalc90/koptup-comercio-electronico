@@ -11,8 +11,17 @@ import {
   Truck,
   Settings,
   LogOut,
+  Bot,
 } from 'lucide-react';
 import { useState } from 'react';
+import { useTenant } from '@/lib/TenantContext';
+import { useUser } from '@/lib/UserContext';
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: 'Administrador',
+  member: 'Equipo',
+  viewer: 'Solo lectura',
+};
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -21,6 +30,7 @@ const navItems = [
   { href: '/inventory', label: 'Inventario', icon: Package },
   { href: '/products', label: 'Productos', icon: Tag },
   { href: '/dispatch', label: 'Despacho', icon: Truck },
+  { href: '/agents', label: 'Agentes IA', icon: Bot },
   { href: '/settings', label: 'Config', icon: Settings },
 ];
 
@@ -32,6 +42,8 @@ interface SidebarNavProps {
 export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { config, role } = useTenant();
+  const username = useUser();
   const [loggingOut, setLoggingOut] = useState(false);
 
   async function handleLogout() {
@@ -62,12 +74,12 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
       {/* Brand header */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100 min-h-[68px]">
         <span className="text-2xl flex-shrink-0" aria-hidden="true">
-          🩴
+          {config.logo}
         </span>
         {!collapsed && (
           <div className="overflow-hidden">
             <h1 className="font-bold text-gray-900 text-sm leading-tight truncate">
-              Tu Tienda Meraki
+              {config.name}
             </h1>
           </div>
         )}
@@ -150,12 +162,14 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
           `}
         >
           <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-sm font-bold text-purple-700">P</span>
+            <span className="text-sm font-bold text-purple-700">
+              {(username || '?').charAt(0).toUpperCase()}
+            </span>
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-900 truncate">Paola</p>
-              <p className="text-xs text-gray-400 truncate">Administradora</p>
+              <p className="text-sm font-semibold text-gray-900 truncate capitalize">{username}</p>
+              <p className="text-xs text-gray-400 truncate">{ROLE_LABELS[role] ?? 'Equipo'}</p>
             </div>
           )}
           {!collapsed && (

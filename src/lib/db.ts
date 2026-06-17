@@ -3,6 +3,35 @@ import { supabase, supabaseConfigured } from './supabase';
 let _ownerSupported: boolean | null = null;
 let _paymentTimingSupported: boolean | null = null;
 let _courierPendingRenamed: boolean | null = null;
+let _tenantSupported: boolean | null = null;
+
+/**
+ * Detecta si la migración multi-tenant (002) ya corrió comprobando la columna
+ * `tenant_id` en `orders`. Mientras devuelva false, el guard multi-tenant
+ * permanece desarmado y la app funciona EXACTAMENTE igual que antes.
+ * Cachea el resultado.
+ */
+export async function isTenantSupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  // Solo cacheamos el `true`: una vez aplicada, la migración no se revierte. El
+  // `false` NO se cachea, así un proceso que arrancó antes de la migración la
+  // detecta en cuanto corre (si no, quedaría como passthrough hasta reiniciar).
+  if (_tenantSupported === true) return true;
+  try {
+    const { error } = await supabase.from('orders').select('tenant_id').limit(1);
+    if (!error) {
+      _tenantSupported = true;
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+export function resetTenantCache() {
+  _tenantSupported = null;
+}
 
 export async function isOwnerSupported(): Promise<boolean> {
   if (!supabaseConfigured) return false;

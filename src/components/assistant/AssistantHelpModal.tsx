@@ -172,16 +172,16 @@ export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps)
               <li className="flex gap-2">
                 <span className="text-purple-500">•</span>
                 <span>
-                  <strong>Puede hacer varias cosas en un mensaje</strong>. Ej: "llegaron 5 maxisacos
-                  a 45 mil y pagué 25 mil de transporte" = agrega inventario + registra gasto en un
+                  <strong>Puede hacer varias cosas en un mensaje</strong>. Ej: &quot;llegaron 5 maxisacos
+                  a 45 mil y pagué 25 mil de transporte&quot; = agrega inventario + registra gasto en un
                   solo paso.
                 </span>
               </li>
               <li className="flex gap-2">
                 <span className="text-purple-500">•</span>
                 <span>
-                  <strong>Reconoce voz</strong>: si oye algo raro ("te desarmadas" en vez de
-                  "almohadas"), pregunta para confirmar.
+                  <strong>Reconoce voz</strong>: si oye algo raro (&quot;te desarmadas&quot; en vez de
+                  &quot;almohadas&quot;), pregunta para confirmar.
                 </span>
               </li>
               <li className="flex gap-2">
@@ -217,8 +217,8 @@ export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps)
           {/* Tip final */}
           <div className="rounded-xl border border-gray-100 bg-gray-50 p-3 text-xs text-gray-600">
             <strong className="text-gray-900">Tip:</strong> no necesitas usar palabras exactas —
-            habla normal. El asistente interpreta "pasaste plata", "contraentrega", "al entregar",
-            "ya me consignaron", etc. Si algo no te cuadra, respondé "no" y corregilo.
+            habla normal. El asistente interpreta &quot;pasaste plata&quot;, &quot;contraentrega&quot;, &quot;al entregar&quot;,
+            &quot;ya me consignaron&quot;, etc. Si algo no te cuadra, respondé &quot;no&quot; y corregilo.
           </div>
         </div>
 

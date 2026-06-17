@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServiceClient } from '@/lib/supabase';
+import { getRequestScopedClient } from '@/lib/tenantServer';
 import ExcelJS from 'exceljs';
 
 // Column mappings: Excel header → database field
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer as ArrayBuffer);
 
-    const supabase = getServiceClient();
+    const { client: supabase } = await getRequestScopedClient();
     const results: { type: string; inserted: number; errors: string[] }[] = [];
 
     for (const sheet of workbook.worksheets) {
