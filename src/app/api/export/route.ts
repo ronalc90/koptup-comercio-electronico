@@ -292,7 +292,9 @@ export async function GET(request: NextRequest) {
   const date = searchParams.get('date')
   const owner = searchParams.get('owner')
 
-  const { client: supabase } = await getRequestScopedClient()
+  const scoped = await getRequestScopedClient()
+  if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const supabase = scoped.client
   const workbook = new ExcelJS.Workbook()
   workbook.creator = 'Tu Tienda Meraki'
   workbook.created = new Date()

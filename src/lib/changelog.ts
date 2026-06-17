@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.014',
+    date: '2026-06-17',
+    highlights: [
+      'Aislamiento forzado por la base de datos (opt-in): la app puede firmar un token por usuario con su tenant para que las políticas RLS (migración 003) bloqueen el cruce de datos entre negocios incluso saltándose la app. Se activa al configurar SUPABASE_JWT_SECRET; si no, todo sigue igual.',
+      'Automatizaciones (Fase 3): nuevo motor que convierte los hallazgos de los agentes en alertas accionables (reposición automática, stock, ventas, devoluciones, garantías/defectuosos, finanzas) con acción sugerida. Visibles en la pantalla "Agentes IA".',
+      'Marketplace de módulos (Fase 4): la navegación se arma desde un registro de módulos por tenant. Cada negocio habilita sus módulos y les pone su propio nombre (PrimeraMayo muestra "Catálogo" y "Ventas").',
+      'Administración (Fase 5): pantalla y API para administradores — crear usuarios del propio negocio, cambiar rol (admin/equipo/solo lectura), activar/desactivar y ver el plan. Todo acotado al propio negocio.',
+      'Seguridad: todas las rutas de datos exigen sesión válida (sin caer a un tenant por defecto); rutas de IA, exportar/importar, subir imagen y migrar quedan autenticadas; subida de imágenes con tipo y tamaño validados; rol mínimo por defecto.',
+      'Pruebas: nuevos unit tests (firma de token, motor de automatizaciones, registro de módulos). 99 en total.',
+    ],
+  },
+  {
     version: '1.013',
     date: '2026-06-16',
     highlights: [

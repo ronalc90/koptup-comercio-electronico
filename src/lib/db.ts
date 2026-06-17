@@ -29,10 +29,6 @@ export async function isTenantSupported(): Promise<boolean> {
   }
 }
 
-export function resetTenantCache() {
-  _tenantSupported = null;
-}
-
 export async function isOwnerSupported(): Promise<boolean> {
   if (!supabaseConfigured) return false;
   if (_ownerSupported !== null) return _ownerSupported;
@@ -77,16 +73,4 @@ export async function isCourierPendingRenamed(): Promise<boolean> {
 /** Devuelve el nombre real de la columna a escribir según haya corrido o no la migración. */
 export async function courierPendingColumn(): Promise<'payment_courier_pending' | 'payment_cash_bogo'> {
   return (await isCourierPendingRenamed()) ? 'payment_courier_pending' : 'payment_cash_bogo';
-}
-
-export function resetOwnerCache() {
-  _ownerSupported = null;
-}
-
-export function resetPaymentTimingCache() {
-  _paymentTimingSupported = null;
-}
-
-export function resetCourierPendingCache() {
-  _courierPendingRenamed = null;
 }

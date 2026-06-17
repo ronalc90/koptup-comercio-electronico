@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServiceClient } from '@/lib/supabase';
+import { requireAdmin } from '@/lib/admin';
 
 export async function POST() {
+  // Endpoint de esquema/DDL: solo admins. (Lo ideal es correr el DDL a mano en
+  // el SQL Editor de Supabase; este endpoint queda como ayuda.)
+  const auth = await requireAdmin();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+
   const supabase = getServiceClient();
 
   // Check if owner column already exists

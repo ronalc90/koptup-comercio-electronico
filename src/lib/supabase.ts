@@ -148,32 +148,55 @@ export function getActiveTenantId(): number | null {
   return _activeTenantId;
 }
 
-function wrapBrowser(client: SupabaseClient): SupabaseClient {
-  return new Proxy(client, {
-    get(target, prop, receiver) {
-      if (prop === 'from') {
-        return (table: string) => {
-          const tid = _activeTenantId;
-          const builder = target.from(table) as unknown as AnyBuilder;
-          if (tid == null || !isTenantTable(table)) return builder;
-          return guardBuilder(builder, table, tid);
-        };
-      }
-      return Reflect.get(target, prop, receiver);
-    },
-  }) as SupabaseClient;
-}
-
 const rawBrowserClient: SupabaseClient = isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey)
   : createMockClient();
 
+// ---- Token de Supabase por usuario (ruta de hardening, opt-in) --------------
+// Si la app firma un JWT con tenant_id (SUPABASE_JWT_SECRET configurada), el
+// TenantProvider lo inyecta aquí y el cliente del navegador lo usa como bearer,
+// de modo que RLS (migración 003) fuerza el aislamiento en la BD. Si no hay
+// token, se usa el cliente anon de siempre.
+let _authedClient: SupabaseClient | null = null;
+let _sbToken: string | null = null;
+
+export function setSupabaseAuthToken(token: string | null): void {
+  if (token === _sbToken) return;
+  _sbToken = token;
+  _authedClient = token && isConfigured
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: `Bearer ${token}` } },
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+    : null;
+}
+
+function activeBrowserClient(): SupabaseClient {
+  return _authedClient ?? rawBrowserClient;
+}
+
 /**
- * Cliente de Supabase para el navegador. Una vez el TenantProvider llama a
- * `setActiveTenant(id)` (solo si la migración multi-tenant ya corrió), todas
- * las consultas quedan acotadas al tenant del usuario logueado.
+ * Cliente de Supabase para el navegador. Proxy dinámico: cada `.from()` usa el
+ * cliente activo (authed si hay token, anon si no) y, una vez el TenantProvider
+ * llama a `setActiveTenant(id)`, acota toda consulta al tenant del usuario.
  */
-export const supabase: SupabaseClient = isConfigured ? wrapBrowser(rawBrowserClient) : rawBrowserClient;
+export const supabase: SupabaseClient = isConfigured
+  ? (new Proxy({} as SupabaseClient, {
+      get(_t, prop) {
+        const client = activeBrowserClient();
+        if (prop === 'from') {
+          return (table: string) => {
+            const tid = _activeTenantId;
+            const builder = client.from(table) as unknown as AnyBuilder;
+            if (tid == null || !isTenantTable(table)) return builder;
+            return guardBuilder(builder, table, tid);
+          };
+        }
+        const val = Reflect.get(client, prop);
+        return typeof val === 'function' ? val.bind(client) : val;
+      },
+    }) as SupabaseClient)
+  : rawBrowserClient;
 
 export const supabaseConfigured = isConfigured;
 

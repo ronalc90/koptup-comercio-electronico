@@ -1,0 +1,148 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import toast from 'react-hot-toast';
+import { UserPlus, ShieldCheck } from 'lucide-react';
+import { useTenant } from '@/lib/TenantContext';
+
+interface AdminUser {
+  id: number;
+  email: string;
+  username: string | null;
+  role: string;
+  active: boolean;
+}
+interface TenantProfile {
+  id: number;
+  name: string;
+  slug: string;
+  plan: string;
+  industry: string | null;
+}
+
+const ROLES = ['admin', 'member', 'viewer'];
+
+export default function AdminPage() {
+  const { role } = useTenant();
+  const [users, setUsers] = useState<AdminUser[]>([]);
+  const [tenant, setTenant] = useState<TenantProfile | null>(null);
+  const [form, setForm] = useState({ email: '', username: '', password: '', role: 'member' });
+  const [busy, setBusy] = useState(false);
+
+  const load = useCallback(async () => {
+    const [u, t] = await Promise.all([
+      fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/admin/tenant', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+    ]);
+    setUsers(u.users ?? []);
+    setTenant(t.tenant ?? null);
+  }, []);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const [u, t] = await Promise.all([
+        fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+        fetch('/api/admin/tenant', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      ]);
+      if (active) { setUsers(u.users ?? []); setTenant(t.tenant ?? null); }
+    })();
+    return () => { active = false; };
+  }, []);
+
+  async function addUser() {
+    if (!form.email || !form.password) { toast.error('Email y contraseña requeridos'); return; }
+    setBusy(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo crear');
+      toast.success('Usuario creado');
+      setForm({ email: '', username: '', password: '', role: 'member' });
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateUser(id: number, patch: { role?: string; active?: boolean }) {
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...patch }),
+    });
+    if (res.ok) { toast.success('Actualizado'); await load(); }
+    else toast.error('No se pudo actualizar');
+  }
+
+  if (role !== 'admin') {
+    return <p className="text-sm text-gray-500">Esta sección es solo para administradores.</p>;
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto space-y-5">
+      <div className="flex items-center gap-2">
+        <ShieldCheck className="w-6 h-6" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
+        <h1 className="text-2xl font-bold text-gray-900">Administración</h1>
+      </div>
+
+      {tenant && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <h2 className="font-bold text-gray-900 text-sm mb-1">Negocio</h2>
+          <p className="text-sm text-gray-600">{tenant.name} · plan <span className="font-semibold">{tenant.plan}</span></p>
+        </div>
+      )}
+
+      {/* Alta de usuario */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <UserPlus className="w-5 h-5" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
+          <h2 className="font-bold text-gray-900 text-sm">Nuevo usuario</h2>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input className="rounded-xl border px-3 py-2 text-sm" placeholder="email" value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <input className="rounded-xl border px-3 py-2 text-sm" placeholder="usuario" value={form.username}
+            onChange={(e) => setForm({ ...form, username: e.target.value })} />
+          <input className="rounded-xl border px-3 py-2 text-sm" placeholder="contraseña" type="password" value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <select className="rounded-xl border px-3 py-2 text-sm" value={form.role}
+            onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+        </div>
+        <button onClick={addUser} disabled={busy}
+          className="mt-3 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          style={{ background: 'var(--brand-primary, #7c3aed)' }}>
+          {busy ? 'Creando…' : 'Crear usuario'}
+        </button>
+      </div>
+
+      {/* Lista de usuarios */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <h2 className="font-bold text-gray-900 text-sm mb-3">Usuarios ({users.length})</h2>
+        <ul className="divide-y divide-gray-100">
+          {users.map((u) => (
+            <li key={u.id} className="flex items-center gap-3 py-2 text-sm">
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>
+                <p className="text-xs text-gray-400 truncate">{u.email}</p>
+              </div>
+              <select className="rounded-lg border px-2 py-1 text-xs" value={u.role}
+                onChange={(e) => updateUser(u.id, { role: e.target.value })}>
+                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+              <button onClick={() => updateUser(u.id, { active: !u.active })}
+                className={`rounded-lg px-2 py-1 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                {u.active ? 'Activo' : 'Inactivo'}
+              </button>
+            </li>
+          ))}
+          {users.length === 0 && <li className="text-xs text-gray-400 py-2">Sin usuarios.</li>}
+        </ul>
+      </div>
+    </div>
+  );
+}

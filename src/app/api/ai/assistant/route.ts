@@ -4,9 +4,11 @@ import { getRequestScopedClient } from '@/lib/tenantServer';
 
 async function resolveApiKey(): Promise<string | null> {
   try {
-    const { client: supabase } = await getRequestScopedClient();
-    const { data, error } = await supabase.from('settings').select('value').eq('key', 'openai_api_key').maybeSingle();
-    if (!error && data?.value?.trim()) return data.value.trim();
+    const scoped = await getRequestScopedClient();
+    if (scoped) {
+      const { data, error } = await scoped.client.from('settings').select('value').eq('key', 'openai_api_key').maybeSingle();
+      if (!error && data?.value?.trim()) return data.value.trim();
+    }
   } catch { /* fall through */ }
   return process.env.OPENAI_API_KEY ?? null;
 }
@@ -394,7 +396,9 @@ export async function POST(request: NextRequest) {
     }
 
     const openai = new OpenAI({ apiKey });
-    const { client: supabase } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const supabase = scoped.client;
 
     const now = new Date();
     const dateInfo = `Fecha y hora actual: ${now.toISOString().slice(0, 10)} (${now.toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}). Mes actual: ${now.getMonth() + 1}, Año: ${now.getFullYear()}.`;

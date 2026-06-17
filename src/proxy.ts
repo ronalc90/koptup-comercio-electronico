@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout'];
-const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/inventory', '/products', '/dispatch', '/settings', '/assistant', '/agents', '/api/ai', '/api/agents'];
+const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/inventory', '/products', '/dispatch', '/settings', '/assistant', '/agents', '/admin', '/api/ai', '/api/agents', '/api/automations', '/api/admin', '/api/settings', '/api/export', '/api/import', '/api/upload-image', '/api/account'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;

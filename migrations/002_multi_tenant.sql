@@ -21,9 +21,12 @@ CREATE TABLE IF NOT EXISTS tenants (
   slug        VARCHAR(50) UNIQUE NOT NULL,
   logo        TEXT,                       -- emoji, URL o data-uri
   industry    VARCHAR(50),
+  plan        VARCHAR(20) DEFAULT 'free', -- free | pro | enterprise (Fase 5)
   active      BOOLEAN DEFAULT true,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
+-- Idempotente si la tabla ya existía sin la columna.
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan VARCHAR(20) DEFAULT 'free';
 
 -- 2) Seed de tenants iniciales -----------------------------------------------
 --    El tenant 1 (meraki) es el destino del backfill de todos los datos viejos.

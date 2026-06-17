@@ -111,7 +111,9 @@ else record('3. unit tests', true, 'omitido (--skip-tests)');
       if (f.isDirectory()) { walk(p); continue; }
       if (f.name !== 'route.ts') continue;
       const rel = p.replace(root + '/', '');
-      if (rel.includes('api/migrate')) continue; // admin/DDL: permitido
+      // Permitidos: migrate (DDL) y api/admin (gestiona users/tenants, que NO son
+      // tablas del guard, y filtra tenant_id manualmente con doble .eq).
+      if (rel.includes('api/migrate') || rel.includes('api/admin')) continue;
       const c = readFileSync(p, 'utf8');
       if (/getServiceClient\s*\(/.test(c)) offenders.push(rel);
     }

@@ -25,7 +25,7 @@ export function analyzeInventario(data: TenantData, meta: AgentMeta) {
     if (qty <= 0) {
       findings.push({
         id: `stockout-${it.id}`, severity: 'critical', title: 'Quiebre de stock',
-        detail: `${name} sin existencias. Reponer a ${REORDER_TARGET}.`, entity: name, value: 0,
+        detail: `${name} sin existencias. Reponer a ${REORDER_TARGET}.`, entity: name, value: qty,
       });
     } else if (qty <= LOW_STOCK) {
       findings.push({

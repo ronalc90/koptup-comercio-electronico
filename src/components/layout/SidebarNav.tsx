@@ -12,10 +12,12 @@ import {
   Settings,
   LogOut,
   Bot,
+  ShieldCheck,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, type ElementType } from 'react';
 import { useTenant } from '@/lib/TenantContext';
 import { useUser } from '@/lib/UserContext';
+import { tenantNav, type ModuleKey } from '@/lib/modules';
 
 const ROLE_LABELS: Record<string, string> = {
   admin: 'Administrador',
@@ -23,16 +25,16 @@ const ROLE_LABELS: Record<string, string> = {
   viewer: 'Solo lectura',
 };
 
-const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/orders', label: 'Pedidos', icon: ShoppingBag },
-  { href: '/assistant', label: 'Asistente IA', icon: Plus, isAccent: true },
-  { href: '/inventory', label: 'Inventario', icon: Package },
-  { href: '/products', label: 'Productos', icon: Tag },
-  { href: '/dispatch', label: 'Despacho', icon: Truck },
-  { href: '/agents', label: 'Agentes IA', icon: Bot },
-  { href: '/settings', label: 'Config', icon: Settings },
-];
+const MODULE_ICONS: Record<ModuleKey, ElementType> = {
+  dashboard: LayoutDashboard,
+  pedidos: ShoppingBag,
+  asistente: Plus,
+  inventario: Package,
+  productos: Tag,
+  despachos: Truck,
+  agentes: Bot,
+  config: Settings,
+};
 
 interface SidebarNavProps {
   collapsed: boolean;
@@ -45,6 +47,18 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   const { config, role } = useTenant();
   const username = useUser();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // Navegación construida desde el registro de módulos según el tenant.
+  const navItems = tenantNav(config.navModules, config.moduleLabels).map((m) => ({
+    href: m.route,
+    label: m.label,
+    icon: MODULE_ICONS[m.key] as typeof Bot,
+    isAccent: m.accent,
+  }));
+  // La sección de administración solo se muestra a admins.
+  if (role === 'admin') {
+    navItems.push({ href: '/admin', label: 'Administración', icon: ShieldCheck, isAccent: false });
+  }
 
   async function handleLogout() {
     setLoggingOut(true);

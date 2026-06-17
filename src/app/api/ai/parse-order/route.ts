@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getRequestScopedClient } from '@/lib/tenantServer';
+import { getSession } from '@/lib/auth';
 
 const SYSTEM_PROMPT = `Eres un asistente de "Tu Tienda Meraki", un negocio colombiano de pantuflas, maxisacos y accesorios.
 
@@ -47,7 +48,9 @@ Reglas:
 
 async function resolveApiKey(): Promise<string | null> {
   try {
-    const { client: supabase } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return process.env.OPENAI_API_KEY ?? null;
+    const supabase = scoped.client;
     const { data, error } = await supabase
       .from('settings')
       .select('value')
@@ -64,6 +67,9 @@ async function resolveApiKey(): Promise<string | null> {
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await getSession())) {
+    return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
   const apiKey = await resolveApiKey();
 
   if (!apiKey) {

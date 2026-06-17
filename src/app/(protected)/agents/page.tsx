@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { RefreshCw, ShieldCheck, Bug, Boxes, DollarSign, TrendingUp } from 'lucide-react';
+import { RefreshCw, ShieldCheck, Bug, Boxes, DollarSign, TrendingUp, Bell } from 'lucide-react';
 import type { AgentKey, AgentReport, Severity } from '@/lib/agents/types';
+import type { AutomationResult } from '@/lib/automations/types';
 
 const AGENTS: { key: AgentKey; label: string; desc: string; icon: React.ElementType }[] = [
   { key: 'auditor', label: 'Auditor', desc: 'Errores de negocio e inconsistencias', icon: ShieldCheck },
@@ -32,14 +33,27 @@ async function fetchAll() {
   return Object.fromEntries(entries);
 }
 
+async function fetchAutomations(): Promise<AutomationResult | null> {
+  try {
+    const res = await fetch('/api/automations/run', { cache: 'no-store' });
+    const json = await res.json();
+    return 'error' in json ? null : (json as AutomationResult);
+  } catch {
+    return null;
+  }
+}
+
 export default function AgentsPage() {
   const [reports, setReports] = useState<Record<string, AgentReport | { error: string } | null>>({});
+  const [automations, setAutomations] = useState<AutomationResult | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Refresco manual (handler de evento): puede tocar estado de inmediato.
   const load = useCallback(async () => {
     setLoading(true);
-    setReports(await fetchAll());
+    const [r, a] = await Promise.all([fetchAll(), fetchAutomations()]);
+    setReports(r);
+    setAutomations(a);
     setLoading(false);
   }, []);
 
@@ -47,9 +61,10 @@ export default function AgentsPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const data = await fetchAll();
+      const [r, a] = await Promise.all([fetchAll(), fetchAutomations()]);
       if (active) {
-        setReports(data);
+        setReports(r);
+        setAutomations(a);
         setLoading(false);
       }
     })();
@@ -73,6 +88,32 @@ export default function AgentsPage() {
           {loading ? 'Analizando…' : 'Re-analizar'}
         </button>
       </div>
+
+      {/* Panel de automatizaciones / alertas accionables */}
+      {automations && automations.alerts.length > 0 && (
+        <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Bell className="w-5 h-5" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
+            <h2 className="font-bold text-gray-900 text-sm">Alertas y automatizaciones</h2>
+            <div className="ml-auto flex gap-1 text-[11px] font-semibold">
+              {automations.counts.critical > 0 && <span className="px-1.5 py-0.5 rounded bg-red-100 text-red-700">{automations.counts.critical}</span>}
+              {automations.counts.warning > 0 && <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">{automations.counts.warning}</span>}
+            </div>
+          </div>
+          <ul className="grid gap-1.5 md:grid-cols-2">
+            {automations.alerts.slice(0, 12).map((a) => (
+              <li key={a.id} className={`rounded-lg border px-2.5 py-1.5 text-xs ${SEV_STYLE[a.severity]}`}>
+                <span className="font-semibold uppercase opacity-60 text-[10px]">{a.kind}</span>
+                <span className="font-semibold"> · {a.title}</span>
+                <div className="opacity-80">{a.message}</div>
+                {a.suggestedAction && (
+                  <div className="mt-0.5 font-semibold opacity-90">→ {a.suggestedAction}</div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-4 md:grid-cols-2">
         {AGENTS.map(({ key, label, desc, icon: Icon }) => {

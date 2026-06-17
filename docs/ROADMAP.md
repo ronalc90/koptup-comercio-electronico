@@ -1,6 +1,6 @@
 # Roadmap — Plataforma multi-tenant de ecommerce
 
-Estado a v1.013. Honesto sobre qué está **listo y probado**, qué es **base
+Estado a v1.014. Honesto sobre qué está **listo y probado**, qué es **base
 funcional** y qué está **diseñado pero pendiente**.
 
 ## Fase 1 — Multi-tenant, roles, seguridad ✅ LISTO
@@ -14,9 +14,11 @@ funcional** y qué está **diseñado pero pendiente**.
 - [x] Gate de validación (`npm run validate`).
 - [x] 84 unit tests (incluye el guard y los agentes).
 
-**Pendiente de Fase 1** (no bloqueante): pantalla de administración de tenants y
-usuarios (hoy se gestionan por SQL/seed); RLS estricta (ver "ruta de hardening"
-en ARCHITECTURE_MULTITENANT.md).
+**Hardening de Fase 1 ✅ entregado (opt-in)**: aislamiento forzado por la BD.
+La app firma un JWT por usuario con `tenant_id` (cuando `SUPABASE_JWT_SECRET`
+está configurada) y la migración `003_strict_rls.sql` activa políticas RLS
+`tenant_id = jwt_tenant_id()` en todas las tablas de negocio. Pasos de
+activación en ARCHITECTURE_MULTITENANT.md. Sin configurar, no cambia nada.
 
 ## Fase 2 — Agentes IA + dashboards inteligentes ✅ BASE FUNCIONAL
 
@@ -33,25 +35,36 @@ en ARCHITECTURE_MULTITENANT.md).
 por negocio: pantuflas vs. cascos/repuestos con compatibilidades de moto) y
 ejecutar los agentes en background con alertas.
 
-## Fase 3 — Automatizaciones 🟡 DISEÑADO
+## Fase 3 — Automatizaciones ✅ BASE FUNCIONAL
 
-Reposición automática, alertas de stock/ventas/devoluciones/garantías.
+Motor `src/lib/automations/engine.ts` (función pura, testeada) + endpoint
+`/api/automations/run` + panel de alertas en `/agents`. Convierte hallazgos +
+datos en alertas accionables:
+- [x] Reposición automática (consolida quiebres + stock bajo → orden de compra).
+- [x] Alertas de stock, ventas (productos muertos → promoción), finanzas (pérdidas).
+- [x] Alertas de devoluciones/cambios y de garantías/defectuosos (status 'Malo').
 
-- Diseño: cron (Supabase scheduled functions o un runner) que ejecuta los
-  agentes por tenant y dispara acciones (crear orden de compra sugerida, notificar).
-- Base ya disponible: los agentes producen `Finding[]` con severidad → un
-  despachador puede convertir `critical/warning` en alertas/acciones.
+**Siguiente paso**: ejecutar el motor en background (cron) y notificar (email/push).
 
-## Fase 4 — Marketplace de módulos 🟡 DISEÑADO
+## Fase 4 — Marketplace de módulos ✅ BASE FUNCIONAL
 
-Cada tenant activa/desactiva módulos. Ya existe `TenantConfig.modules`; falta el
-registro de módulos instalables y el gating de rutas/navegación por módulo.
+Registro de módulos `src/lib/modules.ts` + navegación construida por tenant
+(`navModules` + `moduleLabels` en `TenantConfig`). Cada negocio habilita sus
+módulos con pantalla y les pone su propio nombre (PrimeraMayo: "Catálogo",
+"Ventas"). Los módulos core (dashboard/config) van siempre.
 
-## Fase 5 — SaaS comercial completo 🟡 DISEÑADO
+**Siguiente paso**: pantallas propias de los módulos conceptuales de motos
+(compras, garantías, proveedores) y un instalador/activador por tenant en la UI.
 
-Onboarding self-service de tenants, planes/billing, límites por plan, panel de
-superadmin. Requiere: subdominio/slug por tenant en el login, integración de
-pagos y métricas de uso por tenant.
+## Fase 5 — SaaS comercial completo 🟡 FUNDACIÓN
+
+- [x] Administración por tenant: pantalla `/admin` + API `/api/admin/*` (solo
+      rol admin) para crear usuarios del propio negocio, cambiar rol, activar/
+      desactivar y ver el plan. Todo acotado al propio tenant.
+- [x] Campo `plan` (free/pro/enterprise) en `tenants`.
+- [ ] Onboarding self-service de tenants, integración de pagos/billing, límites
+      por plan, rol superadmin y métricas de uso por tenant (pendiente — requiere
+      pasarela de pagos y login por subdominio/slug).
 
 ---
 

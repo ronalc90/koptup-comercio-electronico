@@ -11,16 +11,25 @@ export async function POST(request: NextRequest) {
 
     // Cliente acotado al tenant + carpeta namespaced por tenant: los assets de
     // un negocio no colisionan ni se mezclan con los de otro.
-    const { ctx, client: supabase } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const { ctx, client: supabase } = scoped;
 
-    // Convert base64 to buffer
+    // Solo imágenes y de tipo permitido.
+    const mimeMatch = image.match(/^data:(image\/\w+);base64,/);
+    const mimeType = mimeMatch ? mimeMatch[1] : '';
+    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!ALLOWED.includes(mimeType)) {
+      return NextResponse.json({ error: 'Tipo de imagen no permitido (jpeg/png/webp)' }, { status: 415 });
+    }
+    const ext = mimeType.split('/')[1] || 'jpg';
+
+    // Convert base64 to buffer + límite de tamaño (5 MB).
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-
-    // Detect mime type
-    const mimeMatch = image.match(/^data:(image\/\w+);base64,/);
-    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-    const ext = mimeType.split('/')[1] || 'jpg';
+    if (buffer.length > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Imagen muy grande (máx 5 MB)' }, { status: 413 });
+    }
 
     // Generate unique filename
     const timestamp = Date.now();

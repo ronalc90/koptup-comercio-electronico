@@ -5,8 +5,6 @@ import {
   isTenantTable,
   isRole,
   roleAtLeast,
-  defaultTenantContext,
-  DEFAULT_TENANT_ID,
 } from './tenant';
 import { getTenantConfig, KNOWN_TENANT_SLUGS } from './tenants.config';
 import { withTenant } from './supabase';
@@ -28,12 +26,6 @@ describe('tenant core', () => {
     expect(roleAtLeast('member', 'member')).toBe(true);
   });
 
-  it('el contexto por defecto es meraki/admin', () => {
-    const ctx = defaultTenantContext();
-    expect(ctx.tenantId).toBe(DEFAULT_TENANT_ID);
-    expect(ctx.tenantSlug).toBe('meraki');
-    expect(ctx.role).toBe('admin');
-  });
 });
 
 describe('tenant config', () => {

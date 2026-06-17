@@ -58,9 +58,9 @@ export interface AgentMeta {
   tenantSlug: string;
 }
 
-export function countSeverities(findings: Finding[]): Record<Severity, number> {
+export function countSeverities(items: ReadonlyArray<{ severity: Severity }>): Record<Severity, number> {
   const counts: Record<Severity, number> = { info: 0, warning: 0, critical: 0 };
-  for (const f of findings) counts[f.severity]++;
+  for (const it of items) counts[it.severity]++;
   return counts;
 }
 

@@ -140,7 +140,9 @@ export async function POST(request: NextRequest) {
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(arrayBuffer as ArrayBuffer);
 
-    const { client: supabase } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const supabase = scoped.client;
     const results: { type: string; inserted: number; errors: string[] }[] = [];
 
     for (const sheet of workbook.worksheets) {

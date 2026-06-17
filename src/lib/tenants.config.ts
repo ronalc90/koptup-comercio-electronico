@@ -7,6 +7,7 @@
  * Se indexa por `slug`. Si un slug no existe, se cae al de meraki.
  */
 import { DEFAULT_TENANT_SLUG } from './tenant';
+import type { ModuleKey } from './modules';
 
 export interface TenantTheme {
   /** Color primario de marca (botones, acentos). */
@@ -26,8 +27,15 @@ export interface TenantConfig {
   theme: TenantTheme;
   /** Categorías de producto propias del negocio. */
   categories: string[];
-  /** Módulos habilitados para este tenant. */
+  /** Módulos conceptuales del negocio (para reportes/QA). */
   modules: string[];
+  /**
+   * Módulos con pantalla habilitados en la navegación. `undefined` ⇒ todos
+   * (retrocompat). Los módulos core (dashboard, config) van siempre.
+   */
+  navModules?: ModuleKey[];
+  /** Renombres de módulos en la navegación, propios del tenant. */
+  moduleLabels?: Partial<Record<ModuleKey, string>>;
   /** Especialización del asistente de IA. */
   ai: {
     /** Dominio en una palabra (para prompts). */
@@ -97,6 +105,10 @@ export const TENANT_CONFIGS: Record<string, TenantConfig> = {
       'dashboard',
       'asistente',
     ],
+    // Nav con vocabulario de motos: el catálogo es "Catálogo" y los pedidos
+    // son "Ventas". Mismas pantallas, etiquetas propias del negocio.
+    navModules: ['pedidos', 'asistente', 'inventario', 'productos', 'despachos', 'agentes'],
+    moduleLabels: { productos: 'Catálogo', pedidos: 'Ventas' },
     ai: {
       domain: 'motocicletas, cascos y repuestos',
       systemPrompt:

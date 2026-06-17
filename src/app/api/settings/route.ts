@@ -15,7 +15,9 @@ export async function GET(request: NextRequest) {
   const key = searchParams.get('key');
 
   try {
-    const { client: supabase } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const supabase = scoped.client;
 
     if (key) {
       const { data, error } = await supabase
@@ -80,7 +82,9 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'El campo "value" es requerido' }, { status: 400 });
     }
 
-    const { client: supabase } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const supabase = scoped.client;
 
     const { error } = await supabase
       .from('settings')

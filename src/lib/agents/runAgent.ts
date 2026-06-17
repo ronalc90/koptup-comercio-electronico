@@ -11,7 +11,9 @@ type Analyzer = (data: TenantData, meta: AgentMeta) => Omit<AgentReport, 'genera
  */
 export async function runAgent(analyzer: Analyzer): Promise<Response> {
   try {
-    const { ctx, client } = await getRequestScopedClient();
+    const scoped = await getRequestScopedClient();
+    if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+    const { ctx, client } = scoped;
     const data = await loadTenantData(client);
     const meta: AgentMeta = { tenantId: ctx.tenantId, tenantSlug: ctx.tenantSlug };
     const report: AgentReport = { ...analyzer(data, meta), generatedAt: new Date().toISOString() };

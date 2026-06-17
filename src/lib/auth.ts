@@ -47,7 +47,8 @@ export async function createSession(ctx: TenantContext): Promise<string> {
 export async function verifySession(token: string): Promise<TenantContext | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET);
-    const role = isRole(payload.role) ? (payload.role as Role) : 'admin';
+    // Mínimo privilegio: si el claim de rol no es válido, NO asumimos admin.
+    const role = isRole(payload.role) ? (payload.role as Role) : 'viewer';
     return {
       username: (payload.username as string) ?? 'Paola',
       userId: typeof payload.userId === 'number' ? payload.userId : null,

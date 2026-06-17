@@ -50,15 +50,3 @@ export interface TenantContext {
   tenantSlug: string;
   role: Role;
 }
-
-/** Contexto por defecto (sesión legacy sin claims de tenant → meraki/admin). */
-export function defaultTenantContext(username = 'Paola'): TenantContext {
-  return {
-    userId: null,
-    username,
-    email: null,
-    tenantId: DEFAULT_TENANT_ID,
-    tenantSlug: DEFAULT_TENANT_SLUG,
-    role: 'admin',
-  };
-}

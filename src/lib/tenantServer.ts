@@ -5,25 +5,20 @@
  * la sesión. Nunca se usa el singleton del navegador (`setActiveTenant`), que
  * sería un leak entre requests. Las rutas obtienen aquí un service client ya
  * acotado al tenant del usuario autenticado.
+ *
+ * IMPORTANTE: sin sesión válida NO se entrega cliente — la ruta debe responder
+ * 401. No existe un "contexto por defecto" silencioso: eso abriría las rutas a
+ * usuarios sin autenticar operando como admin del tenant 1.
  */
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { getSession } from './auth';
 import { getServiceClient, withTenant } from './supabase';
 import { isTenantSupported } from './db';
-import { type TenantContext, defaultTenantContext } from './tenant';
+import { type TenantContext } from './tenant';
 
 /** Contexto de la sesión, o null si no hay sesión válida. */
 export async function getTenantContext(): Promise<TenantContext | null> {
   return getSession();
-}
-
-/**
- * Contexto de la sesión, cayendo a meraki/admin si no hay sesión. Útil para
- * rutas que hoy no exigen sesión pero deben operar sobre un tenant concreto
- * (preserva el comportamiento previo: todo era del tenant meraki).
- */
-export async function getTenantContextOrDefault(): Promise<TenantContext> {
-  return (await getSession()) ?? defaultTenantContext();
 }
 
 /**
@@ -36,9 +31,13 @@ export async function getScopedServiceClient(ctx: TenantContext): Promise<Supaba
   return withTenant(getServiceClient(), armed ? ctx.tenantId : null);
 }
 
-/** Atajo: resuelve sesión (o default) y devuelve el client ya acotado. */
-export async function getRequestScopedClient(): Promise<{ ctx: TenantContext; client: SupabaseClient }> {
-  const ctx = await getTenantContextOrDefault();
+/**
+ * Resuelve la sesión y devuelve el cliente ya acotado al tenant. Devuelve
+ * `null` si NO hay sesión válida: la ruta debe responder 401 en ese caso.
+ */
+export async function getRequestScopedClient(): Promise<{ ctx: TenantContext; client: SupabaseClient } | null> {
+  const ctx = await getSession();
+  if (!ctx) return null;
   const client = await getScopedServiceClient(ctx);
   return { ctx, client };
 }
