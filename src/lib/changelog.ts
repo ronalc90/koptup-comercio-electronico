@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.024',
+    date: '2026-06-17',
+    highlights: [
+      'Tope de productos a prueba de concurrencia: si dos altas ocurren al mismo tiempo justo en el límite del plan, ya no pueden pasarse del tope (se aplicó la migración 005 con bloqueo por negocio).',
+      'Se fijó la versión de Node (>=20) para builds reproducibles.',
+      'Nuevo runbook de seguridad con los pasos exactos para reforzar producción (secreto de sesión y aislamiento por base de datos).',
+    ],
+  },
+  {
     version: '1.023',
     date: '2026-06-17',
     highlights: [
