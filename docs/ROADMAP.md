@@ -56,15 +56,18 @@ módulos con pantalla y les pone su propio nombre (PrimeraMayo: "Catálogo",
 **Siguiente paso**: pantallas propias de los módulos conceptuales de motos
 (compras, garantías, proveedores) y un instalador/activador por tenant en la UI.
 
-## Fase 5 — SaaS comercial completo 🟡 FUNDACIÓN
+## Fase 5 — SaaS comercial completo 🟢 AVANZADO
 
 - [x] Administración por tenant: pantalla `/admin` + API `/api/admin/*` (solo
       rol admin) para crear usuarios del propio negocio, cambiar rol, activar/
       desactivar y ver el plan. Todo acotado al propio tenant.
 - [x] Campo `plan` (free/pro/enterprise) en `tenants`.
-- [ ] Onboarding self-service de tenants, integración de pagos/billing, límites
-      por plan, rol superadmin y métricas de uso por tenant (pendiente — requiere
-      pasarela de pagos y login por subdominio/slug).
+- [x] **Rol superadmin + onboarding**: pantalla `/superadmin` + API
+      `/api/superadmin/tenants` para crear negocios nuevos y su primer admin,
+      listarlos y activar/desactivarlos. Cada negocio creado muestra su propia
+      marca (nombre/logo desde BD, vía claims de sesión).
+- [ ] Integración de pagos/billing, límites por plan, login por subdominio/slug
+      y métricas de uso por tenant (pendiente — requiere pasarela de pagos).
 
 ---
 

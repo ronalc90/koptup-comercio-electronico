@@ -13,6 +13,7 @@ import {
   LogOut,
   Bot,
   ShieldCheck,
+  Building2,
 } from 'lucide-react';
 import { useState, type ElementType } from 'react';
 import { useTenant } from '@/lib/TenantContext';
@@ -55,9 +56,13 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
     icon: MODULE_ICONS[m.key] as typeof Bot,
     isAccent: m.accent,
   }));
-  // La sección de administración solo se muestra a admins.
-  if (role === 'admin') {
+  // La sección de administración se muestra a admins (y superadmins).
+  if (role === 'admin' || role === 'superadmin') {
     navItems.push({ href: '/admin', label: 'Administración', icon: ShieldCheck, isAccent: false });
+  }
+  // La gestión de la plataforma (todos los negocios) solo al superadmin.
+  if (role === 'superadmin') {
+    navItems.push({ href: '/superadmin', label: 'Plataforma', icon: Building2, isAccent: false });
   }
 
   async function handleLogout() {

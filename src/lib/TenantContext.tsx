@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { setActiveTenant, setSupabaseAuthToken } from './supabase';
 import { getTenantConfig, type TenantConfig } from './tenants.config';
 import type { Role } from './tenant';
@@ -17,6 +17,9 @@ const Ctx = createContext<TenantClientContext | null>(null);
 interface ProviderProps {
   tenantId: number;
   tenantSlug: string;
+  /** Nombre/logo reales del tenant (BD) — para negocios creados al vuelo. */
+  tenantName?: string;
+  tenantLogo?: string;
   role: Role;
   /** true solo si la migración multi-tenant ya corrió (columna tenant_id). */
   armed: boolean;
@@ -25,7 +28,7 @@ interface ProviderProps {
   children: React.ReactNode;
 }
 
-export function TenantProvider({ tenantId, tenantSlug, role, armed, sbToken = null, children }: ProviderProps) {
+export function TenantProvider({ tenantId, tenantSlug, tenantName, tenantLogo, role, armed, sbToken = null, children }: ProviderProps) {
   // Arma el guard del navegador (y el token de Supabase, si hay) en el PRIMER
   // render (síncrono, vía el inicializador perezoso de useState) — así queda
   // listo antes de que los hijos ejecuten sus efectos de carga de datos.
@@ -39,7 +42,13 @@ export function TenantProvider({ tenantId, tenantSlug, role, armed, sbToken = nu
     return null;
   });
 
-  const config = getTenantConfig(tenantSlug);
+  // El tema/categorías salen de la config estática por slug; el nombre y el
+  // logo se sobreescriben con los reales de BD (así un tenant creado al vuelo
+  // muestra SU marca, no la de meraki).
+  const config = useMemo<TenantConfig>(() => {
+    const base = getTenantConfig(tenantSlug);
+    return { ...base, name: tenantName || base.name, logo: tenantLogo || base.logo };
+  }, [tenantSlug, tenantName, tenantLogo]);
 
   useEffect(() => {
     setSupabaseAuthToken(sbToken);

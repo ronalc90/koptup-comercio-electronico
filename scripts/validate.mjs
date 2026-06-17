@@ -111,9 +111,10 @@ else record('3. unit tests', true, 'omitido (--skip-tests)');
       if (f.isDirectory()) { walk(p); continue; }
       if (f.name !== 'route.ts') continue;
       const rel = p.replace(root + '/', '');
-      // Permitidos: migrate (DDL) y api/admin (gestiona users/tenants, que NO son
-      // tablas del guard, y filtra tenant_id manualmente con doble .eq).
-      if (rel.includes('api/migrate') || rel.includes('api/admin')) continue;
+      // Permitidos: migrate (DDL); api/admin (gestiona users/tenants —no son
+      // tablas del guard— filtrando tenant_id con doble .eq); api/superadmin
+      // (única superficie cross-tenant legítima, gateada por requireSuperadmin).
+      if (rel.includes('api/migrate') || rel.includes('api/admin') || rel.includes('api/superadmin')) continue;
       const c = readFileSync(p, 'utf8');
       if (/getServiceClient\s*\(/.test(c)) offenders.push(rel);
     }

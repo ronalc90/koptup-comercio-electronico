@@ -61,10 +61,10 @@ CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id);
 CREATE UNIQUE INDEX IF NOT EXISTS uq_users_tenant_email ON users(tenant_id, email);
 
 -- Seed de usuarios existentes (password actual "1234", hash bcrypt real).
--- paola/ronald → admin del tenant meraki; lizeth → member.
+-- ronald → superadmin (dueño de plataforma); paola → admin; lizeth → member.
 INSERT INTO users (tenant_id, email, username, password_hash, role) VALUES
   (1, 'paola@meraki.app',  'paola',  '$2b$10$E8SsViC20Ool9j8wP9.stu4SYl9WtyukRqyeCjwx72jnUKcLR.rki', 'admin'),
-  (1, 'ronald@meraki.app', 'ronald', '$2b$10$E8SsViC20Ool9j8wP9.stu4SYl9WtyukRqyeCjwx72jnUKcLR.rki', 'admin'),
+  (1, 'ronald@meraki.app', 'ronald', '$2b$10$E8SsViC20Ool9j8wP9.stu4SYl9WtyukRqyeCjwx72jnUKcLR.rki', 'superadmin'),
   (1, 'lizeth@meraki.app', 'lizeth', '$2b$10$E8SsViC20Ool9j8wP9.stu4SYl9WtyukRqyeCjwx72jnUKcLR.rki', 'member')
 ON CONFLICT (tenant_id, email) DO NOTHING;
 

@@ -19,15 +19,17 @@ export function isTenantTable(table: string): boolean {
 export const DEFAULT_TENANT_ID = 1;
 export const DEFAULT_TENANT_SLUG = 'meraki';
 
-export type Role = 'admin' | 'member' | 'viewer';
-export const ROLES: Role[] = ['admin', 'member', 'viewer'];
+// 'superadmin' opera a nivel plataforma (gestiona TODOS los tenants). El resto
+// opera dentro de su propio tenant.
+export type Role = 'superadmin' | 'admin' | 'member' | 'viewer';
+export const ROLES: Role[] = ['superadmin', 'admin', 'member', 'viewer'];
 
 export function isRole(value: unknown): value is Role {
   return typeof value === 'string' && (ROLES as string[]).includes(value);
 }
 
-/** Jerarquía de permisos: admin ⊃ member ⊃ viewer. */
-const ROLE_RANK: Record<Role, number> = { viewer: 0, member: 1, admin: 2 };
+/** Jerarquía de permisos: superadmin ⊃ admin ⊃ member ⊃ viewer. */
+const ROLE_RANK: Record<Role, number> = { viewer: 0, member: 1, admin: 2, superadmin: 3 };
 export function roleAtLeast(role: Role, min: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[min];
 }
@@ -49,4 +51,7 @@ export interface TenantContext {
   tenantId: number;
   tenantSlug: string;
   role: Role;
+  /** Nombre/logo reales del tenant en BD (para marca de tenants creados al vuelo). */
+  tenantName?: string;
+  tenantLogo?: string;
 }

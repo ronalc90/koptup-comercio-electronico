@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.015',
+    date: '2026-06-17',
+    highlights: [
+      'Onboarding de negocios (Fase 5): nuevo rol "superadmin" (Ronald) con la pantalla "Plataforma" para crear negocios nuevos y su primer administrador, listarlos y activar/desactivarlos — sin tocar la base de datos.',
+      'Cada negocio creado al vuelo muestra SU propia marca (nombre y logo reales desde la base), no la de Meraki.',
+      'El nombre y logo del negocio ahora viajan en la sesión, así un administrador que cambie el nombre lo ve reflejado tras volver a entrar.',
+      'Jerarquía de roles: superadmin ⊃ admin ⊃ equipo ⊃ solo lectura. La gestión de "todos los negocios" queda restringida al superadmin.',
+    ],
+  },
+  {
     version: '1.014',
     date: '2026-06-17',
     highlights: [

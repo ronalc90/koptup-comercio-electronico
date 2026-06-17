@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword } from '@/lib/auth';
-import { isRole } from '@/lib/tenant';
+import { isRole, roleAtLeast } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +36,11 @@ export async function POST(request: NextRequest) {
   const password = typeof body.password === 'string' ? body.password : '';
   const role = isRole(body.role) ? body.role : 'member';
 
+  // Nadie puede crear un usuario con un rol SUPERIOR al suyo (un admin no puede
+  // fabricar un superadmin y obtener acceso cross-tenant).
+  if (!roleAtLeast(auth.ctx.role, role)) {
+    return NextResponse.json({ error: 'No puedes asignar un rol superior al tuyo' }, { status: 403 });
+  }
   if (!email || !password) {
     return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 });
   }
@@ -71,7 +76,12 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'id inválido' }, { status: 400 });
   }
   const updates: { role?: string; active?: boolean } = {};
-  if (isRole(body.role)) updates.role = body.role;
+  if (isRole(body.role)) {
+    if (!roleAtLeast(auth.ctx.role, body.role)) {
+      return NextResponse.json({ error: 'No puedes asignar un rol superior al tuyo' }, { status: 403 });
+    }
+    updates.role = body.role;
+  }
   if (typeof body.active === 'boolean') updates.active = body.active;
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });

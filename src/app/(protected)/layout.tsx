@@ -38,6 +38,8 @@ export default async function ProtectedLayout({
       <TenantProvider
         tenantId={session.tenantId}
         tenantSlug={session.tenantSlug}
+        tenantName={session.tenantName}
+        tenantLogo={session.tenantLogo}
         role={session.role}
         armed={armed}
         sbToken={sbToken}

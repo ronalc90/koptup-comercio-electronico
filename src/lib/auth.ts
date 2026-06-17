@@ -30,6 +30,8 @@ export async function createSession(ctx: TenantContext): Promise<string> {
     email: ctx.email ?? undefined,
     tenantId: ctx.tenantId,
     tenantSlug: ctx.tenantSlug,
+    tenantName: ctx.tenantName ?? undefined,
+    tenantLogo: ctx.tenantLogo ?? undefined,
     role: ctx.role,
   })
     .setProtectedHeader({ alg: 'HS256' })
@@ -55,6 +57,8 @@ export async function verifySession(token: string): Promise<TenantContext | null
       email: typeof payload.email === 'string' ? payload.email : null,
       tenantId: typeof payload.tenantId === 'number' ? payload.tenantId : DEFAULT_TENANT_ID,
       tenantSlug: typeof payload.tenantSlug === 'string' ? payload.tenantSlug : DEFAULT_TENANT_SLUG,
+      tenantName: typeof payload.tenantName === 'string' ? payload.tenantName : undefined,
+      tenantLogo: typeof payload.tenantLogo === 'string' ? payload.tenantLogo : undefined,
       role,
     };
   } catch {
@@ -75,7 +79,7 @@ export async function getSession(): Promise<TenantContext | null> {
 // estos siguen funcionando como respaldo si la tabla aún no tiene al usuario.
 const FALLBACK_USERS: Record<string, { password: string; role: Role }> = {
   paola: { password: '1234', role: 'admin' },
-  ronald: { password: '1234', role: 'admin' },
+  ronald: { password: '1234', role: 'superadmin' },
   lizeth: { password: '1234', role: 'member' },
 };
 
@@ -110,13 +114,14 @@ async function lookupUser(identifier: string): Promise<UserRow | null> {
   }
 }
 
-async function tenantSlugById(id: number): Promise<string> {
+async function tenantById(id: number): Promise<{ slug: string; name?: string; logo?: string }> {
   try {
     const db = getServiceClient();
-    const { data } = await db.from('tenants').select('slug').eq('id', id).maybeSingle();
-    return (data?.slug as string) ?? DEFAULT_TENANT_SLUG;
+    const { data } = await db.from('tenants').select('slug, name, logo').eq('id', id).maybeSingle();
+    if (!data) return { slug: DEFAULT_TENANT_SLUG };
+    return { slug: (data.slug as string) ?? DEFAULT_TENANT_SLUG, name: data.name as string, logo: data.logo as string };
   } catch {
-    return DEFAULT_TENANT_SLUG;
+    return { slug: DEFAULT_TENANT_SLUG };
   }
 }
 
@@ -132,13 +137,15 @@ export async function login(
     if (!row.active) return { success: false, error: 'Usuario inactivo' };
     const ok = await verifyPassword(password, row.password_hash);
     if (!ok) return { success: false, error: 'Contraseña incorrecta' };
-    const slug = await tenantSlugById(row.tenant_id);
+    const t = await tenantById(row.tenant_id);
     const context: TenantContext = {
       userId: row.id,
       username: row.username || row.email,
       email: row.email,
       tenantId: row.tenant_id,
-      tenantSlug: slug,
+      tenantSlug: t.slug,
+      tenantName: t.name,
+      tenantLogo: t.logo,
       role: isRole(row.role) ? row.role : 'member',
     };
     return { success: true, token: await createSession(context), context };

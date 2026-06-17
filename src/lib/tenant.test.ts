@@ -18,12 +18,17 @@ describe('tenant core', () => {
     expect(isTenantTable('tenants')).toBe(false);
   });
 
-  it('valida roles y jerarquía', () => {
+  it('valida roles y jerarquía (incluye superadmin)', () => {
     expect(isRole('admin')).toBe(true);
+    expect(isRole('superadmin')).toBe(true);
     expect(isRole('superuser')).toBe(false);
     expect(roleAtLeast('admin', 'viewer')).toBe(true);
     expect(roleAtLeast('viewer', 'admin')).toBe(false);
     expect(roleAtLeast('member', 'member')).toBe(true);
+    // superadmin ⊃ admin ⊃ member ⊃ viewer
+    expect(roleAtLeast('superadmin', 'admin')).toBe(true);
+    expect(roleAtLeast('superadmin', 'superadmin')).toBe(true);
+    expect(roleAtLeast('admin', 'superadmin')).toBe(false);
   });
 
 });
