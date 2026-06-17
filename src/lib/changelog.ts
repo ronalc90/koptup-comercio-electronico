@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.026',
+    date: '2026-06-17',
+    highlights: [
+      'Bitácora de auditoría: queda registrado quién y cuándo hizo operaciones sensibles — pagos registrados, cambios de plan, alta/edición de usuarios y creación/estado de negocios.',
+      'Cada negocio ve su "Actividad reciente" en la pantalla de Administración.',
+      'La bitácora está cerrada a la clave pública (solo el servidor la escribe/lee, acotada a cada negocio).',
+    ],
+  },
+  {
     version: '1.025',
     date: '2026-06-17',
     highlights: [

@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword, validatePassword } from '@/lib/auth';
 import { isRole, roleAtLeast } from '@/lib/tenant';
+import { recordAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -63,6 +64,13 @@ export async function POST(request: NextRequest) {
     const conflict = (error as { code?: string }).code === '23505';
     return NextResponse.json({ error: error.message }, { status: conflict ? 409 : 500 });
   }
+  await recordAudit(db, {
+    tenantId: auth.ctx.tenantId,
+    actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
+    action: 'user_created',
+    entity: 'user',
+    detail: { email, role },
+  });
   return NextResponse.json({ success: true });
 }
 
@@ -92,5 +100,13 @@ export async function PATCH(request: NextRequest) {
   // Doble filtro id + tenant_id: un admin no puede tocar usuarios de otro tenant.
   const { error } = await db.from('users').update(updates).eq('id', id).eq('tenant_id', auth.ctx.tenantId);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  await recordAudit(db, {
+    tenantId: auth.ctx.tenantId,
+    actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
+    action: 'user_updated',
+    entity: 'user',
+    entityId: id,
+    detail: updates,
+  });
   return NextResponse.json({ success: true });
 }

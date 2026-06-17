@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperadmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { addMonths } from '@/lib/billing';
+import { recordAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,6 +65,14 @@ export async function POST(request: NextRequest) {
     .update({ license_until: newUntil, billing_status: 'active' })
     .eq('id', tenantId);
   if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+
+  await recordAudit(db, {
+    tenantId,
+    actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
+    action: 'payment_recorded',
+    entity: 'charge',
+    detail: { amount, months, license_until: newUntil, concept },
+  });
 
   return NextResponse.json({ success: true, license_until: newUntil });
 }

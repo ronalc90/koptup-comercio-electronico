@@ -3,6 +3,7 @@ import { requireSuperadmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword, validatePassword } from '@/lib/auth';
 import { isPlan, productLimit } from '@/lib/plans';
+import { recordAudit } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +90,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `No se pudo crear el admin: ${uErr.message}` }, { status: 400 });
   }
 
+  await recordAudit(db, {
+    tenantId: tenant.id,
+    actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
+    action: 'tenant_created',
+    entity: 'tenant',
+    entityId: tenant.id,
+    detail: { name, slug, plan, adminEmail },
+  });
+
   return NextResponse.json({ success: true, tenant });
 }
 
@@ -128,5 +138,15 @@ export async function PATCH(request: NextRequest) {
 
   const { error } = await db.from('tenants').update(updates).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await recordAudit(db, {
+    tenantId: id,
+    actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
+    action: updates.plan ? 'plan_changed' : 'tenant_status_changed',
+    entity: 'tenant',
+    entityId: id,
+    detail: updates,
+  });
+
   return NextResponse.json({ success: true });
 }

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { UserPlus, ShieldCheck } from 'lucide-react';
+import { UserPlus, ShieldCheck, History } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
+import { AUDIT_LABELS, type AuditAction } from '@/lib/audit';
 
 interface AdminUser {
   id: number;
@@ -19,6 +20,14 @@ interface TenantProfile {
   plan: string;
   industry: string | null;
 }
+interface AuditRow {
+  id: number;
+  actor_name: string | null;
+  actor_role: string | null;
+  action: AuditAction;
+  detail: Record<string, unknown> | null;
+  created_at: string;
+}
 
 const ROLES = ['admin', 'member', 'viewer'];
 
@@ -26,29 +35,22 @@ export default function AdminPage() {
   const { role } = useTenant();
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [tenant, setTenant] = useState<TenantProfile | null>(null);
+  const [audit, setAudit] = useState<AuditRow[]>([]);
   const [form, setForm] = useState({ email: '', username: '', password: '', role: 'member' });
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const [u, t] = await Promise.all([
+    const [u, t, a] = await Promise.all([
       fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
       fetch('/api/admin/tenant', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/admin/audit', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
     ]);
     setUsers(u.users ?? []);
     setTenant(t.tenant ?? null);
+    setAudit(a.entries ?? []);
   }, []);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      const [u, t] = await Promise.all([
-        fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-        fetch('/api/admin/tenant', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      ]);
-      if (active) { setUsers(u.users ?? []); setTenant(t.tenant ?? null); }
-    })();
-    return () => { active = false; };
-  }, []);
+  useEffect(() => { load(); }, [load]);
 
   async function addUser() {
     if (!form.email || !form.password) { toast.error('Email y contraseña requeridos'); return; }
@@ -141,6 +143,29 @@ export default function AdminPage() {
             </li>
           ))}
           {users.length === 0 && <li className="text-xs text-gray-400 py-2">Sin usuarios.</li>}
+        </ul>
+      </div>
+
+      {/* Actividad reciente (auditoría) */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-2 mb-3">
+          <History className="w-5 h-5" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
+          <h2 className="font-bold text-gray-900 text-sm">Actividad reciente</h2>
+        </div>
+        <ul className="divide-y divide-gray-100">
+          {audit.map((a) => (
+            <li key={a.id} className="py-1.5 text-sm">
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-gray-800">{AUDIT_LABELS[a.action] ?? a.action}</span>
+                <span className="text-xs text-gray-400">{a.created_at?.slice(0, 16).replace('T', ' ')}</span>
+              </div>
+              <p className="text-xs text-gray-500 truncate">
+                por {a.actor_name || '—'}{a.actor_role ? ` (${a.actor_role})` : ''}
+                {a.detail ? ` · ${Object.entries(a.detail).map(([k, v]) => `${k}: ${v}`).join(', ')}` : ''}
+              </p>
+            </li>
+          ))}
+          {audit.length === 0 && <li className="text-xs text-gray-400 py-2">Sin actividad registrada aún.</li>}
         </ul>
       </div>
     </div>
