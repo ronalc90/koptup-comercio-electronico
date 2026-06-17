@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.018',
+    date: '2026-06-17',
+    highlights: [
+      'Agente Comercial mucho más certero con datos reales: casa los productos con las ventas por palabras distintivas del nombre (ej. "vaca", "pompom"), no por el código exacto (que los pedidos no traen). Antes marcaba los 198 productos como "muertos"; ahora detecta los que realmente no han vendido.',
+      'Las alertas de "producto muerto" se agrupan en una sola alerta accionable en vez de inundar el panel con cientos.',
+    ],
+  },
+  {
     version: '1.017',
     date: '2026-06-17',
     highlights: [

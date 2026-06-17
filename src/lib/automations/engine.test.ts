@@ -61,9 +61,12 @@ describe('runAutomations', () => {
     expect(gar?.value).toBe(1);
   });
 
-  it('convierte el producto muerto en alerta de ventas con acción', () => {
-    const ventas = r.alerts.find((a) => a.kind === 'ventas' && a.id.includes('dead-9'));
+  it('colapsa productos muertos en UNA alerta de ventas con acción', () => {
+    const ventas = r.alerts.find((a) => a.id === 'auto-muertos');
+    expect(ventas?.kind).toBe('ventas');
     expect(ventas?.suggestedAction).toContain('promoción');
+    // No debe haber alertas individuales por producto muerto (se colapsan).
+    expect(r.alerts.some((a) => a.id.includes('dead-'))).toBe(false);
   });
 
   it('los hallazgos info NO se vuelven alertas', () => {

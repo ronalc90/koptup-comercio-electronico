@@ -30,9 +30,12 @@ export function runAutomations(
   const alerts: Alert[] = [];
 
   // 1) Hallazgos accionables (critical/warning) de cada agente → alertas.
+  //    Los "producto muerto" se COLAPSAN en una sola alerta (abajo) para no
+  //    inundar el panel cuando el catálogo tiene muchos productos lentos.
   for (const r of reports) {
     for (const f of r.findings) {
       if (f.severity === 'info') continue;
+      if (r.agent === 'comercial' && f.id.startsWith('dead-')) continue;
       alerts.push({
         id: `${r.agent}-${f.id}`,
         kind: KIND_BY_AGENT[r.agent],
@@ -44,6 +47,22 @@ export function runAutomations(
         suggestedAction: ACTION_BY_AGENT[r.agent]?.(f),
       });
     }
+  }
+
+  // 1b) Productos muertos colapsados en una sola alerta accionable.
+  const com = reports.find((r) => r.agent === 'comercial');
+  const deadCount = (com?.findings ?? []).filter((f) => f.id.startsWith('dead-')).length;
+  if (deadCount > 0) {
+    alerts.push({
+      id: 'auto-muertos',
+      kind: 'ventas',
+      severity: deadCount >= 5 ? 'warning' : 'info',
+      title: `${deadCount} producto(s) sin ventas`,
+      message: 'Productos del catálogo sin ventas registradas. Considerar promoción o descontinuar.',
+      suggestedAction: 'Lanzar promoción de liquidación',
+      value: deadCount,
+      source: 'comercial',
+    });
   }
 
   // 2) Reposición automática: consolida quiebres + stock bajo en una sugerencia.
