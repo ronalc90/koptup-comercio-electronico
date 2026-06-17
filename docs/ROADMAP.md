@@ -66,8 +66,14 @@ módulos con pantalla y les pone su propio nombre (PrimeraMayo: "Catálogo",
       `/api/superadmin/tenants` para crear negocios nuevos y su primer admin,
       listarlos y activar/desactivarlos. Cada negocio creado muestra su propia
       marca (nombre/logo desde BD, vía claims de sesión).
-- [ ] Integración de pagos/billing, límites por plan, login por subdominio/slug
-      y métricas de uso por tenant (pendiente — requiere pasarela de pagos).
+- [x] **Consola de operador**: `/api/superadmin/metrics` + UI con uso por negocio
+      (pedidos/productos/usuarios) y cambio de plan (Free/Pro/Enterprise).
+- [x] **Planes con efecto**: `src/lib/plans.ts`; el tope de usuarios se enforza
+      al crear (pedidos/productos como uso informativo, para no frenar la operación).
+- [ ] **Cobro automático (billing)**: integración con pasarela de pagos —
+      pendiente, requiere credenciales (ej. Stripe). Hoy el plan se asigna a mano
+      desde la consola del superadmin.
+- [ ] Login por subdominio/slug (multi-email entre tenants) — opcional, futuro.
 
 ---
 

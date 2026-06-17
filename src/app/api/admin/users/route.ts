@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword } from '@/lib/auth';
 import { isRole, roleAtLeast } from '@/lib/tenant';
+import { atOrOverLimit, getPlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,8 +49,21 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'La contraseña debe tener al menos 4 caracteres' }, { status: 400 });
   }
 
-  const password_hash = await hashPassword(password);
   const db = getServiceClient();
+  // Límite de usuarios por plan (único límite enforzado; es acción de admin).
+  const { data: t } = await db.from('tenants').select('plan').eq('id', auth.ctx.tenantId).maybeSingle();
+  const { count: userCount } = await db
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('tenant_id', auth.ctx.tenantId);
+  if (atOrOverLimit(t?.plan, 'users', userCount ?? 0)) {
+    return NextResponse.json(
+      { error: `Límite de usuarios del plan ${getPlan(t?.plan).label} alcanzado. Sube de plan para agregar más.` },
+      { status: 403 },
+    );
+  }
+
+  const password_hash = await hashPassword(password);
   const { error } = await db.from('users').insert({
     tenant_id: auth.ctx.tenantId,
     email,

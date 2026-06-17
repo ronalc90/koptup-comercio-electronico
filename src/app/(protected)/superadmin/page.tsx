@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Building2, Plus } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
+import { PLANS_ORDER, getPlan } from '@/lib/plans';
 
 interface TenantRow {
   id: number;
@@ -13,6 +14,7 @@ interface TenantRow {
   industry: string | null;
   plan: string;
   active: boolean;
+  usage?: { orders: number; products: number; inventory: number; expenses: number; users: number };
 }
 
 const EMPTY = { name: '', slug: '', industry: '', logo: '', plan: 'free', adminEmail: '', adminPassword: '' };
@@ -24,18 +26,25 @@ export default function SuperadminPage() {
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const r = await fetch('/api/superadmin/tenants', { cache: 'no-store' }).then((x) => x.json()).catch(() => ({}));
-    setTenants(r.tenants ?? []);
+    const r = await fetch('/api/superadmin/metrics', { cache: 'no-store' }).then((x) => x.json()).catch(() => ({}));
+    setTenants(r.metrics ?? []);
   }, []);
 
   useEffect(() => {
     let active = true;
     (async () => {
-      const r = await fetch('/api/superadmin/tenants', { cache: 'no-store' }).then((x) => x.json()).catch(() => ({}));
-      if (active) setTenants(r.tenants ?? []);
+      const r = await fetch('/api/superadmin/metrics', { cache: 'no-store' }).then((x) => x.json()).catch(() => ({}));
+      if (active) setTenants(r.metrics ?? []);
     })();
     return () => { active = false; };
   }, []);
+
+  async function changePlan(id: number, plan: string) {
+    const res = await fetch('/api/superadmin/tenants', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, plan }),
+    });
+    if (res.ok) { toast.success('Plan actualizado'); await load(); } else toast.error('No se pudo cambiar el plan');
+  }
 
   async function createTenant() {
     if (!form.name || !form.adminEmail || !form.adminPassword) {
@@ -112,19 +121,36 @@ export default function SuperadminPage() {
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
         <h2 className="font-bold text-gray-900 text-sm mb-3">Negocios ({tenants.length})</h2>
         <ul className="divide-y divide-gray-100">
-          {tenants.map((t) => (
-            <li key={t.id} className="flex items-center gap-3 py-2 text-sm">
-              <span className="text-xl">{t.logo}</span>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-gray-900 truncate">{t.name}</p>
-                <p className="text-xs text-gray-400 truncate">{t.slug} · {t.industry || '—'} · plan {t.plan}</p>
-              </div>
-              <button onClick={() => toggleActive(t)}
-                className={`rounded-lg px-2 py-1 text-xs font-semibold ${t.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                {t.active ? 'Activo' : 'Inactivo'}
-              </button>
-            </li>
-          ))}
+          {tenants.map((t) => {
+            const lim = getPlan(t.plan).limits;
+            const u = t.usage;
+            return (
+              <li key={t.id} className="flex items-center gap-3 py-2.5 text-sm flex-wrap">
+                <span className="text-xl">{t.logo}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-gray-900 truncate">{t.name}</p>
+                  <p className="text-xs text-gray-400 truncate">{t.slug} · {t.industry || '—'}</p>
+                  {u && (
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {u.orders} pedidos · {u.products} productos · {u.users}/{lim.users === Infinity ? '∞' : lim.users} usuarios
+                    </p>
+                  )}
+                </div>
+                <select
+                  value={t.plan}
+                  onChange={(e) => changePlan(t.id, e.target.value)}
+                  className="rounded-lg border px-2 py-1 text-xs"
+                  title="Plan"
+                >
+                  {PLANS_ORDER.map((p) => <option key={p} value={p}>{getPlan(p).label}</option>)}
+                </select>
+                <button onClick={() => toggleActive(t)}
+                  className={`rounded-lg px-2 py-1 text-xs font-semibold ${t.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  {t.active ? 'Activo' : 'Inactivo'}
+                </button>
+              </li>
+            );
+          })}
           {tenants.length === 0 && <li className="text-xs text-gray-400 py-2">Sin negocios.</li>}
         </ul>
       </div>

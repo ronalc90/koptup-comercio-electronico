@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperadmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword } from '@/lib/auth';
+import { isPlan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
   return NextResponse.json({ success: true, tenant });
 }
 
-/** Activa o desactiva un tenant. */
+/** Cambia estado (activo/inactivo) y/o plan de un tenant. */
 export async function PATCH(request: NextRequest) {
   const auth = await requireSuperadmin();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
@@ -95,10 +96,16 @@ export async function PATCH(request: NextRequest) {
   const body = await request.json().catch(() => ({}));
   const id = Number(body.id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: 'id inválido' }, { status: 400 });
-  if (typeof body.active !== 'boolean') return NextResponse.json({ error: 'active requerido' }, { status: 400 });
+
+  const updates: { active?: boolean; plan?: string } = {};
+  if (typeof body.active === 'boolean') updates.active = body.active;
+  if (isPlan(body.plan)) updates.plan = body.plan;
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'Nada para actualizar (active/plan)' }, { status: 400 });
+  }
 
   const db = getServiceClient();
-  const { error } = await db.from('tenants').update({ active: body.active }).eq('id', id);
+  const { error } = await db.from('tenants').update(updates).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });
 }

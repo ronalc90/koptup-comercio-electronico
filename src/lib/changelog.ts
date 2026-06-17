@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.019',
+    date: '2026-06-17',
+    highlights: [
+      'Consola de plataforma (superadmin): la pantalla "Plataforma" ahora muestra el uso de cada negocio (pedidos, productos, usuarios) y permite cambiar su plan (Free/Pro/Enterprise) desde un selector.',
+      'Planes con efecto real: cada plan define un tope de usuarios que se respeta al crear nuevos (los pedidos/productos quedan como uso informativo para no frenar la operación diaria).',
+      'Nota: el cobro automático (pasarela de pagos) no se incluye — el plan se asigna a mano desde la consola.',
+    ],
+  },
+  {
     version: '1.018',
     date: '2026-06-17',
     highlights: [
