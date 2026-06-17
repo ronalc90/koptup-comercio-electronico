@@ -25,12 +25,12 @@ export async function PATCH(request: NextRequest) {
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const body = await request.json().catch(() => ({}));
-  const updates: { name?: string; logo?: string; plan?: string } = {};
+  // El admin solo edita marca (nombre/logo). El PLAN NO se cambia aquí: eso es
+  // facturación y solo lo hace el superadmin (/api/superadmin/tenants). Si no,
+  // un admin se auto-subiría a enterprise sin pagar y saltaría el límite.
+  const updates: { name?: string; logo?: string } = {};
   if (typeof body.name === 'string' && body.name.trim()) updates.name = body.name.trim();
   if (typeof body.logo === 'string') updates.logo = body.logo;
-  if (typeof body.plan === 'string' && ['free', 'pro', 'enterprise'].includes(body.plan)) {
-    updates.plan = body.plan;
-  }
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }

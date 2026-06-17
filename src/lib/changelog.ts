@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.021',
+    date: '2026-06-17',
+    highlights: [
+      'Seguridad de facturación: el plan de un negocio SOLO lo cambia el superadmin. Antes un administrador podía subirse a Enterprise (productos ilimitados) sin pagar — ya no.',
+      'Fechas de licencia correctas a fin de mes: pagar el 31 de enero ahora vence el 28/29 de febrero (no se desbordaba a marzo).',
+      'Al bajar de plan se valida que el negocio no quede por encima del nuevo tope de productos (evita estados inconsistentes).',
+    ],
+  },
+  {
     version: '1.020',
     date: '2026-06-17',
     highlights: [

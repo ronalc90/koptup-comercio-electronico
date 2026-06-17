@@ -50,9 +50,17 @@ export function totalPaid(charges: ReadonlyArray<{ amount: number }>): number {
   return charges.reduce((s, c) => s + (c.amount || 0), 0);
 }
 
-/** Avanza una fecha 'YYYY-MM-DD' N meses (para extender la licencia). */
+/**
+ * Avanza una fecha 'YYYY-MM-DD' N meses (para extender la licencia), fijando el
+ * día al último válido del mes destino (ej. 31-ene + 1 mes = 28/29-feb, no
+ * desborda a marzo).
+ */
 export function addMonths(dateISO: string, months: number): string {
   const d = new Date(dateISO + 'T00:00:00Z');
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
   d.setUTCMonth(d.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDay));
   return d.toISOString().slice(0, 10);
 }

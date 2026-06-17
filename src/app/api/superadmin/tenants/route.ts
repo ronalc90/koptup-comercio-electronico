@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperadmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword } from '@/lib/auth';
-import { isPlan } from '@/lib/plans';
+import { isPlan, productLimit } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -108,6 +108,20 @@ export async function PATCH(request: NextRequest) {
   }
 
   const db = getServiceClient();
+
+  // Si se baja de plan, el negocio no puede quedar por ENCIMA del nuevo tope de
+  // productos (si no, no podría agregar ni uno más y quedaría inconsistente).
+  if (updates.plan) {
+    const { count } = await db.from('products').select('id', { count: 'exact', head: true }).eq('tenant_id', id);
+    const lim = productLimit(updates.plan);
+    if ((count ?? 0) > lim) {
+      return NextResponse.json(
+        { error: `El negocio tiene ${count} productos; el plan ${updates.plan} permite ${lim === Infinity ? '∞' : lim}. Elimina productos o elige un plan mayor.` },
+        { status: 400 },
+      );
+    }
+  }
+
   const { error } = await db.from('tenants').update(updates).eq('id', id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ success: true });

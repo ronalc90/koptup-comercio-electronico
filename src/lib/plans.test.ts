@@ -57,6 +57,12 @@ describe('licencia', () => {
     expect(addMonths('2026-06-17', 1)).toBe('2026-07-17');
     expect(addMonths('2026-12-17', 1)).toBe('2027-01-17');
   });
+  it('addMonths fija el día al último válido del mes (no desborda)', () => {
+    expect(addMonths('2026-01-31', 1)).toBe('2026-02-28'); // 2026 no bisiesto
+    expect(addMonths('2024-01-31', 1)).toBe('2024-02-29'); // 2024 bisiesto
+    expect(addMonths('2026-08-31', 6)).toBe('2027-02-28');
+    expect(addMonths('2026-01-30', 1)).toBe('2026-02-28');
+  });
   it('etiquetas de estado existen', () => {
     expect(LICENSE_LABELS.active).toBe('Activa');
   });
