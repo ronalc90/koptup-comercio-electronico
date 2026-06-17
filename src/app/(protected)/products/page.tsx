@@ -256,7 +256,11 @@ export default function ProductsPage({
       closeModal()
       await fetchProducts()
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error al guardar'
+      const raw = err instanceof Error ? err.message : 'Error al guardar'
+      // El trigger de límite de plan lanza un mensaje con prefijo PLAN_LIMIT.
+      const msg = raw.includes('PLAN_LIMIT')
+        ? 'Alcanzaste el límite de productos de tu plan. Sube de plan para agregar más.'
+        : raw
       toast.error(msg)
     } finally {
       setSaving(false)

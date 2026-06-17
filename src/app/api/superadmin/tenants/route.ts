@@ -97,11 +97,14 @@ export async function PATCH(request: NextRequest) {
   const id = Number(body.id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: 'id inválido' }, { status: 400 });
 
-  const updates: { active?: boolean; plan?: string } = {};
+  const updates: { active?: boolean; plan?: string; billing_status?: string } = {};
   if (typeof body.active === 'boolean') updates.active = body.active;
   if (isPlan(body.plan)) updates.plan = body.plan;
+  if (['trial', 'active', 'suspended', 'cancelled'].includes(body.billing_status)) {
+    updates.billing_status = body.billing_status;
+  }
   if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'Nada para actualizar (active/plan)' }, { status: 400 });
+    return NextResponse.json({ error: 'Nada para actualizar (active/plan/billing_status)' }, { status: 400 });
   }
 
   const db = getServiceClient();

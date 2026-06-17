@@ -14,6 +14,7 @@ import {
   Bot,
   ShieldCheck,
   Building2,
+  CreditCard,
 } from 'lucide-react';
 import { useState, type ElementType } from 'react';
 import { useTenant } from '@/lib/TenantContext';
@@ -59,6 +60,7 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   // La sección de administración se muestra a admins (y superadmins).
   if (role === 'admin' || role === 'superadmin') {
     navItems.push({ href: '/admin', label: 'Administración', icon: ShieldCheck, isAccent: false });
+    navItems.push({ href: '/billing', label: 'Mi licencia', icon: CreditCard, isAccent: false });
   }
   // La gestión de la plataforma (todos los negocios) solo al superadmin.
   if (role === 'superadmin') {

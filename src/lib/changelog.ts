@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.020',
+    date: '2026-06-17',
+    highlights: [
+      'Licencias y facturación: cada negocio paga por su plan. Los planes ahora van por CANTIDAD DE PRODUCTOS (Free 50, Pro 500, Enterprise ilimitado) con precio mensual.',
+      'Pantalla "Mi licencia" para cada negocio: muestra su plan, uso de productos (con barra), estado de la licencia (activa/vence/días), total pagado e historial de pagos.',
+      'Consola de plataforma (superadmin): estado de licencia por negocio, botón "Cobrar" para registrar un pago y extender la licencia, e ingresos totales.',
+      'El tope de productos se respeta de verdad (a nivel de base de datos): al llegar al límite no se pueden agregar más hasta subir de plan; los productos existentes nunca se borran. Meraki queda en Enterprise (ilimitado).',
+    ],
+  },
+  {
     version: '1.019',
     date: '2026-06-17',
     highlights: [

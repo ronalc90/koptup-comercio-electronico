@@ -1,36 +1,30 @@
 /**
- * Planes del SaaS (Fase 5). Definen límites por negocio. El cobro automático
- * (pasarela de pagos) queda fuera de alcance — el superadmin asigna el plan a
- * mano; aquí solo modelamos qué permite cada uno.
+ * Planes del SaaS (Fase 5). Los planes van por CANTIDAD DE PRODUCTOS: cada plan
+ * permite hasta `productLimit` productos y tiene un precio mensual. El negocio
+ * (tenant) paga por su plan; ve su uso, su licencia y cuánto ha pagado.
  *
- * Diseño conservador: el ÚNICO límite que se ENFORZA es el de usuarios (acción
- * rara, de admin). Pedidos/productos son informativos (uso vs. tope), para NO
- * bloquear la operación diaria de un negocio en vivo.
+ * El tope de productos se ENFORZA a nivel de base de datos (trigger), así no se
+ * puede saltar desde el cliente. Los datos existentes nunca se borran: al llegar
+ * al tope solo se impide AGREGAR más productos hasta subir de plan.
  */
 export type Plan = 'free' | 'pro' | 'enterprise';
 export const PLANS_ORDER: Plan[] = ['free', 'pro', 'enterprise'];
 
-export interface PlanLimits {
-  /** Tope informativo de pedidos. */
-  orders: number;
-  /** Tope informativo de productos. */
-  products: number;
-  /** Tope ENFORZADO de usuarios. */
-  users: number;
-}
-
 export interface PlanDef {
   key: Plan;
   label: string;
-  limits: PlanLimits;
+  /** Tope de productos del plan (el límite que define el plan). */
+  productLimit: number;
+  /** Precio mensual en COP. */
+  priceMonthly: number;
 }
 
 const INF = Number.POSITIVE_INFINITY;
 
 export const PLANS: Record<Plan, PlanDef> = {
-  free: { key: 'free', label: 'Free', limits: { orders: 1000, products: 1000, users: 5 } },
-  pro: { key: 'pro', label: 'Pro', limits: { orders: 20000, products: 10000, users: 20 } },
-  enterprise: { key: 'enterprise', label: 'Enterprise', limits: { orders: INF, products: INF, users: INF } },
+  free: { key: 'free', label: 'Free', productLimit: 50, priceMonthly: 0 },
+  pro: { key: 'pro', label: 'Pro', productLimit: 500, priceMonthly: 49900 },
+  enterprise: { key: 'enterprise', label: 'Enterprise', productLimit: INF, priceMonthly: 149900 },
 };
 
 export function isPlan(v: unknown): v is Plan {
@@ -41,11 +35,22 @@ export function getPlan(plan: string | null | undefined): PlanDef {
   return isPlan(plan) ? PLANS[plan] : PLANS.free;
 }
 
-export function planLimit(plan: string | null | undefined, key: keyof PlanLimits): number {
-  return getPlan(plan).limits[key];
+/** Tope de productos del plan. */
+export function productLimit(plan: string | null | undefined): number {
+  return getPlan(plan).productLimit;
 }
 
-/** ¿Una cantidad actual está en/sobre el tope del plan para esa métrica? */
-export function atOrOverLimit(plan: string | null | undefined, key: keyof PlanLimits, current: number): boolean {
-  return current >= planLimit(plan, key);
+/** Precio mensual del plan (COP). */
+export function planPrice(plan: string | null | undefined): number {
+  return getPlan(plan).priceMonthly;
+}
+
+/** ¿La cantidad de productos alcanza/supera el tope del plan? */
+export function atOrOverProductLimit(plan: string | null | undefined, productCount: number): boolean {
+  return productCount >= productLimit(plan);
+}
+
+/** Formatea un monto en pesos colombianos. */
+export function formatCOP(amount: number): string {
+  return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);
 }
