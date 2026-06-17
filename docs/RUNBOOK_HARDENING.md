@@ -1,10 +1,12 @@
 # Runbook de endurecimiento (P0 de seguridad)
 
-Acciones que cierran los riesgos P0 detectados por el panel de revisión. Las dos
-primeras requieren acceso a Vercel/Supabase que solo tiene el dueño; la tercera
-ya quedó aplicada.
+> **ESTADO (2026-06-17): los 3 P0 están CERRADOS.** P0-1 ✅ (AUTH_SECRET fuerte
+> en Vercel) · P0-2 ✅ (RLS 003 aplicada y verificada: anon cerrado, autenticado
+> ve su tenant) · P0-3 ✅ (migración 005). Pendiente opcional: añadir
+> `AUTH_STRICT_SECRET=1` en Vercel para que el deploy falle si el secreto vuelve
+> a quedar débil. Lo que sigue se conserva como referencia/rollback.
 
-## P0-1 · AUTH_SECRET fuerte en Vercel  (5 min)
+## P0-1 · AUTH_SECRET fuerte en Vercel  ✅ HECHO (5 min)
 
 El secreto firma las sesiones (HS256). Si es débil o falta, se pueden falsificar
 sesiones de admin. El código ya valida ≥32 chars y avisa en logs, pero **no se
@@ -24,7 +26,7 @@ auto-cae** para no tumbar la app; hay que poner un buen valor.
 > Nota: cambiar `AUTH_SECRET` **invalida las sesiones abiertas** — todos deberán
 > volver a iniciar sesión una vez. Hacerlo en un momento de baja actividad.
 
-## P0-2 · RLS estricta por base de datos (migración 003)  (15 min, con cuidado)
+## P0-2 · RLS estricta por base de datos (migración 003)  ✅ HECHO Y VERIFICADO
 
 Hoy el aislamiento entre negocios lo aplica el guard de JS (sólido, pero capa
 única). 003 fuerza el aislamiento en la BD. **Orden obligatorio** (si se aplica

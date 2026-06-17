@@ -14,11 +14,12 @@ funcional** y qué está **diseñado pero pendiente**.
 - [x] Gate de validación (`npm run validate`).
 - [x] 84 unit tests (incluye el guard y los agentes).
 
-**Hardening de Fase 1 ✅ entregado (opt-in)**: aislamiento forzado por la BD.
-La app firma un JWT por usuario con `tenant_id` (cuando `SUPABASE_JWT_SECRET`
-está configurada) y la migración `003_strict_rls.sql` activa políticas RLS
-`tenant_id = jwt_tenant_id()` en todas las tablas de negocio. Pasos de
-activación en ARCHITECTURE_MULTITENANT.md. Sin configurar, no cambia nada.
+**Hardening de Fase 1 ✅ ACTIVO en producción (2026-06-17)**: aislamiento
+forzado por la BD. `SUPABASE_JWT_SECRET` configurada en Vercel; la app firma un
+JWT por usuario con `tenant_id` y la migración `003_strict_rls.sql` está aplicada
+(políticas RLS `tenant_id = jwt_tenant_id()` en todas las tablas de negocio).
+Verificado: con sesión se ven los datos del propio tenant; con la anon key cruda,
+la base devuelve vacío. La race del trigger de plan se cerró con la migración 005.
 
 ## Fase 2 — Agentes IA + dashboards inteligentes ✅ BASE FUNCIONAL
 

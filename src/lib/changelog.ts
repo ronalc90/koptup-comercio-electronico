@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.025',
+    date: '2026-06-17',
+    highlights: [
+      'Aislamiento entre negocios ahora FORZADO por la base de datos (RLS estricta activada): aunque alguien tenga la clave pública, no puede leer los datos de ningún negocio sin una sesión válida. Verificado en producción: con sesión se ven los datos propios; sin sesión, la base devuelve vacío.',
+      'Secreto de sesión reforzado en producción (clave aleatoria fuerte).',
+      'Con esto quedan cerrados los 3 riesgos de seguridad P0 que detectó el panel de revisión.',
+    ],
+  },
+  {
     version: '1.024',
     date: '2026-06-17',
     highlights: [
