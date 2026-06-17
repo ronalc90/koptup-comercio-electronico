@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.016',
+    date: '2026-06-17',
+    highlights: [
+      'Multi-tenant activado en la base de datos: se aplicó la migración 002 (tenants, usuarios y tenant_id en todas las tablas). Tus 106 pedidos y 198 productos quedaron asignados al negocio "Meraki" sin perder nada.',
+      'Corrección en el sembrado de negocios: el segundo negocio ya no choca de id con el primero (se sincroniza la secuencia antes de insertarlo).',
+      'Nuevo comando para aplicar SQL/migraciones desde la línea de comandos vía la Management API de Supabase (npm run db:exec).',
+    ],
+  },
+  {
     version: '1.015',
     date: '2026-06-17',
     highlights: [

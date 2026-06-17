@@ -34,15 +34,16 @@ INSERT INTO tenants (id, name, slug, logo, industry)
 VALUES (1, 'Tu Tienda Meraki', 'meraki', '🩴', 'calzado')
 ON CONFLICT (slug) DO NOTHING;
 
-INSERT INTO tenants (name, slug, logo, industry)
-VALUES ('PrimeraMayo', 'primeramayo', '🏍️', 'motos')
-ON CONFLICT (slug) DO NOTHING;
-
--- Mantener el serial sincronizado tras insertar id=1 explícitamente.
+-- Sincronizar el serial ANTES de insertar tenants con id automático: si no,
+-- PrimeraMayo intentaría tomar id=1 y colisionaría con meraki (id=1 explícito).
 SELECT setval(
   pg_get_serial_sequence('tenants', 'id'),
   GREATEST((SELECT MAX(id) FROM tenants), 1)
 );
+
+INSERT INTO tenants (name, slug, logo, industry)
+VALUES ('PrimeraMayo', 'primeramayo', '🏍️', 'motos')
+ON CONFLICT (slug) DO NOTHING;
 
 -- 3) Tabla de usuarios (reemplaza el mapa hardcodeado USERS) ------------------
 CREATE TABLE IF NOT EXISTS users (
