@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPlan, getPlan, productLimit, planPrice, atOrOverProductLimit, formatCOP, PLANS } from './plans';
+import { isPlan, getPlan, productLimit, planPrice, atOrOverProductLimit, productUsage, formatCOP, PLANS } from './plans';
 import { licenseState, totalPaid, addMonths, LICENSE_LABELS } from './billing';
 
 describe('planes (por cantidad de productos)', () => {
@@ -30,6 +30,38 @@ describe('planes (por cantidad de productos)', () => {
 
   it('formatea COP', () => {
     expect(formatCOP(49900)).toContain('49.900');
+  });
+});
+
+describe('uso del cupo de productos (UI preemptiva)', () => {
+  it('calcula porcentaje y banderas dentro del tope', () => {
+    const u = productUsage(25, 50);
+    expect(u.percent).toBe(50);
+    expect(u.atLimit).toBe(false);
+    expect(u.nearLimit).toBe(false);
+  });
+
+  it('marca nearLimit a partir del 80%', () => {
+    expect(productUsage(40, 50).nearLimit).toBe(true); // 80%
+    expect(productUsage(39, 50).nearLimit).toBe(false);
+  });
+
+  it('marca atLimit al alcanzar o superar el tope y topa el porcentaje en 100', () => {
+    const u = productUsage(60, 50);
+    expect(u.atLimit).toBe(true);
+    expect(u.percent).toBe(100);
+  });
+
+  it('tope ilimitado (null) nunca está al tope ni cerca', () => {
+    const u = productUsage(999999, null);
+    expect(u.limit).toBeNull();
+    expect(u.atLimit).toBe(false);
+    expect(u.nearLimit).toBe(false);
+    expect(u.percent).toBe(0);
+  });
+
+  it('normaliza contadores negativos a 0', () => {
+    expect(productUsage(-5, 50).count).toBe(0);
   });
 });
 

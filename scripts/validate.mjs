@@ -80,8 +80,10 @@ else record('3. unit tests', true, 'omitido (--skip-tests)');
   const schema = read('supabase-schema.sql') || '';
   const mig = read('migrations/002_multi_tenant.sql') || '';
   const rls = /ENABLE ROW LEVEL SECURITY/.test(schema) && /ENABLE ROW LEVEL SECURITY/.test(mig);
-  // No deben aparecer claves de servicio embebidas en código fuente.
+  // No deben aparecer claves de servicio embebidas en código fuente, ni el
+  // secreto de sesión por defecto 'fallback-secret' (debilita la firma HS256).
   let leaked = [];
+  let fallbackSecret = [];
   const scan = (dir) => {
     for (const f of readdirSync(join(root, dir), { withFileTypes: true })) {
       const rel = join(dir, f.name);
@@ -89,11 +91,20 @@ else record('3. unit tests', true, 'omitido (--skip-tests)');
       if (!/\.(ts|tsx|mjs|js)$/.test(f.name)) continue;
       const c = readFileSync(join(root, rel), 'utf8');
       if (/eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}/.test(c) || /sbp_[a-f0-9]{40}/.test(c)) leaked.push(rel);
+      if (c.includes('fallback-secret')) fallbackSecret.push(rel);
     }
   };
   scan('src');
-  record('5. políticas seguridad', rls && leaked.length === 0,
-    !rls ? 'RLS no declarada' : leaked.length ? `posible secreto en: ${leaked.join(', ')}` : 'RLS + sin secretos en código');
+  // AUTH_SECRET debe estar documentada como requerida en .env.example.
+  const envExample = read('.env.example') || '';
+  const authSecretDocumented = /AUTH_SECRET\s*=/.test(envExample);
+  const problems = [];
+  if (!rls) problems.push('RLS no declarada');
+  if (leaked.length) problems.push(`posible secreto en: ${leaked.join(', ')}`);
+  if (fallbackSecret.length) problems.push(`'fallback-secret' presente en: ${fallbackSecret.join(', ')}`);
+  if (!authSecretDocumented) problems.push('AUTH_SECRET no documentada en .env.example');
+  record('5. políticas seguridad', problems.length === 0,
+    problems.length ? problems.join('; ') : 'RLS + sin secretos + AUTH_SECRET documentada');
 })();
 
 // 6. Aislamiento multi-tenant

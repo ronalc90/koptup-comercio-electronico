@@ -2,6 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getRequestScopedClient } from '@/lib/tenantServer';
 
+/**
+ * Sanea un término antes de interpolarlo dentro de un filtro PostgREST `.or(...)`.
+ * Quita los caracteres que PostgREST usa como separadores/control de filtros
+ * (comas, paréntesis y puntos) para cerrar el patrón de filter injection
+ * (ej: 'x%,tenant_id.eq.999'). Mismo criterio que auth.ts lookupUser().
+ */
+export function sanitizeIlikeTerm(term: string): string {
+  return term.replace(/[(),.]/g, '').trim();
+}
+
 async function resolveApiKey(): Promise<string | null> {
   try {
     const scoped = await getRequestScopedClient();
@@ -442,7 +452,7 @@ export async function POST(request: NextRequest) {
         // Try broader search without filters
         let broadQuery = supabase.from('inventory').select('*').eq('status', 'Bueno').gt('quantity', 0);
         if (owner) broadQuery = broadQuery.eq('owner', owner);
-        const term = s.model || s.color || '';
+        const term = sanitizeIlikeTerm(s.model || s.color || '');
         if (term) broadQuery = broadQuery.or(`model.ilike.%${term}%,color.ilike.%${term}%,category.ilike.%${term}%`);
         const { data: broadResults } = await broadQuery.limit(20);
 

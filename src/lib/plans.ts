@@ -50,6 +50,39 @@ export function atOrOverProductLimit(plan: string | null | undefined, productCou
   return productCount >= productLimit(plan);
 }
 
+/** Estado de uso del cupo de productos para la UI (preemptivo, no enforza nada). */
+export interface ProductUsage {
+  /** Productos usados. */
+  count: number;
+  /** Tope del plan; null = ilimitado. */
+  limit: number | null;
+  /** % de uso 0..100 (0 si es ilimitado). */
+  percent: number;
+  /** Se alcanzó/superó el tope (ilimitado nunca lo alcanza). */
+  atLimit: boolean;
+  /** Uso >= 80% (ilimitado nunca está cerca). */
+  nearLimit: boolean;
+}
+
+/**
+ * Deriva el estado de uso del cupo de productos a partir del contador y el tope.
+ * `limit` puede venir como null (ilimitado) tal como lo expone GET /api/billing.
+ */
+export function productUsage(productCount: number, limit: number | null): ProductUsage {
+  const count = Math.max(0, productCount);
+  if (limit === null || !Number.isFinite(limit)) {
+    return { count, limit: null, percent: 0, atLimit: false, nearLimit: false };
+  }
+  const percent = limit > 0 ? Math.min(100, Math.round((count / limit) * 100)) : 100;
+  return {
+    count,
+    limit,
+    percent,
+    atLimit: count >= limit,
+    nearLimit: limit > 0 ? count / limit >= 0.8 : true,
+  };
+}
+
 /** Formatea un monto en pesos colombianos. */
 export function formatCOP(amount: number): string {
   return new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(amount);

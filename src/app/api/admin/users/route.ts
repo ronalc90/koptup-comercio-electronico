@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, validatePassword } from '@/lib/auth';
 import { isRole, roleAtLeast } from '@/lib/tenant';
 
 export const dynamic = 'force-dynamic';
@@ -44,8 +44,9 @@ export async function POST(request: NextRequest) {
   if (!email || !password) {
     return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 });
   }
-  if (password.length < 4) {
-    return NextResponse.json({ error: 'La contraseña debe tener al menos 4 caracteres' }, { status: 400 });
+  const passwordError = validatePassword(password);
+  if (passwordError) {
+    return NextResponse.json({ error: passwordError }, { status: 400 });
   }
 
   const db = getServiceClient();

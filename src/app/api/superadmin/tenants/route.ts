@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireSuperadmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
-import { hashPassword } from '@/lib/auth';
+import { hashPassword, validatePassword } from '@/lib/auth';
 import { isPlan, productLimit } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
@@ -49,8 +49,12 @@ export async function POST(request: NextRequest) {
   if (!name || !slug) return NextResponse.json({ error: 'Nombre/slug requeridos' }, { status: 400 });
   // Validar el admin ANTES de crear el tenant evita la mayoría de huérfanos.
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(adminEmail);
-  if (!emailOk || adminPassword.length < 4) {
-    return NextResponse.json({ error: 'Email válido y contraseña (mín 4) del admin requeridos' }, { status: 400 });
+  if (!emailOk) {
+    return NextResponse.json({ error: 'Email válido del admin requerido' }, { status: 400 });
+  }
+  const passwordError = validatePassword(adminPassword);
+  if (passwordError) {
+    return NextResponse.json({ error: `Contraseña del admin inválida: ${passwordError}` }, { status: 400 });
   }
 
   const db = getServiceClient();

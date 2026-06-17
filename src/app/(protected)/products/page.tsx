@@ -12,6 +12,7 @@ import PageHelpModal from '@/components/shared/PageHelpModal'
 import { PRODUCTS_HELP } from '@/lib/pageHelp'
 import { useUser } from '@/lib/UserContext'
 import { isOwnerSupported } from '@/lib/db'
+import { productUsage, type ProductUsage } from '@/lib/plans'
 
 const CATEGORIES = ['Pantuflas', 'Maxisaco', 'Pocillo', 'Bolso', 'Otro'] as const
 type Category = (typeof CATEGORIES)[number]
@@ -142,6 +143,32 @@ export default function ProductsPage({
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [showPhotoAI, setShowPhotoAI] = useState(false)
   const [helpOpen, setHelpOpen] = useState(false)
+  // Uso del cupo de productos del plan (preemptivo). null = aún no disponible
+  // (p. ej. el usuario no es admin: /api/billing devuelve 403). El tope real lo
+  // sigue enforzando la BD; esto es solo UX.
+  const [usage, setUsage] = useState<ProductUsage | null>(null)
+
+  const fetchUsage = useCallback(async () => {
+    try {
+      const res = await fetch('/api/billing', { cache: 'no-store' })
+      if (!res.ok) {
+        setUsage(null)
+        return
+      }
+      const json = await res.json()
+      if (json && !json.error && typeof json.productCount === 'number') {
+        setUsage(productUsage(json.productCount, json.productLimit ?? null))
+      } else {
+        setUsage(null)
+      }
+    } catch {
+      setUsage(null)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchUsage()
+  }, [fetchUsage])
 
   const fetchProducts = useCallback(async () => {
     setLoading(true)
@@ -174,7 +201,14 @@ export default function ProductsPage({
       p.category.toLowerCase().includes(search.toLowerCase()),
   )
 
+  // Tope alcanzado según el plan (solo si /api/billing estaba disponible).
+  const atPlanLimit = usage?.atLimit ?? false
+
   function openAdd() {
+    if (atPlanLimit) {
+      toast.error('Alcanzaste el límite de productos de tu plan. Sube de plan para agregar más.')
+      return
+    }
     setEditingProduct(null)
     setForm({ ...EMPTY_FORM })
     setModalOpen(true)
@@ -255,6 +289,7 @@ export default function ProductsPage({
       }
       closeModal()
       await fetchProducts()
+      await fetchUsage()
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : 'Error al guardar'
       // El trigger de límite de plan lanza un mensaje con prefijo PLAN_LIMIT.
@@ -276,6 +311,7 @@ export default function ProductsPage({
       toast.success('Producto eliminado')
       setDeleteTarget(null)
       await fetchProducts()
+      await fetchUsage()
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Error al eliminar'
       toast.error(msg)
@@ -291,8 +327,19 @@ export default function ProductsPage({
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Catalogo de Productos</h1>
           <p className="mt-0.5 text-sm text-gray-500">
-            {products.length} producto{products.length !== 1 ? 's' : ''} registrado
-            {products.length !== 1 ? 's' : ''}
+            {usage && usage.limit !== null ? (
+              <>
+                <span className={cn('font-semibold', atPlanLimit ? 'text-red-600' : usage.nearLimit ? 'text-amber-600' : 'text-gray-700')}>
+                  {usage.count}/{usage.limit}
+                </span>{' '}
+                productos del plan
+              </>
+            ) : (
+              <>
+                {products.length} producto{products.length !== 1 ? 's' : ''} registrado
+                {products.length !== 1 ? 's' : ''}
+              </>
+            )}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -321,16 +368,20 @@ export default function ProductsPage({
           </button>
           <button
             onClick={() => setShowPhotoAI(true)}
-            className="inline-flex shrink-0 items-center gap-2 rounded-xl border-2 border-purple-300 bg-purple-50 px-3 py-2.5 text-sm font-semibold text-purple-700 transition-all hover:bg-purple-100"
+            disabled={atPlanLimit}
+            className="inline-flex shrink-0 items-center gap-2 rounded-xl border-2 border-purple-300 bg-purple-50 px-3 py-2.5 text-sm font-semibold text-purple-700 transition-all hover:bg-purple-100 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-purple-50"
             aria-label="Nuevo producto con foto IA"
+            title={atPlanLimit ? 'Alcanzaste el límite de productos de tu plan' : undefined}
           >
             <Camera className="h-4 w-4" />
             <span className="hidden sm:inline">Con Foto IA</span>
           </button>
           <button
             onClick={openAdd}
-            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 sm:flex-none"
+            disabled={atPlanLimit}
+            className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 sm:flex-none"
             style={{ background: 'linear-gradient(135deg, #7c3aed 0%, #9061f9 100%)' }}
+            title={atPlanLimit ? 'Alcanzaste el límite de productos de tu plan' : undefined}
           >
             <Plus className="h-4 w-4" />
             <span className="sm:inline">Nuevo</span>
@@ -340,6 +391,26 @@ export default function ProductsPage({
       </div>
 
       {!supabaseOk && <SupabaseBanner />}
+
+      {/* Aviso de cupo del plan (preemptivo; el tope real lo enforza la BD) */}
+      {usage && usage.limit !== null && atPlanLimit && (
+        <div className="flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-red-500" />
+          <span>
+            Alcanzaste el límite de tu plan ({usage.count}/{usage.limit} productos). Sube de plan
+            para agregar más productos.
+          </span>
+        </div>
+      )}
+      {usage && usage.limit !== null && !atPlanLimit && usage.nearLimit && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+          <span>
+            Estás cerca del límite de tu plan ({usage.count}/{usage.limit} productos). Considera
+            subir de plan para no quedarte sin cupo.
+          </span>
+        </div>
+      )}
 
       {/* Search */}
       <div className="relative">

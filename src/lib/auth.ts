@@ -11,8 +11,63 @@ import {
   isRole,
 } from './tenant';
 
-const SECRET = new TextEncoder().encode(process.env.AUTH_SECRET || 'fallback-secret');
+/**
+ * Resuelve el secreto de firma de sesiones (HS256).
+ *
+ * Reglas de seguridad (Security/DevOps crit) — SIN tumbar un negocio en vivo:
+ *   - Si `AUTH_SECRET` está y mide ≥ 32 chars (256 bits, mínimo razonable para
+ *     HS256), se usa tal cual.
+ *   - En PRODUCCIÓN con secreto ausente/débil: NO se hace fail-fast por defecto
+ *     (eso tumbaría la app si el secreto de Vercel no estuviera bien); se loguea
+ *     un error FUERTE para que el operador lo corrija (definir AUTH_SECRET en
+ *     Vercel). Para forzar el arranque-falla duro una vez verificado el entorno,
+ *     definir `AUTH_STRICT_SECRET=1`.
+ *   - En dev/test se usa el valor provisto o un secreto de desarrollo explícito
+ *     (distinto del antiguo valor por defecto débil ya eliminado).
+ */
+const MIN_SECRET_LENGTH = 32;
+// Valor de desarrollo explícito, distinto del antiguo secreto por defecto débil.
+const DEV_SECRET = 'meraki-dev-only-secret-no-usar-en-produccion';
+
+function resolveAuthSecret(): string {
+  const provided = process.env.AUTH_SECRET?.trim();
+  if (provided && provided.length >= MIN_SECRET_LENGTH) return provided;
+
+  const reason = provided
+    ? `AUTH_SECRET es demasiado corta (${provided.length} caracteres; mínimo ${MIN_SECRET_LENGTH}).`
+    : 'AUTH_SECRET no está definida.';
+
+  if (process.env.NODE_ENV === 'production') {
+    const msg = `[SEGURIDAD] ${reason} Definí un valor aleatorio de ≥${MIN_SECRET_LENGTH} chars `
+      + 'en Vercel (openssl rand -hex 32). Con un secreto débil se pueden falsificar sesiones.';
+    // Opt-in al fail-fast duro una vez verificado el entorno de producción.
+    if (process.env.AUTH_STRICT_SECRET === '1') throw new Error(msg);
+    console.error(msg);
+  }
+  return provided || DEV_SECRET;
+}
+
+const SECRET = new TextEncoder().encode(resolveAuthSecret());
 const COOKIE_NAME = 'meraki-session';
+
+// Política mínima de contraseñas (Security high / QA P2): al menos 8 caracteres
+// y un dígito. Regla simple, compartida por todas las superficies que crean o
+// cambian contraseñas, para no duplicar el criterio.
+export const MIN_PASSWORD_LENGTH = 8;
+
+/**
+ * Valida una contraseña contra la política mínima. Devuelve un mensaje de error
+ * claro en español, o `null` si es válida.
+ */
+export function validatePassword(password: string): string | null {
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return `La contraseña debe tener al menos ${MIN_PASSWORD_LENGTH} caracteres`;
+  }
+  if (!/[0-9]/.test(password)) {
+    return 'La contraseña debe incluir al menos un número';
+  }
+  return null;
+}
 
 export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);

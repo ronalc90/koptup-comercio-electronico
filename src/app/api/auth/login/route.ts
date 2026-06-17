@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: result.error }, { status: 401 });
   }
 
-  const isSecure = request.headers.get('x-forwarded-proto') === 'https'
+  const isSecure = process.env.NODE_ENV === 'production'
     || request.nextUrl.protocol === 'https:';
 
   const response = NextResponse.json({ success: true, username });

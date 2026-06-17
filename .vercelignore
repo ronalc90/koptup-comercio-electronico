@@ -1,0 +1,11 @@
+# Nunca subir secretos locales al build de Vercel. Las variables (AUTH_SECRET,
+# claves de Supabase, etc.) deben configurarse en el panel de Vercel
+# (Project → Settings → Environment Variables), no en archivos del repo.
+.env.local
+.env*.local
+
+# Config de herramientas locales / IA
+.claude/
+CLAUDE.md
+AGENTS.md
+memory/

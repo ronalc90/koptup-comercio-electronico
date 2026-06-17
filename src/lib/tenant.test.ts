@@ -8,7 +8,7 @@ import {
 } from './tenant';
 import { getTenantConfig, KNOWN_TENANT_SLUGS } from './tenants.config';
 import { withTenant } from './supabase';
-import { createSession, verifySession } from './auth';
+import { createSession, verifySession, validatePassword, MIN_PASSWORD_LENGTH } from './auth';
 
 describe('tenant core', () => {
   it('reconoce las tablas de negocio', () => {
@@ -146,5 +146,24 @@ describe('session JWT lleva el tenant', () => {
 
   it('token inválido devuelve null', async () => {
     expect(await verifySession('garbage.token.here')).toBeNull();
+  });
+});
+
+describe('política mínima de contraseñas', () => {
+  it('exige al menos 8 caracteres', () => {
+    expect(MIN_PASSWORD_LENGTH).toBe(8);
+    expect(validatePassword('a1b2c3')).toMatch(/al menos 8 caracteres/);
+    expect(validatePassword('')).toMatch(/al menos 8 caracteres/);
+  });
+
+  it('exige al menos un número aunque tenga 8+ caracteres', () => {
+    expect(validatePassword('abcdefgh')).toMatch(/al menos un número/);
+    expect(validatePassword('contraseña')).toMatch(/al menos un número/);
+  });
+
+  it('acepta contraseñas con >=8 caracteres y un número', () => {
+    expect(validatePassword('abcd1234')).toBeNull();
+    expect(validatePassword('Secreta9')).toBeNull();
+    expect(validatePassword('mi-clave-2026')).toBeNull();
   });
 });

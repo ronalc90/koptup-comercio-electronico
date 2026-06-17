@@ -12,6 +12,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.023',
+    date: '2026-06-17',
+    highlights: [
+      'Endurecimiento de seguridad (panel de revisión multi-rol): secreto de sesión más fuerte — si en producción es débil o falta, se avisa fuerte en los logs (sin tumbar la app). Acción recomendada: definir AUTH_SECRET (≥32 caracteres) en Vercel.',
+      'La cookie de sesión viaja siempre cifrada en producción (no depende de cabeceras del proxy).',
+      'Contraseñas más seguras al crear usuarios/negocios: mínimo 8 caracteres y al menos un número (no afecta el inicio de sesión de cuentas existentes).',
+      'Búsqueda del asistente IA saneada (cierra un patrón de inyección de filtros).',
+      'Más pruebas automáticas de autenticación y seguridad. 145 tests en total.',
+    ],
+  },
+  {
+    version: '1.022',
+    date: '2026-06-17',
+    highlights: [
+      'Productos: ahora ves cuántos productos llevas frente al tope de tu plan (ej. 48/50) directamente en el catálogo.',
+      'Aviso anticipado: al acercarte al límite (80% o más) aparece una advertencia para que consideres subir de plan a tiempo.',
+      'Al llegar al tope, los botones para crear producto se deshabilitan con un mensaje claro para subir de plan, en vez de fallar al guardar.',
+    ],
+  },
+  {
     version: '1.021',
     date: '2026-06-17',
     highlights: [
