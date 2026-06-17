@@ -12,6 +12,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.017',
+    date: '2026-06-17',
+    highlights: [
+      'Agente Auditor más preciso: la detección de pedidos duplicados ahora exige teléfono y valor real, así deja de marcar cientos de falsos positivos en pedidos con nombre genérico (ej. "CLIENTE"). Las alertas pasan a ser accionables.',
+    ],
+  },
+  {
     version: '1.016',
     date: '2026-06-17',
     highlights: [

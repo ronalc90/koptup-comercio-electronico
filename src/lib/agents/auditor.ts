@@ -18,20 +18,25 @@ export function analyzeAuditor(data: TenantData, meta: AgentMeta) {
   const findings: Finding[] = [];
   const { orders, inventory } = data;
 
-  // 1) Pedidos duplicados: mismo cliente + teléfono + valor el mismo día.
+  // 1) Pedidos duplicados: mismo TELÉFONO + valor + fecha. Exigimos teléfono
+  //    (identidad real): sin él, nombres genéricos como "CLIENTE" generarían
+  //    cientos de falsos positivos. Además el valor debe ser > 0.
   const seen = new Map<string, number>();
   for (const o of orders) {
-    const key = `${(o.client_name || '').trim().toLowerCase()}|${(o.phone || '').trim()}|${o.value_to_collect || 0}|${o.order_date}`;
+    const phone = (o.phone || '').trim();
+    const value = o.value_to_collect || 0;
+    if (!phone || value <= 0) continue;
+    const key = `${phone}|${value}|${o.order_date}`;
     const prev = seen.get(key) ?? 0;
     seen.set(key, prev + 1);
-    if (prev >= 1 && (o.client_name || o.phone)) {
+    if (prev >= 1) {
       findings.push({
         id: `dup-${o.id}`,
         severity: 'warning',
         title: 'Posible pedido duplicado',
-        detail: `"${o.client_name || 's/n'}" con el mismo valor y fecha aparece ${prev + 1} veces.`,
+        detail: `"${o.client_name || 's/n'}" (tel ${phone}) con el mismo valor y fecha aparece ${prev + 1} veces.`,
         entity: `pedido #${o.id}`,
-        value: o.value_to_collect || 0,
+        value,
       });
     }
   }
