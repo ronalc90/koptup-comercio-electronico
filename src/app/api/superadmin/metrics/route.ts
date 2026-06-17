@@ -23,7 +23,7 @@ export async function GET() {
   const db = getServiceClient();
   const { data: tenants, error } = await db
     .from('tenants')
-    .select('id, name, slug, plan, active')
+    .select('id, name, slug, logo, industry, plan, active')
     .order('id');
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
