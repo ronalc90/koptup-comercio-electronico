@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.037',
+    date: '2026-06-18',
+    highlights: [
+      'IMPORTANTE: ahora TODOS los usuarios del negocio (admin, equipo) ven los pedidos, productos e inventario del negocio. Antes un filtro interno por usuario dejaba algunas pantallas vacías para quien no fuera la dueña.',
+      'Seguridad: si se desactiva un usuario o se le baja el rol, pierde el acceso de inmediato (antes el ingreso podía seguir vivo hasta 30 días).',
+      'Ya puedes cambiar tu contraseña desde Configuración (antes el formulario no hacía nada).',
+      'Las guías de despacho, la ruta sugerida y los Excel exportados usan el nombre, logo y teléfono de TU negocio; se activó el botón "Mostrar logo en guías".',
+      'El vendedor ya no aparece fijo como "Paola": toma tu usuario y las personas reales del negocio.',
+      'Pantallas más robustas: bloqueo de scroll de fondo en ventanas emergentes, cierre con Escape, estado de carga en Administración y mensajes de error más claros.',
+    ],
+  },
+  {
     version: '1.036',
     date: '2026-06-18',
     highlights: [
