@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/lib/UserContext';
 import { useTenant } from '@/lib/TenantContext';
-import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn } from '@/lib/db';
+import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn, isOrderQuantitySupported } from '@/lib/db';
 import { formatCurrency, generateOrderCode, parseCopAmount, vendorDisplayName } from '@/lib/utils';
 import { syncInventoryOnOrderSave } from '@/lib/inventorySync';
 import type { PaymentTiming } from '@/lib/types';
@@ -22,6 +22,16 @@ import {
   detectArchiveIntent,
   type Workday,
 } from '@/lib/workdayArchive';
+import { detectConfirmIntent } from '@/lib/assistant/confirmIntent';
+import { MODIFYING_ACTIONS, EDITABLE_ORDER_FIELDS } from '@/lib/assistant/constants';
+import {
+  normalizeOrderStatus,
+  normalizeExpenseCategory,
+  resolveTenantCategory,
+  normalizeQuantity,
+} from '@/lib/assistant/validation';
+import { resolveSingleMatch } from '@/lib/assistant/matching';
+import { buildAssistantExamples, type ExampleGroup } from '@/lib/assistant/examples';
 
 interface SubAction {
   action: string;
@@ -246,6 +256,33 @@ export default function AssistantPage() {
       return;
     }
 
+    // Confirmación por VOZ/TEXTO: si hay una acción pendiente y la usuaria dice
+    // "sí/dale/confírmalo" (o "no/cancela"), lo resolvemos localmente SIN pasar
+    // por el LLM. Antes ese "sí" iba al modelo, devolvía {action:'confirm'} y
+    // nadie ejecutaba la acción pendiente: quedaba colgada. El núcleo del chat
+    // es "habla en tus palabras", así que confirmar hablando DEBE funcionar.
+    if (pendingAction) {
+      const intent = detectConfirmIntent(text);
+      if (intent === 'confirm') {
+        setMessages(prev => [...prev, { role: 'user', content: text }]);
+        setInput('');
+        if (!photoStepDone) setPhotoStepDone(true); // salta el paso de foto opcional
+        await confirmAction();
+        return;
+      }
+      if (intent === 'reject') {
+        setMessages(prev => [...prev, { role: 'user', content: text }]);
+        setInput('');
+        rejectAction();
+        return;
+      }
+      // Mensaje nuevo (ni sí ni no) con una acción pendiente: la descartamos para
+      // no dejar dos barras compitiendo; re-interpretamos lo que pidió ahora.
+      setPendingAction(null);
+      setPreConfirmPhoto(null);
+      setPhotoStepDone(false);
+    }
+
     const userMsg: ChatMessage = { role: 'user', content: text };
     setMessages(prev => [...prev, userMsg]);
     setInput('');
@@ -256,19 +293,26 @@ export default function AssistantPage() {
       const res = await fetch('/api/ai/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, context: messages.slice(-10), owner }),
+        // `owner` ya no se envía: el route lo ignora (aislamiento por tenant).
+        body: JSON.stringify({ message: text, context: messages.slice(-10) }),
       });
       const data = await res.json().catch(() => ({} as Record<string, unknown>));
       if (!res.ok) throw new Error((data as { error?: string }).error || 'No se pudo procesar la solicitud');
 
-      // Force confirmation for actions that modify data
-      const modifyingActions = ['create_order', 'add_inventory', 'mark_defective', 'return_order',
-        'update_order_status', 'register_expense', 'update_cost', 'multi_action'];
-      const needsConf = data.needs_confirmation || modifyingActions.includes(data.action);
+      // Solo las acciones que MODIFICAN datos fuerzan confirmación. Si la
+      // respuesta no trae acción (el modelo violó el contrato), NO entramos al
+      // flujo de confirmación: mostramos un mensaje claro en vez de un confuso
+      // "¿Confirmas esta acción?" sin acción.
+      const needsConf = !!data.action &&
+        (data.needs_confirmation || (MODIFYING_ACTIONS as readonly string[]).includes(data.action));
+
+      const fallbackContent = data.action && data.action !== 'chat'
+        ? '¿Confirmas esta acción?'
+        : 'No entendí bien, ¿puedes reformularlo?';
 
       const assistantMsg: ChatMessage = {
         role: 'assistant',
-        content: data.message || (data.action === 'chat' ? 'No entendí, ¿puedes repetirlo?' : '¿Confirmas esta acción?'),
+        content: data.message || fallbackContent,
         action: data.action,
         data: data.data,
         actions: data.action === 'multi_action' ? data.actions : undefined,
@@ -294,7 +338,8 @@ export default function AssistantPage() {
       if (data.action === 'generate_report' && data.report) {
         const r = data.report;
         try {
-          const params: Record<string, string> = { owner };
+          // El endpoint de export ya scope-a por tenant; no se manda `owner`.
+          const params: Record<string, string> = {};
           if (r.type) params.type = r.type;
           if (r.date) params.date = r.date;
           if (r.month) params.month = String(r.month);
@@ -330,9 +375,7 @@ export default function AssistantPage() {
       const orderData = data as Record<string, unknown>;
       const today = new Date();
       const dateStr = today.toISOString().slice(0, 10);
-      const { data: existing } = await supabase.from('orders').select('id').gte('order_date', dateStr).lte('order_date', dateStr);
-      const seq = (existing?.length || 0) + 1;
-      const orderCode = generateOrderCode(today, seq);
+      const orderQty = normalizeQuantity(orderData.quantity);
 
       const valueToCollect = Number(orderData.value_to_collect) || 0;
       const rawTiming = String(orderData.payment_timing || 'ContraEntrega');
@@ -361,7 +404,7 @@ export default function AssistantPage() {
       const courierColumn = await courierPendingColumn();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const basePayload: any = {
-        order_code: orderCode, client_name: orderData.client_name || '', phone: String(orderData.phone || ''),
+        client_name: orderData.client_name || '', phone: String(orderData.phone || ''),
         city: String(orderData.city || 'Bogotá'), address: String(orderData.address || ''), complement: String(orderData.complement || ''),
         product_ref: String(orderData.product_ref || ''), detail: String(orderData.detail || ''), comment: String(orderData.comment || ''),
         value_to_collect: valueToCollect, delivery_status: 'Confirmado', vendor: vendorDisplayName(owner), order_date: dateStr,
@@ -372,12 +415,28 @@ export default function AssistantPage() {
       if (hasOwner) basePayload.owner = owner;
       const hasTiming = await isPaymentTimingSupported();
       if (hasTiming) basePayload.payment_timing = paymentTiming;
+      if (await isOrderQuantitySupported()) basePayload.quantity = orderQty;
 
-      const { error } = await supabase.from('orders').insert(basePayload);
-      if (error) throw error;
+      // order_code = fecha + secuencial del día. El secuencial sale de un conteo
+      // leído justo antes de insertar; si dos pedidos se crean a la vez podrían
+      // colisionar. Reintentamos con el siguiente secuencial ante violación de
+      // unicidad (índice uq_orders_tenant_code, migración 013). Sin el índice no
+      // hay violación y el primer intento basta (comportamiento previo).
+      let orderCode = '';
+      let insertErr: { code?: string; message?: string } | null = null;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        const { data: existing } = await supabase.from('orders').select('id').gte('order_date', dateStr).lte('order_date', dateStr);
+        const seq = (existing?.length || 0) + 1 + attempt;
+        orderCode = generateOrderCode(today, seq);
+        basePayload.order_code = orderCode;
+        const { error } = await supabase.from('orders').insert(basePayload);
+        if (!error) { insertErr = null; break; }
+        insertErr = error;
+        if (error.code !== '23505') break; // no es colisión de unicidad → no reintentar
+      }
+      if (insertErr) throw new Error(insertErr.message || 'No se pudo guardar el pedido');
 
       // Sync inventario: descuenta (nunca negativo) o crea en cero con costo de referencia
-      const orderQty = Math.max(1, Number(orderData.quantity) || 1);
       const detailStr = String(orderData.detail || '');
       const productRef = String(orderData.product_ref || '');
       let catalogProduct = null;
@@ -411,9 +470,16 @@ export default function AssistantPage() {
     }
     if (action === 'add_inventory') {
       const items = (Array.isArray(data) ? data : [data]) as Array<Record<string, unknown>>;
+      // Canasta/ubicación OBLIGATORIA (trazabilidad). El prompt ya la pide; aquí
+      // validamos por si el modelo la omitió: no guardamos inventario "perdido".
+      const sinUbicacion = items.filter(it => !String(it.basket_location || '').trim());
+      if (sinUbicacion.length > 0) {
+        const faltan = sinUbicacion.map(it => String(it.model || 'producto')).join(', ');
+        return `Para guardar en inventario necesito la canasta/ubicación de: ${faltan}. ¿En qué canasta lo guardaste?`;
+      }
       const imgUrl = preConfirmPhoto?.imageUrl || '';
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payloads = items.map(item => { const p: any = { model: item.model || '', category: item.category || (config.categories[0] ?? 'Otro'), product_id: item.product_id || '', color: item.color || '', size: item.size || '', quantity: Number(item.quantity) || 1, basket_location: item.basket_location || '', type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: 0, image_url: imgUrl }; if (hasOwner) p.owner = owner; return p; });
+      const payloads = items.map(item => { const p: any = { model: item.model || '', category: resolveTenantCategory(item.category, config.categories), product_id: item.product_id || '', color: item.color || '', size: item.size || '', quantity: normalizeQuantity(item.quantity), basket_location: String(item.basket_location).trim(), type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: 0, image_url: imgUrl }; if (hasOwner) p.owner = owner; return p; });
       const { error } = await supabase.from('inventory').insert(payloads);
       if (error) throw error;
       setPreConfirmPhoto(null);
@@ -422,22 +488,29 @@ export default function AssistantPage() {
     if (action === 'mark_defective') {
       const defData = data as Record<string, unknown>;
       const model = String(defData.model || '').toLowerCase();
-      const qty = Number(defData.quantity) || 1;
+      const qty = normalizeQuantity(defData.quantity);
       let invQuery = supabase.from('inventory').select('*').eq('status', 'Bueno').gt('quantity', 0);
       if (hasOwner) invQuery = invQuery.eq('owner', owner);
       if (model) invQuery = invQuery.ilike('model', `%${model}%`);
       if (defData.color) invQuery = invQuery.ilike('color', `%${String(defData.color)}%`);
-      const { data: invItems } = await invQuery.limit(1);
-      if (invItems?.length) {
-        const item = invItems[0];
-        await supabase.from('inventory').update({ quantity: Math.max(0, item.quantity - qty) }).eq('id', item.id);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const defPayload: any = { model: item.model, category: item.category, product_id: item.product_id, color: item.color, size: item.size, quantity: qty, basket_location: item.basket_location, type: item.type, observations: String(defData.observations || 'Defectuoso'), status: 'Malo', verified: false, reference: 0 };
-        if (hasOwner) defPayload.owner = owner;
-        await supabase.from('inventory').insert(defPayload);
-        return `${qty} unidad(es) de ${item.model} marcadas como defectuosas.`;
+      // limit(5) + resolución estricta: si hay 0 o >1, NO tocamos nada (evita
+      // marcar defectuoso el item equivocado cuando dos modelos comparten prefijo).
+      const { data: invItems } = await invQuery.limit(5);
+      const res = resolveSingleMatch(invItems);
+      if (res.kind === 'none') return 'No encontré ese producto en inventario.';
+      if (res.kind === 'ambiguous') {
+        const list = res.candidates
+          .map((i: Record<string, unknown>) => `• ${String(i.model || '')} ${String(i.color || '')} ${String(i.size || '')} (${String(i.basket_location || 's/canasta')})`)
+          .join('\n');
+        return `Hay varios productos que coinciden, no marqué ninguno para no equivocarme. ¿Cuál es?\n${list}\nDime el modelo + color/talla exactos.`;
       }
-      return 'No encontré ese producto en inventario.';
+      const item = res.item;
+      await supabase.from('inventory').update({ quantity: Math.max(0, item.quantity - qty) }).eq('id', item.id);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const defPayload: any = { model: item.model, category: item.category, product_id: item.product_id, color: item.color, size: item.size, quantity: qty, basket_location: item.basket_location, type: item.type, observations: String(defData.observations || 'Defectuoso'), status: 'Malo', verified: false, reference: 0 };
+      if (hasOwner) defPayload.owner = owner;
+      await supabase.from('inventory').insert(defPayload);
+      return `${qty} unidad(es) de ${item.model} marcadas como defectuosas.`;
     }
     if (action === 'return_order') {
       const retData = data as Record<string, unknown>;
@@ -445,55 +518,95 @@ export default function AssistantPage() {
       if (hasOwner) oq = oq.eq('owner', owner);
       if (retData.order_code) oq = oq.eq('order_code', String(retData.order_code));
       else if (retData.client_name) oq = oq.ilike('client_name', `%${String(retData.client_name)}%`);
-      const { data: found } = await oq.limit(1);
-      if (found?.length) {
-        const order = found[0];
-        const mergedChanges: Record<string, unknown> = {
-          delivery_status: 'Devolucion',
-          comment: `${order.comment || ''} | Devolución: ${retData.reason || ''}`.trim(),
-        };
-        await supabase.from('orders').update(mergedChanges).eq('id', order.id);
-        const detail = (order.detail || order.product_ref || '').toLowerCase();
-        if (detail) { let iq = supabase.from('inventory').select('*').eq('status', 'Bueno'); if (hasOwner) iq = iq.eq('owner', owner); const { data: inv } = await iq; if (inv?.length) { const m = inv.find(i => detail.includes(i.model.toLowerCase()) || i.model.toLowerCase().includes(detail.split(' ')[0])); if (m) await supabase.from('inventory').update({ quantity: m.quantity + 1 }).eq('id', m.id); } }
-        return `Pedido #${order.order_code} de ${order.client_name} → Devolución. Stock restaurado.`;
+      oq = oq.order('created_at', { ascending: false });
+      const { data: found } = await oq.limit(5);
+      const res = resolveSingleMatch(found);
+      if (res.kind === 'none') return 'No encontré ese pedido.';
+      if (res.kind === 'ambiguous') {
+        const list = res.candidates
+          .map((o: Record<string, unknown>) => `• #${String(o.order_code)} — ${String(o.client_name)} (${String(o.delivery_status)})`)
+          .join('\n');
+        return `Hay varios pedidos que coinciden, no registré la devolución. ¿Cuál es? Dame el código:\n${list}`;
       }
-      return 'No encontré ese pedido.';
+      const order = res.item;
+      // Idempotencia: si ya estaba en Devolución, no volver a sumar stock.
+      if (order.delivery_status === 'Devolucion') {
+        return `El pedido #${order.order_code} de ${order.client_name} ya estaba marcado como devolución.`;
+      }
+      const mergedChanges: Record<string, unknown> = {
+        delivery_status: 'Devolucion',
+        comment: `${order.comment || ''} | Devolución: ${retData.reason || ''}`.trim(),
+      };
+      await supabase.from('orders').update(mergedChanges).eq('id', order.id);
+      // Restaura la CANTIDAD real del pedido (no un +1 fijo). Si la columna
+      // quantity no existe aún, normalizeQuantity cae a 1 (igual que antes).
+      const restoreQty = normalizeQuantity(order.quantity);
+      const detail = (order.detail || order.product_ref || '').toLowerCase();
+      let restored = false;
+      if (detail) {
+        let iq = supabase.from('inventory').select('*').eq('status', 'Bueno');
+        if (hasOwner) iq = iq.eq('owner', owner);
+        const { data: inv } = await iq;
+        if (inv?.length) {
+          const m = inv.find(i => detail.includes(i.model.toLowerCase()) || i.model.toLowerCase().includes(detail.split(' ')[0]));
+          if (m) { await supabase.from('inventory').update({ quantity: m.quantity + restoreQty }).eq('id', m.id); restored = true; }
+        }
+      }
+      return `Pedido #${order.order_code} de ${order.client_name} → Devolución.${restored ? ` Stock restaurado (+${restoreQty}).` : ''}`;
     }
     if (action === 'update_order_status') {
       const sd = data as Record<string, unknown>;
+      // Validamos el estado contra el enum ANTES de escribir: si el modelo
+      // inventó un estado inválido, no lo persistimos (rompería chk_orders_status).
+      const ns = normalizeOrderStatus(sd.new_status ?? 'Entregado');
+      if (!ns) {
+        return `No reconozco el estado "${String(sd.new_status)}". Los válidos son: Confirmado, Enviado, Entregado, Pagado, Devolucion, Cancelado.`;
+      }
       let oq = supabase.from('orders').select('*');
       if (hasOwner) oq = oq.eq('owner', owner);
       if (sd.order_code) oq = oq.eq('order_code', String(sd.order_code));
       else if (sd.client_name) oq = oq.ilike('client_name', `%${String(sd.client_name)}%`);
       oq = oq.order('created_at', { ascending: false });
-      const { data: found } = await oq.limit(1);
-      if (found?.length) {
-        const order = found[0];
-        const ns = String(sd.new_status || 'Entregado');
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const mergedChanges: any = { delivery_status: ns };
-        // El AI puede mandar el campo nuevo (payment_courier_pending) o el legacy (payment_cash_bogo).
-        const courierAmt = sd.payment_courier_pending ?? sd.payment_cash_bogo;
-        if (courierAmt) {
-          const col = await courierPendingColumn();
-          mergedChanges[col] = Number(courierAmt);
-        }
-        if (sd.payment_cash) mergedChanges.payment_cash = Number(sd.payment_cash);
-        if (sd.payment_transfer) mergedChanges.payment_transfer = Number(sd.payment_transfer);
-        await supabase.from('orders').update(mergedChanges).eq('id', order.id);
-        if (ns === 'Entregado' && order.delivery_status === 'Confirmado') { const d = (order.detail || order.product_ref || '').toLowerCase(); if (d) { let iq = supabase.from('inventory').select('*').eq('status', 'Bueno').gt('quantity', 0); if (hasOwner) iq = iq.eq('owner', owner); const { data: inv } = await iq; if (inv) { const m = inv.find(i => d.includes(i.model.toLowerCase()) || i.model.toLowerCase().includes(d.split(' ')[0])); if (m) await supabase.from('inventory').update({ quantity: Math.max(0, m.quantity - 1) }).eq('id', m.id); } } }
-        return `Pedido #${order.order_code} de ${order.client_name} → "${ns}".`;
+      const { data: found } = await oq.limit(5);
+      const res = resolveSingleMatch(found);
+      if (res.kind === 'none') return 'No encontré ese pedido.';
+      if (res.kind === 'ambiguous') {
+        const list = res.candidates
+          .map((o: Record<string, unknown>) => `• #${String(o.order_code)} — ${String(o.client_name)} (${String(o.delivery_status)})`)
+          .join('\n');
+        return `Hay varios pedidos que coinciden, no cambié ninguno. ¿Cuál es? Dame el código:\n${list}`;
       }
-      return 'No encontré ese pedido.';
+      const order = res.item;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const mergedChanges: any = { delivery_status: ns };
+      // El AI puede mandar el campo nuevo (payment_courier_pending) o el legacy (payment_cash_bogo).
+      const courierAmt = sd.payment_courier_pending ?? sd.payment_cash_bogo;
+      if (courierAmt) {
+        const col = await courierPendingColumn();
+        mergedChanges[col] = Number(courierAmt);
+      }
+      if (sd.payment_cash) mergedChanges.payment_cash = Number(sd.payment_cash);
+      if (sd.payment_transfer) mergedChanges.payment_transfer = Number(sd.payment_transfer);
+      await supabase.from('orders').update(mergedChanges).eq('id', order.id);
+      // El stock se descuenta UNA sola vez, al CREAR el pedido (syncInventory).
+      // Antes esto volvía a descontar al pasar a "Entregado" → doble descuento.
+      // Ya NO se toca el inventario aquí.
+      return `Pedido #${order.order_code} de ${order.client_name} → "${ns}".`;
     }
     if (action === 'register_expense') {
       const ed = data as Record<string, unknown>;
+      const amount = parseCopAmount(ed.amount as string | number) ?? 0;
+      if (amount <= 0) {
+        return `No entendí el monto del gasto ("${ed.amount ?? ''}"). Dame una cifra válida en COP.`;
+      }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const p: any = { description: String(ed.description || ''), amount: Number(ed.amount) || 0, category: String(ed.category || 'otro'), expense_date: new Date().toISOString().slice(0, 10) };
+      const p: any = { description: String(ed.description || ''), amount, category: normalizeExpenseCategory(ed.category), expense_date: new Date().toISOString().slice(0, 10) };
       if (hasOwner) p.owner = owner; if (ed.order_id) p.order_id = Number(ed.order_id); if (ed.product_ref) p.product_ref = String(ed.product_ref);
       const { error } = await supabase.from('expenses').insert(p);
-      if (error) return 'Error al registrar gasto: ' + error.message;
-      return `Gasto de ${formatCurrency(Number(ed.amount))} registrado: "${ed.description}".`;
+      // Lanza (no devuelve string) para que en multi_action cuente como ✗ y no
+      // se enmascare un fallo como "✓ Error al registrar gasto...".
+      if (error) throw new Error('No se pudo registrar el gasto: ' + error.message);
+      return `Gasto de ${formatCurrency(amount)} registrado: "${ed.description}".`;
     }
     if (action === 'update_cost') {
       const cd = data as Record<string, unknown>;
@@ -506,12 +619,15 @@ export default function AssistantPage() {
       if (cost === null) {
         return `No pude interpretar el costo recibido ("${cd.cost}"). Dame un número válido en COP.`;
       }
+      if (cost < 0) {
+        return 'El costo no puede ser negativo.';
+      }
       let pq = supabase.from('products').select('*');
       if (hasOwner) pq = pq.eq('owner', owner);
       pq = pq.ilike('name', `%${model}%`);
       const { data: prods, error: prodErr } = await pq.limit(5);
       if (prodErr) {
-        return `Error consultando productos: ${prodErr.message}`;
+        throw new Error(`No pude consultar el catálogo: ${prodErr.message}`);
       }
       if (!prods || prods.length === 0) {
         return `No encontré ningún producto que coincida con "${modelRaw}". No guardé nada. ¿Podés darme el nombre o código exacto?`;
@@ -523,7 +639,7 @@ export default function AssistantPage() {
       const product = prods[0];
       const { error: updErr } = await supabase.from('products').update({ cost }).eq('id', product.id);
       if (updErr) {
-        return `No pude guardar el costo: ${updErr.message}`;
+        throw new Error(`No pude guardar el costo: ${updErr.message}`);
       }
       let invCount = 0;
       let iq = supabase.from('inventory').select('id');
@@ -551,16 +667,38 @@ export default function AssistantPage() {
       const tail = invCount > 0 ? ` (${invCount} item(s) de inventario sincronizados)` : '';
       return `Registré el costo de "${product.name}" en ${formatCurrency(cost)}.${tail}`;
     }
+    if (action === 'edit_order') {
+      // El route ya resolvió el pedido (order_id) y validó los campos; aquí solo
+      // aplicamos el UPDATE tras la confirmación de la usuaria (antes el route lo
+      // escribía solo, sin confirmar). Re-aplicamos la whitelist por seguridad.
+      const ed = data as Record<string, unknown>;
+      const orderId = ed.order_id;
+      const updates = (ed.updates || {}) as Record<string, unknown>;
+      const safe: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        if ((EDITABLE_ORDER_FIELDS as readonly string[]).includes(k)) {
+          // value_to_collect puede venir como "85.000" → normalizar a número.
+          safe[k] = k === 'value_to_collect' ? (parseCopAmount(v as string | number) ?? Number(v) ?? 0) : v;
+        }
+      }
+      if (!orderId || Object.keys(safe).length === 0) {
+        return 'No había cambios válidos para aplicar al pedido.';
+      }
+      const { error } = await supabase.from('orders').update(safe).eq('id', Number(orderId));
+      if (error) throw new Error('No se pudo actualizar el pedido: ' + error.message);
+      return `Pedido #${ed.order_code} de ${ed.client_name} actualizado (${Object.keys(safe).join(', ')}).`;
+    }
     return 'Acción no reconocida.';
   };
 
   const confirmAction = async () => {
     if (!pendingAction) return;
     setIsLoading(true);
+    const summaries: string[] = [];
+    let anyError = false;
 
     try {
       const hasOwner = await isOwnerSupported();
-      const summaries: string[] = [];
 
       if (pendingAction.action === 'multi_action' && pendingAction.actions) {
         for (const sub of pendingAction.actions) {
@@ -568,28 +706,34 @@ export default function AssistantPage() {
             const result = await execSingleAction(sub.action, sub.data, hasOwner);
             summaries.push('✓ ' + result);
           } catch (e: unknown) {
+            anyError = true;
             summaries.push('✗ ' + sub.action + ': ' + (e instanceof Error ? e.message : 'Error'));
           }
         }
       } else {
-        const result = await execSingleAction(pendingAction.action!, pendingAction.data, hasOwner);
-        summaries.push(result);
+        // Acción única: también capturamos el error aquí (antes caía al catch
+        // externo sin dejar mensaje y con la barra de confirmación colgada).
+        try {
+          const result = await execSingleAction(pendingAction.action!, pendingAction.data, hasOwner);
+          summaries.push(result);
+        } catch (e: unknown) {
+          anyError = true;
+          summaries.push('No se pudo completar: ' + (e instanceof Error ? e.message : 'Error'));
+        }
       }
 
-      const hasErrors = summaries.some(s => s.startsWith('✗'));
-      toast[hasErrors ? 'error' : 'success'](hasErrors ? 'Algunas acciones fallaron' : 'Acciones ejecutadas');
+      toast[anyError ? 'error' : 'success'](anyError ? 'Algo falló al guardar' : 'Listo');
       setMessages(prev => [...prev, {
         role: 'assistant',
         content: summaries.join('\n'),
-        confirmed: true,
+        confirmed: !anyError,
       }]);
-
+    } finally {
+      // Siempre cerramos el flujo de confirmación, haya éxito o error, para no
+      // dejar la barra "¿Confirmar?" colgada.
       setPendingAction(null);
       setPreConfirmPhoto(null);
       setPhotoStepDone(false);
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : 'Error al guardar');
-    } finally {
       setIsLoading(false);
       scrollToBottom();
     }
@@ -609,11 +753,16 @@ export default function AssistantPage() {
   // Keep track of text before recording started so we can append
   const preRecordTextRef = useRef('');
   const wasRecordingRef = useRef(false);
+  // Última transcripción acumulada (prev + reconocido). Se envía ESTA al parar,
+  // no el estado `input`, que podría no haberse re-renderizado todavía (closure
+  // obsoleto): así nunca se manda texto incompleto/interino.
+  const latestTranscriptRef = useRef('');
 
   // Auto-send when recording stops and there's text
   useEffect(() => {
-    if (wasRecordingRef.current && !isRecording && input.trim()) {
-      sendMessage(input);
+    if (wasRecordingRef.current && !isRecording) {
+      const text = (latestTranscriptRef.current || input).trim();
+      if (text) sendMessage(text);
     }
     wasRecordingRef.current = isRecording;
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -627,6 +776,7 @@ export default function AssistantPage() {
 
     // Save current text so we can append
     preRecordTextRef.current = input;
+    latestTranscriptRef.current = input;
 
     const recognition = new SpeechRecognitionAPI();
     recognition.lang = 'es-CO';
@@ -643,7 +793,9 @@ export default function AssistantPage() {
       }
       const newText = finalT || interimT;
       const prev = preRecordTextRef.current;
-      setInput(prev ? `${prev} ${newText}` : newText);
+      const full = prev ? `${prev} ${newText}` : newText;
+      latestTranscriptRef.current = full;
+      setInput(full);
     };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onerror = (e: any) => { if (e.error !== 'no-speech') toast.error('Error de voz'); setIsRecording(false); };
@@ -672,8 +824,79 @@ export default function AssistantPage() {
       case 'return_order': return <ShoppingBag className="w-4 h-4 text-amber-500" />;
       case 'update_cost': return <Package className="w-4 h-4 text-cyan-500" />;
       case 'update_order_status': return <ShoppingBag className="w-4 h-4 text-emerald-500" />;
-      case 'register_expense': return <ShoppingBag className="w-4 h-4 text-red-500" />;
+      case 'register_expense': return <Receipt className="w-4 h-4 text-red-500" />;
+      case 'edit_order': return <ShoppingBag className="w-4 h-4 text-indigo-500" />;
+      case 'multi_action': return <Sparkles className="w-4 h-4 text-purple-500" />;
+      case 'monthly_summary': return <FileText className="w-4 h-4 text-indigo-500" />;
+      case 'search_expenses': return <Receipt className="w-4 h-4 text-pink-500" />;
       default: return null;
+    }
+  };
+
+  // Rótulo del tipo de acción (encabezado de la burbuja del asistente).
+  const actionLabel = (action?: string): string => {
+    switch (action) {
+      case 'create_order': return 'Nuevo pedido';
+      case 'add_inventory': return 'Agregar inventario';
+      case 'search_inventory': return 'Buscar inventario';
+      case 'search_orders': return 'Consultar pedidos';
+      case 'search_products': return 'Buscar productos';
+      case 'generate_report': return 'Generar reporte';
+      case 'mark_defective': return 'Marcar defectuoso';
+      case 'return_order': return 'Devolución';
+      case 'update_cost': return 'Registrar costo';
+      case 'update_order_status': return 'Cambiar estado';
+      case 'register_expense': return 'Registrar gasto';
+      case 'edit_order': return 'Editar pedido';
+      case 'multi_action': return 'Varias acciones';
+      case 'monthly_summary': return 'Resumen del mes';
+      case 'search_expenses': return 'Buscar gastos';
+      default: return '';
+    }
+  };
+
+  // Icono del chip de ejemplo según su grupo.
+  const exampleIcon = (group: ExampleGroup) => {
+    switch (group) {
+      case 'Crear pedido': return <ShoppingBag className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />;
+      case 'Agregar inventario': return <Package className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />;
+      case 'Buscar': return <Search className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />;
+      case 'Pedidos': return <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />;
+      case 'Cambiar estado': return <CheckCircle className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />;
+      case 'Costo producto': return <DollarSign className="w-3.5 h-3.5 text-cyan-500 shrink-0 mt-0.5" />;
+      case 'Gasto general': return <Receipt className="w-3.5 h-3.5 text-pink-500 shrink-0 mt-0.5" />;
+      case 'Devolución': return <RotateCcw className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />;
+      case 'Defectuoso': return <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />;
+      case 'Reporte': return <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />;
+      default: return null;
+    }
+  };
+
+  // Resumen de una sola línea de una sub-acción de multi_action, para el preview.
+  const subActionSummary = (a: SubAction): string => {
+    const raw = Array.isArray(a.data) ? (a.data[0] ?? {}) : (a.data ?? {});
+    const d = raw as Record<string, unknown>;
+    const money = (v: unknown) => formatCurrency(parseCopAmount(v as string | number) ?? Number(v) ?? 0);
+    switch (a.action) {
+      case 'register_expense':
+        return `${String(d.description || 'gasto')}${d.amount ? ` — ${money(d.amount)}` : ''}`;
+      case 'update_cost':
+        return `${String(d.model || '')}${d.cost ? ` → ${money(d.cost)}` : ''}`.trim();
+      case 'create_order':
+        return `${String(d.client_name || '')}${d.value_to_collect ? ` — ${money(d.value_to_collect)}` : ''}`.trim();
+      case 'update_order_status':
+        return `→ ${String(d.new_status || '')}`;
+      case 'mark_defective':
+        return `${String(d.model || '')} x${String(d.quantity || 1)}`;
+      case 'return_order':
+        return `${String(d.order_code || d.client_name || '')}`;
+      case 'add_inventory': {
+        const items = Array.isArray(a.data) ? a.data : [a.data];
+        const n = items.filter(Boolean).length;
+        return `${n} item(s)`;
+      }
+      default:
+        return '';
     }
   };
 
@@ -686,7 +909,7 @@ export default function AssistantPage() {
             <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="font-bold text-sm md:text-lg leading-tight">Asistente Meraki</h1>
+            <h1 className="font-bold text-sm md:text-lg leading-tight truncate">Asistente {config.name}</h1>
             <p className="text-[10px] md:text-xs text-gray-500 truncate">Pedidos, inventario, consultas</p>
           </div>
           <button
@@ -745,37 +968,16 @@ export default function AssistantPage() {
               </button>
             </div>
             <div className="grid grid-cols-1 gap-1.5 max-w-md mx-auto text-left">
-              {[
-                { group: 'Crear pedido', icon: <ShoppingBag className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />, text: '"Carlos 3203436512 Cr 15 #80-25 clásica miel talla 38 $60.000"' },
-                { group: 'Crear pedido', icon: <ShoppingBag className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />, text: '"Pedido para María, Cll 72 #14-33, vaquita blanca, $85.000"' },
-                { group: 'Crear pedido', icon: <ShoppingBag className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />, text: '"Juan 3201234567 Chía, maxisaco cool gris, 110 mil, ya pagó por Nequi"' },
-                { group: 'Agregar inventario', icon: <Package className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />, text: '"Tengo 10 vaquitas talla 38 en C015 a $15.000 cada una"' },
-                { group: 'Agregar inventario', icon: <Package className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />, text: '"Puse 3 maxisacos gris cool en C08 a 45 mil"' },
-                { group: 'Buscar', icon: <Search className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />, text: '"¿Dónde están las pantuflas stitch azules?"' },
-                { group: 'Buscar', icon: <Search className="w-3.5 h-3.5 text-amber-500 shrink-0 mt-0.5" />, text: '"¿Cuántas vaquitas talla 38 me quedan?"' },
-                { group: 'Pedidos', icon: <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />, text: '"¿Cuántos pedidos hay hoy?"' },
-                { group: 'Pedidos', icon: <MapPin className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />, text: '"Pedidos pendientes de entrega"' },
-                { group: 'Cambiar estado', icon: <CheckCircle className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />, text: '"El pedido de Carlos ya lo entregaron"' },
-                { group: 'Cambiar estado', icon: <CheckCircle className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />, text: '"Bogo me pagó el de María, 85 mil"' },
-                { group: 'Cambiar estado', icon: <CheckCircle className="w-3.5 h-3.5 text-purple-500 shrink-0 mt-0.5" />, text: '"Cancela el pedido #4041302"' },
-                { group: 'Costo producto', icon: <DollarSign className="w-3.5 h-3.5 text-cyan-500 shrink-0 mt-0.5" />, text: '"Las pantuflas vaquita me costaron $15.000 cada una"' },
-                { group: 'Costo producto', icon: <DollarSign className="w-3.5 h-3.5 text-cyan-500 shrink-0 mt-0.5" />, text: '"Sube el costo de la maxisaco ovejero a 45.000"' },
-                { group: 'Gasto general', icon: <Receipt className="w-3.5 h-3.5 text-pink-500 shrink-0 mt-0.5" />, text: '"Pagué 800 mil de arriendo"' },
-                { group: 'Gasto general', icon: <Receipt className="w-3.5 h-3.5 text-pink-500 shrink-0 mt-0.5" />, text: '"Gasté 25.000 en bolsas de empaque"' },
-                { group: 'Devolución', icon: <RotateCcw className="w-3.5 h-3.5 text-orange-500 shrink-0 mt-0.5" />, text: '"Me devolvieron el pedido de Carlos, le quedó grande"' },
-                { group: 'Defectuoso', icon: <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0 mt-0.5" />, text: '"Esta pantufla vaquita azul está rota"' },
-                { group: 'Reporte', icon: <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />, text: '"Dame el reporte de hoy"' },
-                { group: 'Reporte', icon: <FileText className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />, text: '"¿Cuánto he vendido este mes?"' },
-              ].map((ex, i) => (
+              {buildAssistantExamples(config.categories).map((ex, i) => (
                 <button
                   key={i}
-                  onClick={() => setInput(ex.text.replace(/"/g, ''))}
+                  onClick={() => setInput(ex.text)}
                   className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-purple-50 border border-transparent hover:border-purple-100 text-xs text-gray-700 text-left transition"
                 >
-                  {ex.icon}
+                  {exampleIcon(ex.group)}
                   <span className="flex-1 min-w-0">
                     <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">{ex.group}</span>
-                    <span className="block leading-snug">{ex.text}</span>
+                    <span className="block leading-snug">&quot;{ex.text}&quot;</span>
                   </span>
                 </button>
               ))}
@@ -790,23 +992,28 @@ export default function AssistantPage() {
                 ? 'bg-purple-600 text-white rounded-br-md'
                 : 'bg-gray-100 text-gray-800 rounded-bl-md'
             }`}>
-              {msg.action && msg.role === 'assistant' && (
+              {msg.action && msg.role === 'assistant' && actionLabel(msg.action) && (
                 <div className="flex items-center gap-1.5 mb-1 text-xs font-medium text-gray-500">
                   {actionIcon(msg.action)}
-                  {msg.action === 'create_order' && 'Nuevo pedido'}
-                  {msg.action === 'add_inventory' && 'Agregar inventario'}
-                  {msg.action === 'search_inventory' && 'Buscar inventario'}
-                  {msg.action === 'search_orders' && 'Consultar pedidos'}
-                  {msg.action === 'search_products' && 'Buscar productos'}
-                  {msg.action === 'generate_report' && 'Generar reporte'}
-                  {msg.action === 'mark_defective' && 'Marcar defectuoso'}
-                  {msg.action === 'return_order' && 'Devolución'}
-                  {msg.action === 'update_cost' && 'Registrar costo'}
-                  {msg.action === 'update_order_status' && 'Cambiar estado'}
-                  {msg.action === 'register_expense' && 'Registrar gasto'}
+                  {actionLabel(msg.action)}
                 </div>
               )}
               <p className="whitespace-pre-wrap">{msg.content}</p>
+
+              {/* Multi-action preview: TODAS las sub-acciones (gasto, costo,
+                  estado, etc.), no solo el inventario. Así la usuaria confirma
+                  viendo todo lo que se va a hacer, no a ciegas. */}
+              {msg.action === 'multi_action' && msg.actions && msg.actions.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {msg.actions.map((a, j) => (
+                    <div key={j} className="p-2 bg-purple-50 rounded-lg text-xs border border-purple-100 flex items-center gap-1.5">
+                      {actionIcon(a.action)}
+                      <span className="font-medium">{actionLabel(a.action) || a.action}:</span>
+                      <span className="text-gray-600 truncate">{subActionSummary(a)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Order preview */}
               {msg.action === 'create_order' && msg.data && (

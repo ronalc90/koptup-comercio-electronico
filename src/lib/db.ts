@@ -3,6 +3,7 @@ import { supabase, supabaseConfigured } from './supabase';
 let _paymentTimingSupported: boolean | null = null;
 let _courierPendingRenamed: boolean | null = null;
 let _tenantSupported: boolean | null = null;
+let _orderQuantitySupported: boolean | null = null;
 
 /**
  * Detecta si la migración multi-tenant (002) ya corrió comprobando la columna
@@ -76,4 +77,25 @@ export async function isCourierPendingRenamed(): Promise<boolean> {
 /** Devuelve el nombre real de la columna a escribir según haya corrido o no la migración. */
 export async function courierPendingColumn(): Promise<'payment_courier_pending' | 'payment_cash_bogo'> {
   return (await isCourierPendingRenamed()) ? 'payment_courier_pending' : 'payment_cash_bogo';
+}
+
+/**
+ * Detecta si la columna `orders.quantity` (migración 013) existe. Mientras no,
+ * el pedido no guarda la cantidad y las devoluciones restauran 1 unidad (igual
+ * que antes). Una vez aplicada, create_order la persiste y return_order restaura
+ * la cantidad exacta. Cachea solo el `true`.
+ */
+export async function isOrderQuantitySupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  if (_orderQuantitySupported === true) return true;
+  try {
+    const { error } = await supabase.from('orders').select('quantity').limit(1);
+    if (!error) {
+      _orderQuantitySupported = true;
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }

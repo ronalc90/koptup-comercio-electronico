@@ -3,6 +3,8 @@ import OpenAI from 'openai';
 import { getRequestScopedClient } from '@/lib/tenantServer';
 import { loadTenantConfig } from '@/lib/tenantConfigServer';
 import type { TenantConfig } from '@/lib/tenants.config';
+import { resolveSingleMatch } from '@/lib/assistant/matching';
+import { ACTIVE_REVENUE_STATUSES, EDITABLE_ORDER_FIELDS } from '@/lib/assistant/constants';
 
 /**
  * Sanea un término antes de interpolarlo dentro de un filtro PostgREST `.or(...)`.
@@ -418,7 +420,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const { message, context, owner } = await request.json();
+    // `owner` ya NO se usa para filtrar: el aislamiento lo da el scoping por
+    // tenant (getRequestScopedClient/withTenant). Filtrar por owner='<username>'
+    // rompía el ciclo crear→consultar (las escrituras no guardan owner; las
+    // filas quedan con el default 'Paola'), así que el chat "no veía" lo recién
+    // creado. Se ignora aunque el cliente aún lo envíe (compat de despliegue).
+    const { message, context } = await request.json();
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Mensaje vacío' }, { status: 400 });
     }
@@ -448,38 +455,67 @@ export async function POST(request: NextRequest) {
       model: 'gpt-4o-mini',
       messages,
       temperature: 0.1,
-      max_tokens: 1000,
+      // 1500 (antes 1000) para que un multi_action grande no se trunque a la
+      // mitad del JSON. Si aun así se corta, lo detectamos abajo.
+      max_tokens: 1500,
       response_format: { type: 'json_object' },
     });
 
-    const content = completion.choices[0]?.message?.content;
+    const choice = completion.choices[0];
+    const content = choice?.message?.content;
     if (!content) return NextResponse.json({ error: 'Sin respuesta' }, { status: 500 });
 
-    const parsed = JSON.parse(content);
+    // Si el modelo se quedó sin tokens, el JSON viene incompleto: avisamos en
+    // vez de fallar con un JSON.parse críptico (mejor que un 500 sin contexto).
+    if (choice.finish_reason === 'length') {
+      return NextResponse.json(
+        { error: 'La instrucción es muy larga para procesar de una. Divídela en pasos más cortos.' },
+        { status: 422 },
+      );
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let parsed: any;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      console.error('AI assistant: JSON inválido del modelo:', content.slice(0, 500));
+      return NextResponse.json(
+        { error: 'No entendí bien la respuesta. Reformúlalo en palabras más simples.' },
+        { status: 422 },
+      );
+    }
+
+    // Aviso de truncado: las búsquedas piden hasta SEARCH_LIMIT filas; si llega
+    // el tope, hay más y se lo decimos a la usuaria (antes parecía el total).
+    const SEARCH_LIMIT = 20;
+    const moreHint = (n: number) =>
+      n >= SEARCH_LIMIT ? ` (mostrando los primeros ${SEARCH_LIMIT}, puede haber más)` : '';
 
     // Handle search actions server-side
     if (parsed.action === 'search_inventory') {
       const s = parsed.search || {};
       let query = supabase.from('inventory').select('*').eq('status', 'Bueno').gt('quantity', 0);
-      if (owner) query = query.eq('owner', owner);
       if (s.model) query = query.ilike('model', `%${s.model}%`);
       if (s.color) query = query.ilike('color', `%${s.color}%`);
       if (s.size) query = query.ilike('size', `%${s.size}%`);
       if (s.category) query = query.ilike('category', `%${s.category}%`);
-      const { data: results } = await query.limit(20);
+      const { data: results, error } = await query.limit(SEARCH_LIMIT);
 
-      if (!results?.length) {
+      if (error) {
+        parsed.message = 'No pude consultar el inventario en este momento. Inténtalo de nuevo.';
+        parsed.results = [];
+      } else if (!results?.length) {
         // Try broader search without filters
         let broadQuery = supabase.from('inventory').select('*').eq('status', 'Bueno').gt('quantity', 0);
-        if (owner) broadQuery = broadQuery.eq('owner', owner);
         const term = sanitizeIlikeTerm(s.model || s.color || '');
         if (term) broadQuery = broadQuery.or(`model.ilike.%${term}%,color.ilike.%${term}%,category.ilike.%${term}%`);
-        const { data: broadResults } = await broadQuery.limit(20);
+        const { data: broadResults } = await broadQuery.limit(SEARCH_LIMIT);
 
         if (broadResults?.length) {
           const totalQty = broadResults.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.quantity) || 0), 0);
           const summary = broadResults.map((r: Record<string, unknown>) => `• ${r.model} ${r.color || ''} ${r.size || ''} - Cant: ${r.quantity} - ${r.basket_location}`).join('\n');
-          parsed.message = `Encontré ${broadResults.length} item(s), ${totalQty} unidades en total:\n${summary}`;
+          parsed.message = `Encontré ${broadResults.length} item(s)${moreHint(broadResults.length)}, ${totalQty} unidades en total:\n${summary}`;
           parsed.results = broadResults;
         } else {
           parsed.message = `No encontré productos con esas características en el inventario.`;
@@ -488,7 +524,7 @@ export async function POST(request: NextRequest) {
       } else {
         const totalQty = results.reduce((sum: number, r: Record<string, unknown>) => sum + (Number(r.quantity) || 0), 0);
         const summary = results.map((r: Record<string, unknown>) => `• ${r.model} ${r.color || ''} ${r.size || ''} - Cant: ${r.quantity} - ${r.basket_location}`).join('\n');
-        parsed.message = `Encontré ${results.length} item(s), ${totalQty} unidades en total:\n${summary}`;
+        parsed.message = `Encontré ${results.length} item(s)${moreHint(results.length)}, ${totalQty} unidades en total:\n${summary}`;
         parsed.results = results;
       }
     }
@@ -496,19 +532,21 @@ export async function POST(request: NextRequest) {
     if (parsed.action === 'search_products') {
       const s = parsed.search || {};
       let query = supabase.from('products').select('*');
-      if (owner) query = query.eq('owner', owner);
       if (s.name) query = query.ilike('name', `%${s.name}%`);
       if (s.code) query = query.ilike('code', `%${s.code}%`);
       if (s.category) query = query.ilike('category', `%${s.category}%`);
       query = query.eq('active', true);
-      const { data: results } = await query.order('name').limit(20);
+      const { data: results, error } = await query.order('name').limit(SEARCH_LIMIT);
 
-      if (!results?.length) {
+      if (error) {
+        parsed.message = 'No pude consultar el catálogo en este momento. Inténtalo de nuevo.';
+        parsed.results = [];
+      } else if (!results?.length) {
         parsed.message = `No encontré productos con esas características en el catálogo.`;
         parsed.results = [];
       } else {
         const summary = results.map(r => `• ${r.code} — ${r.name} (${r.category}) — $${Number(r.cost).toLocaleString('es-CO')}`).join('\n');
-        parsed.message = `Encontré ${results.length} producto(s) en el catálogo:\n${summary}`;
+        parsed.message = `Encontré ${results.length} producto(s)${moreHint(results.length)} en el catálogo:\n${summary}`;
         parsed.results = results;
       }
     }
@@ -517,18 +555,26 @@ export async function POST(request: NextRequest) {
       const s = parsed.search || {};
       const today = new Date().toISOString().slice(0, 10);
       let query = supabase.from('orders').select('*');
-      if (owner) query = query.eq('owner', owner);
-      query = query.eq('order_date', s.date || today);
+      // Si hay fecha explícita, filtramos por ese día. Si NO hay fecha pero sí
+      // un estado ("pedidos pendientes/sin entregar"), NO restringimos a hoy:
+      // buscamos por estado en todas las fechas (los pedidos atrasados son justo
+      // los que importan). Solo cuando no hay ni fecha ni estado caemos a hoy.
+      const byDate = s.date || (!s.status ? today : null);
+      if (byDate) query = query.eq('order_date', byDate);
       if (s.status) query = query.eq('delivery_status', s.status);
       if (s.client) query = query.ilike('client_name', `%${s.client}%`);
-      const { data: results } = await query.order('created_at', { ascending: false }).limit(20);
+      const { data: results, error } = await query.order('created_at', { ascending: false }).limit(SEARCH_LIMIT);
 
-      if (!results?.length) {
-        parsed.message = `No hay pedidos para ${s.date || today}.`;
+      const scope = byDate ? `para ${byDate}` : (s.status ? `en estado "${s.status}"` : 'encontrados');
+      if (error) {
+        parsed.message = 'No pude consultar los pedidos en este momento. Inténtalo de nuevo.';
+        parsed.results = [];
+      } else if (!results?.length) {
+        parsed.message = `No hay pedidos ${scope}.`;
         parsed.results = [];
       } else {
-        const total = results.reduce((s, o) => s + (o.value_to_collect || 0), 0);
-        parsed.message = `${results.length} pedido(s) para ${s.date || today}. Total: $${total.toLocaleString('es-CO')}`;
+        const total = results.reduce((acc, o) => acc + (o.value_to_collect || 0), 0);
+        parsed.message = `${results.length} pedido(s) ${scope}${moreHint(results.length)}. Total: $${total.toLocaleString('es-CO')}`;
         parsed.results = results;
       }
     }
@@ -544,7 +590,6 @@ export async function POST(request: NextRequest) {
       const to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
       let query = supabase.from('orders').select('*');
-      if (owner) query = query.eq('owner', owner);
       query = query.gte('order_date', from).lte('order_date', to);
       const { data: monthOrders } = await query;
       const orders = monthOrders || [];
@@ -554,13 +599,15 @@ export async function POST(request: NextRequest) {
       const confirmados = orders.filter(o => o.delivery_status === 'Confirmado');
       const devoluciones = orders.filter(o => o.delivery_status === 'Devolucion');
       const cancelados = orders.filter(o => o.delivery_status === 'Cancelado');
-      const activos = orders.filter(o => o.delivery_status === 'Confirmado' || o.delivery_status === 'Entregado');
+      // Ingresos = pedidos "activos" (Confirmado/Enviado/Entregado/Pagado),
+      // EXCLUYE Devolucion y Cancelado. Mismo criterio que el Dashboard para que
+      // el resumen del chat y el tablero NO se contradigan.
+      const activos = orders.filter(o => ACTIVE_REVENUE_STATUSES.includes(o.delivery_status));
       const ingresos = activos.reduce((s, o) => s + (o.value_to_collect || 0), 0);
       const costos = activos.reduce((s, o) => s + (o.product_cost || 0) + (o.operating_cost || 0), 0);
 
       // Get expenses for the month
       let expQuery = supabase.from('expenses').select('*');
-      if (owner) expQuery = expQuery.eq('owner', owner);
       expQuery = expQuery.gte('expense_date', from).lte('expense_date', to);
       const { data: monthExpenses } = await expQuery;
       const gastos = (monthExpenses || []).reduce((s: number, e: Record<string, unknown>) => s + (Number(e.amount) || 0), 0);
@@ -584,7 +631,6 @@ export async function POST(request: NextRequest) {
       const s = parsed.search || {};
       const today = new Date().toISOString().slice(0, 10);
       let query = supabase.from('expenses').select('*');
-      if (owner) query = query.eq('owner', owner);
       if (s.category) query = query.eq('category', s.category);
       if (s.date) {
         query = query.eq('expense_date', s.date);
@@ -593,48 +639,68 @@ export async function POST(request: NextRequest) {
         const from = today.slice(0, 8) + '01';
         query = query.gte('expense_date', from).lte('expense_date', today);
       }
-      const { data: results } = await query.order('created_at', { ascending: false }).limit(20);
+      const { data: results, error } = await query.order('created_at', { ascending: false }).limit(SEARCH_LIMIT);
 
-      if (!results?.length) {
+      if (error) {
+        parsed.message = 'No pude consultar los gastos en este momento. Inténtalo de nuevo.';
+        parsed.results = [];
+      } else if (!results?.length) {
         parsed.message = 'No encontré gastos registrados para ese período.';
         parsed.results = [];
       } else {
         const totalGastos = results.reduce((s: number, e: Record<string, unknown>) => s + (Number(e.amount) || 0), 0);
         const summary = results.map((r: Record<string, unknown>) => `• ${r.description}: $${Number(r.amount).toLocaleString('es-CO')} (${r.category})`).join('\n');
-        parsed.message = `${results.length} gasto(s), total: $${totalGastos.toLocaleString('es-CO')}:\n${summary}`;
+        parsed.message = `${results.length} gasto(s)${moreHint(results.length)}, total: $${totalGastos.toLocaleString('es-CO')}:\n${summary}`;
         parsed.results = results;
       }
     }
 
-    // Edit order server-side
+    // Edit order: el route SOLO RESUELVE y PROPONE el cambio (no escribe). La
+    // escritura la hace el cliente tras "Confirmar", igual que toda otra acción
+    // de escritura. Antes el route ejecutaba el UPDATE durante la interpretación
+    // (violaba la regla "toda escritura se confirma" y podía editar el pedido
+    // equivocado por ilike+limit(1)).
     if (parsed.action === 'edit_order') {
       const d = parsed.data || {};
       let query = supabase.from('orders').select('*');
-      if (owner) query = query.eq('owner', owner);
-      if (d.order_code) query = query.eq('order_code', d.order_code);
+      if (d.order_code) query = query.eq('order_code', String(d.order_code));
       else if (d.client_name) query = query.ilike('client_name', `%${d.client_name}%`);
-      const { data: found } = await query.order('created_at', { ascending: false }).limit(1);
+      const { data: found, error } = await query.order('created_at', { ascending: false }).limit(5);
 
-      if (found?.length) {
-        const order = found[0];
-        const updates = d.updates || {};
-        const allowedFields = ['client_name', 'phone', 'address', 'complement', 'detail', 'comment', 'value_to_collect', 'product_ref', 'city'];
-        const safeUpdates: Record<string, unknown> = {};
-        for (const [k, v] of Object.entries(updates)) {
-          if (allowedFields.includes(k)) safeUpdates[k] = v;
-        }
-        if (Object.keys(safeUpdates).length > 0) {
-          await supabase.from('orders').update(safeUpdates).eq('id', order.id);
-          const changedFields = Object.keys(safeUpdates).join(', ');
-          parsed.message = `Pedido #${order.order_code} de ${order.client_name} actualizado (${changedFields}).`;
-          parsed.confirmed = true;
-        } else {
-          parsed.message = 'No se especificaron campos válidos para editar.';
-        }
+      // Solo campos editables (whitelist espejo del cliente).
+      const updates = (d.updates || {}) as Record<string, unknown>;
+      const safeUpdates: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        if ((EDITABLE_ORDER_FIELDS as readonly string[]).includes(k)) safeUpdates[k] = v;
+      }
+
+      const resolution = error ? { kind: 'none' as const } : resolveSingleMatch(found);
+      parsed.confirmed = false;
+      if (Object.keys(safeUpdates).length === 0) {
+        parsed.action = 'chat';
         parsed.needs_confirmation = false;
+        parsed.message = 'No identifiqué qué campo querés cambiar. Decime, por ejemplo: "cambia la dirección del pedido de Carlos a Cr 10 #5-5".';
+      } else if (resolution.kind === 'none') {
+        parsed.action = 'chat';
+        parsed.needs_confirmation = false;
+        parsed.message = error
+          ? 'No pude buscar el pedido en este momento. Inténtalo de nuevo.'
+          : 'No encontré ese pedido. Dame el código (ej. #4061801) o el nombre exacto del cliente.';
+      } else if (resolution.kind === 'ambiguous') {
+        // Más de un pedido coincide: NO editamos a ciegas; pedimos desambiguar.
+        const list = resolution.candidates
+          .map((o) => `• #${o.order_code} — ${o.client_name} (${o.delivery_status}) — $${Number(o.value_to_collect || 0).toLocaleString('es-CO')}`)
+          .join('\n');
+        parsed.action = 'chat';
+        parsed.needs_confirmation = false;
+        parsed.message = `Hay varios pedidos que coinciden, no edité ninguno para no equivocarme. ¿Cuál es? Dame el código:\n${list}`;
       } else {
-        parsed.message = 'No encontré ese pedido para editar.';
-        parsed.needs_confirmation = false;
+        const order = resolution.item;
+        const changedFields = Object.keys(safeUpdates).join(', ');
+        // Propuesta: el cliente aplica el UPDATE por id tras confirmar.
+        parsed.data = { order_id: order.id, order_code: order.order_code, client_name: order.client_name, updates: safeUpdates };
+        parsed.needs_confirmation = true;
+        parsed.message = `Voy a actualizar el pedido #${order.order_code} de ${order.client_name} (${changedFields}). ¿Confirmás?`;
       }
     }
 

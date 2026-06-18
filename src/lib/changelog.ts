@@ -12,6 +12,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.038',
+    date: '2026-06-18',
+    highlights: [
+      'CLAVE: el asistente ya vuelve a "ver" lo que acabas de registrar. Antes podías crear un pedido y, al preguntar "¿cuántos pedidos hoy?", te decía que no había ninguno; también afectaba el resumen del mes, buscar productos/inventario/gastos y editar pedidos. Corregido.',
+      'Ahora puedes CONFIRMAR hablando: decir "sí, dale" o "confírmalo" (o "no, cancela") ejecuta o descarta la acción pendiente, sin tener que tocar el botón.',
+      'Editar un pedido por el chat ahora pide confirmación ANTES de guardar (antes se aplicaba solo) y, si hay varios pedidos parecidos, te pregunta cuál para no cambiar el equivocado.',
+      'Inventario más exacto: el stock se descuenta una sola vez (antes se descontaba doble al marcar "entregado"); marcar defectuoso, devolver o cambiar estado ya no tocan el producto/pedido equivocado cuando hay nombres parecidos.',
+      'Las devoluciones restauran la cantidad real del pedido (no siempre 1) y no se duplican si repites la acción.',
+      '"Pedidos pendientes" ahora muestra los de cualquier día (antes solo los de hoy). Las búsquedas avisan cuando hay más resultados de los que caben.',
+      'El asistente valida antes de guardar: estado de pedido válido, categoría real del negocio, monto/costo no negativo y la canasta del inventario es obligatoria.',
+      'El chat se adapta a tu negocio: nombre del asistente y ejemplos usan tus categorías reales (no quedan textos de otra tienda).',
+    ],
+  },
+  {
     version: '1.037',
     date: '2026-06-18',
     highlights: [

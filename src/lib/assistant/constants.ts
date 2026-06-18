@@ -1,0 +1,75 @@
+/**
+ * Constantes compartidas del asistente (chat). Centralizan el contrato de
+ * acciones y los enums de negocio para que la UI, el route y los validadores
+ * usen UNA sola fuente de verdad (evita la dispersión de reglas detectada en la
+ * auditoría: validación distinta entre UI, asistente y REST).
+ */
+
+/** Estados válidos del pipeline de un pedido. Debe coincidir con el CHECK
+ * `chk_orders_status` de la BD (migración 009). */
+export const ORDER_STATUSES = [
+  'Confirmado',
+  'Enviado',
+  'Entregado',
+  'Pagado',
+  'Devolucion',
+  'Cancelado',
+] as const;
+
+export type OrderStatus = (typeof ORDER_STATUSES)[number];
+
+/**
+ * Estados que cuentan como venta "activa" para ingresos/utilidad. Excluye
+ * Devolucion y Cancelado. Alineado con el cálculo del Dashboard
+ * (activeOrders = Confirmado|Enviado|Entregado|Pagado) para que el resumen del
+ * chat y el tablero NO se contradigan.
+ */
+export const ACTIVE_REVENUE_STATUSES: OrderStatus[] = [
+  'Confirmado',
+  'Enviado',
+  'Entregado',
+  'Pagado',
+];
+
+/** Categorías válidas de un gasto general (deben coincidir con el prompt). */
+export const EXPENSE_CATEGORIES = [
+  'envío',
+  'arriendo',
+  'servicios',
+  'materiales',
+  'empaque',
+  'publicidad',
+  'otro',
+] as const;
+
+export type ExpenseCategory = (typeof EXPENSE_CATEGORIES)[number];
+
+/**
+ * Acciones que MODIFICAN datos y por tanto exigen confirmación explícita del
+ * usuario antes de ejecutarse. Incluye edit_order (antes se ejecutaba en el
+ * servidor sin confirmar) y multi_action.
+ */
+export const MODIFYING_ACTIONS = [
+  'create_order',
+  'add_inventory',
+  'mark_defective',
+  'return_order',
+  'update_order_status',
+  'register_expense',
+  'update_cost',
+  'edit_order',
+  'multi_action',
+] as const;
+
+/** Campos editables vía edit_order (whitelist, espejo del servidor). */
+export const EDITABLE_ORDER_FIELDS = [
+  'client_name',
+  'phone',
+  'address',
+  'complement',
+  'detail',
+  'comment',
+  'value_to_collect',
+  'product_ref',
+  'city',
+] as const;
