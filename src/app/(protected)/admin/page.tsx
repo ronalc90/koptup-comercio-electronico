@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { UserPlus, ShieldCheck, History } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
+import { roleAtLeast } from '@/lib/tenant';
 import { AUDIT_LABELS, type AuditAction } from '@/lib/audit';
 
 interface AdminUser {
@@ -79,7 +80,7 @@ export default function AdminPage() {
     else toast.error('No se pudo actualizar');
   }
 
-  if (role !== 'admin') {
+  if (!roleAtLeast(role, 'admin')) {
     return <p className="text-sm text-gray-500">Esta sección es solo para administradores.</p>;
   }
 

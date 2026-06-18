@@ -148,8 +148,11 @@ export function getActiveTenantId(): number | null {
   return _activeTenantId;
 }
 
+// La app NO usa Supabase Auth (sesión propia por JWT en cookie). Desactivamos la
+// persistencia de auth para no crear varias instancias GoTrue que compitan por
+// el storage (warning "Multiple GoTrueClient instances").
 const rawBrowserClient: SupabaseClient = isConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false } })
   : createMockClient();
 
 // ---- Token de Supabase por usuario (ruta de hardening, opt-in) --------------

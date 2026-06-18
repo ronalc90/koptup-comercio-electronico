@@ -73,10 +73,10 @@ else record('3. unit tests', true, 'omitido (--skip-tests)');
   ];
   const fails = needs.filter(([, re]) => !re.test(mig)).map(([n]) => n);
   // Las migraciones de seguridad/billing/auditoría deben seguir presentes en el repo.
-  for (const m of ['003_strict_rls', '004_billing', '005_fix_product_limit_race', '006_audit_log', '007_alerts']) {
+  for (const m of ['003_strict_rls', '004_billing', '005_fix_product_limit_race', '006_audit_log', '007_alerts', '008_fix_trigger_security_definer']) {
     if (!read(`migrations/${m}.sql`)) fails.push(`falta ${m}.sql`);
   }
-  record('4. migraciones', fails.length === 0, fails.length ? `falta: ${fails.join(', ')}` : 'estructura completa (002–007)');
+  record('4. migraciones', fails.length === 0, fails.length ? `falta: ${fails.join(', ')}` : 'estructura completa (002–008)');
 })();
 
 // 5. Políticas de seguridad

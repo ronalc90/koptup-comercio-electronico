@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [rememberDevice, setRememberDevice] = useState(true)
   const [loading, setLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+  const [error, setError] = useState('')
 
   async function doLogin() {
     if (!username.trim() || !password.trim()) {
@@ -19,6 +20,7 @@ export default function LoginPage() {
     }
 
     setLoading(true)
+    setError('')
 
     try {
       const res = await fetch('/api/auth/login', {
@@ -38,6 +40,7 @@ export default function LoginPage() {
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesión'
+      setError(message)
       toast.error(message)
     } finally {
       setLoading(false)
@@ -223,6 +226,14 @@ export default function LoginPage() {
                 Recordar dispositivo
               </span>
             </label>
+
+            {/* Inline error (persiste hasta el próximo intento) */}
+            {error && (
+              <p role="alert" className="rounded-xl px-3 py-2 text-sm font-medium"
+                style={{ background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' }}>
+                {error}
+              </p>
+            )}
 
             {/* Login button */}
             <button

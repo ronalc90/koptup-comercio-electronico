@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.031',
+    date: '2026-06-18',
+    highlights: [
+      'CORRECCIÓN IMPORTANTE: se podía romper la creación de productos (daba "Error al guardar"). Era un efecto del refuerzo de seguridad; ya quedó arreglado y se puede crear/editar/borrar productos normal.',
+      'El Superadministrador ahora también entra a "Administración" (antes lo bloqueaba como si no fuera admin).',
+      'Inicio de sesión más claro: si te bloquea por muchos intentos o hay un error, ahora muestra un mensaje visible (antes a veces no decía nada).',
+      'Se quitó una advertencia técnica en la consola del navegador (instancias duplicadas de Supabase).',
+    ],
+  },
+  {
     version: '1.030',
     date: '2026-06-17',
     highlights: [
