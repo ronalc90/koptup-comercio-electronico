@@ -1,6 +1,5 @@
 import { supabase, supabaseConfigured } from './supabase';
 
-let _ownerSupported: boolean | null = null;
 let _paymentTimingSupported: boolean | null = null;
 let _courierPendingRenamed: boolean | null = null;
 let _tenantSupported: boolean | null = null;
@@ -29,16 +28,20 @@ export async function isTenantSupported(): Promise<boolean> {
   }
 }
 
+/**
+ * RETIRADO. La columna legacy `owner` (por-username) separaba datos ANTES del
+ * multi-tenant. Hoy el aislamiento lo da `tenant_id` (migración 002 + RLS 003 +
+ * guard withTenant), así que filtrar/escribir por `owner` solo creaba silos
+ * DENTRO de un mismo negocio (cada usuario veía únicamente lo suyo) y, peor,
+ * rompía por mayúsculas: los datos de Meraki tienen owner='Paola' pero los
+ * usernames son 'paola'/'ronald'/'lizeth', así que admin/member no veían NADA en
+ * las pantallas (productos, pedidos, inventario, dashboard, despacho). Devolvemos
+ * siempre false para que ningún call-site filtre ni escriba `owner`; la columna
+ * queda inerte (nullable, con default en BD). Se conserva la función para no
+ * tocar los ~30 call-sites `if (hasOwner)`.
+ */
 export async function isOwnerSupported(): Promise<boolean> {
-  if (!supabaseConfigured) return false;
-  if (_ownerSupported !== null) return _ownerSupported;
-  try {
-    const { error } = await supabase.from('products').select('owner').limit(1);
-    _ownerSupported = !error;
-  } catch {
-    _ownerSupported = false;
-  }
-  return _ownerSupported;
+  return false;
 }
 
 export async function isPaymentTimingSupported(): Promise<boolean> {
