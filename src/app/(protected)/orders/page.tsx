@@ -40,8 +40,8 @@ function SupabaseBanner() {
     <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
       <span>
-        Supabase no está configurado. Configura las variables de entorno para ver los pedidos
-        reales.
+        Supabase no está configurado: no se pueden cargar datos. Configura las variables de
+        entorno para ver los pedidos reales.
       </span>
     </div>
   )
@@ -170,6 +170,16 @@ export default function OrdersPage({
   useEffect(() => {
     fetchOrders()
   }, [fetchOrders])
+
+  // Bloquea el scroll del fondo mientras haya algún modal/overlay abierto.
+  const anyModalOpen = !!kpiFilter || helpOpen
+  useEffect(() => {
+    if (anyModalOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [anyModalOpen])
 
   function prevMonth() {
     if (month === 1) {

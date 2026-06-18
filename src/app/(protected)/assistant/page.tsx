@@ -5,6 +5,7 @@ import { Mic, MicOff, Send, Sparkles, Check, X, Loader2, Package, ShoppingBag, S
 import toast from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
 import { useUser } from '@/lib/UserContext';
+import { useTenant } from '@/lib/TenantContext';
 import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn } from '@/lib/db';
 import { formatCurrency, generateOrderCode, parseCopAmount, vendorDisplayName } from '@/lib/utils';
 import { syncInventoryOnOrderSave } from '@/lib/inventorySync';
@@ -131,6 +132,7 @@ function PhotoBeforeConfirm({ state, onStateChange, onSkip }: {
 
 export default function AssistantPage() {
   const owner = useUser();
+  const { config } = useTenant();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -165,6 +167,14 @@ export default function AssistantPage() {
     if (!chatLoaded) return;
     try { localStorage.setItem('meraki-chat', JSON.stringify(messages.slice(-100))); } catch { /* ignore */ }
   }, [messages, chatLoaded]);
+
+  // Lock background scroll on mobile while the full-screen detail overlay is open.
+  useEffect(() => {
+    if (!selectedItem) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [selectedItem]);
 
   const clearChat = () => {
     setMessages([]);
@@ -248,8 +258,8 @@ export default function AssistantPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, context: messages.slice(-10), owner }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await res.json().catch(() => ({} as Record<string, unknown>));
+      if (!res.ok) throw new Error((data as { error?: string }).error || 'No se pudo procesar la solicitud');
 
       // Force confirmation for actions that modify data
       const modifyingActions = ['create_order', 'add_inventory', 'mark_defective', 'return_order',
@@ -304,7 +314,8 @@ export default function AssistantPage() {
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Error';
+      const raw = err instanceof Error ? err.message : '';
+      const msg = raw || 'Error de conexión';
       toast.error(msg);
       setMessages(prev => [...prev, { role: 'assistant', content: `Error: ${msg}` }]);
     } finally {
@@ -402,7 +413,7 @@ export default function AssistantPage() {
       const items = (Array.isArray(data) ? data : [data]) as Array<Record<string, unknown>>;
       const imgUrl = preConfirmPhoto?.imageUrl || '';
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payloads = items.map(item => { const p: any = { model: item.model || '', category: item.category || 'Pantuflas', product_id: item.product_id || '', color: item.color || '', size: item.size || '', quantity: Number(item.quantity) || 1, basket_location: item.basket_location || '', type: item.type || 'Adulto', observations: item.observations || '', status: 'Bueno', verified: false, reference: 0, image_url: imgUrl }; if (hasOwner) p.owner = owner; return p; });
+      const payloads = items.map(item => { const p: any = { model: item.model || '', category: item.category || (config.categories[0] ?? 'Otro'), product_id: item.product_id || '', color: item.color || '', size: item.size || '', quantity: Number(item.quantity) || 1, basket_location: item.basket_location || '', type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: 0, image_url: imgUrl }; if (hasOwner) p.owner = owner; return p; });
       const { error } = await supabase.from('inventory').insert(payloads);
       if (error) throw error;
       setPreConfirmPhoto(null);

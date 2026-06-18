@@ -32,7 +32,7 @@ function SupabaseBanner() {
     <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
       <span>
-        Supabase no está configurado. Los datos mostrados son de ejemplo. Configura{' '}
+        Supabase no está configurado: no se pueden cargar datos. Configura{' '}
         <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_SUPABASE_URL</code> y{' '}
         <code className="rounded bg-amber-100 px-1">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> para
         activar la base de datos.
@@ -219,6 +219,16 @@ export default function ProductsPage({
   useEffect(() => {
     fetchProducts()
   }, [fetchProducts])
+
+  // Bloquea el scroll del fondo mientras haya algún modal/overlay abierto.
+  const anyModalOpen = modalOpen || !!deleteTarget || showPhotoAI || helpOpen
+  useEffect(() => {
+    if (anyModalOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [anyModalOpen])
 
   const filtered = products.filter(
     (p) =>

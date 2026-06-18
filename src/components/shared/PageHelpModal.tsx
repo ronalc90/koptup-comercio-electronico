@@ -1,7 +1,7 @@
 'use client';
 
 import { X, HelpCircle } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 export interface HelpSection {
   title: string;
@@ -26,12 +26,23 @@ interface PageHelpModalProps {
 export default function PageHelpModal({ content, onClose }: PageHelpModalProps) {
   const from = content.accentFrom ?? '#7c3aed';
   const to = content.accentTo ?? '#9061f9';
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/50 p-0 md:p-4"
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
         className="w-full max-w-lg bg-white rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >

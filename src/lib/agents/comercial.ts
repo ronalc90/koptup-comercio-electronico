@@ -2,21 +2,22 @@
  * Agente Comercial — detecta productos estrella y productos muertos, y
  * recomienda promociones y bundles.
  *
- * Matching producto↔venta: los pedidos no traen el código del producto (su
- * `product_ref` es una categoría genérica como "PANT"/"MAX"), y el `detail` es
- * texto libre. Por eso casamos por:
+ * Matching producto↔venta: los pedidos no siempre traen el código del producto
+ * (su `product_ref` puede ser una categoría genérica) y el `detail` es texto
+ * libre. Por eso casamos por:
  *   a) código exacto (cuando aplica), o
- *   b) palabras DISTINTIVAS del nombre (ej. "vaca", "pompom"), ignorando
- *      genéricas ("pantuflas", "maxisaco", "color", "talla"…).
+ *   b) palabras DISTINTIVAS del nombre del producto, ignorando conectores
+ *      genéricos del español ("de", "con", "para", "color", "talla"…).
  * Solo marcamos "muerto" cuando el producto es DETERMINABLE (tiene código o
  * algún token distintivo); si no, no podemos afirmar que no vendió.
  */
 import { buildReport, type AgentMeta, type Finding } from './types';
 import type { TenantData } from './types';
 
+// Conectores/atributos genéricos del español, sin vocabulario específico de
+// ningún rubro. Las palabras distintivas del catálogo salen de los datos.
 const STOP = new Set([
-  'pantuflas', 'pantufla', 'maxisaco', 'maxisacos', 'bolso', 'bolsos', 'pocillo',
-  'pocillos', 'accesorio', 'accesorios', 'par', 'pares', 'talla', 'color', 'colores',
+  'par', 'pares', 'talla', 'tallas', 'color', 'colores', 'unidad', 'unidades',
   'de', 'con', 'sin', 'para', 'por', 'del', 'las', 'los', 'una', 'uno', 'mi', 'my',
   'the', 'and',
 ]);

@@ -98,13 +98,13 @@ export async function syncInventoryOnOrderSave(args: SyncArgs): Promise<Inventor
 
   const payload: Record<string, unknown> = {
     model: product.name,
-    category: product.category || 'Pantuflas',
+    category: product.category || 'Otro',
     product_id: product.code,
     color: '',
     size: '',
     quantity: 0,
     basket_location: '',
-    type: 'Adulto',
+    type: '',
     observations: 'Creado automáticamente al vender producto sin stock previo',
     status: 'Bueno',
     verified: false,

@@ -39,16 +39,27 @@ export default function AdminPage() {
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [form, setForm] = useState({ email: '', username: '', password: '', role: 'member' });
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setError(false);
+    const FAILED = Symbol('failed');
     const [u, t, a] = await Promise.all([
-      fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      fetch('/api/admin/tenant', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
-      fetch('/api/admin/audit', { cache: 'no-store' }).then((r) => r.json()).catch(() => ({})),
+      fetch('/api/admin/users', { cache: 'no-store' }).then((r) => r.json()).catch(() => FAILED),
+      fetch('/api/admin/tenant', { cache: 'no-store' }).then((r) => r.json()).catch(() => FAILED),
+      fetch('/api/admin/audit', { cache: 'no-store' }).then((r) => r.json()).catch(() => FAILED),
     ]);
-    setUsers(u.users ?? []);
-    setTenant(t.tenant ?? null);
-    setAudit(a.entries ?? []);
+    if (u === FAILED && t === FAILED && a === FAILED) {
+      setError(true);
+      setLoading(false);
+      return;
+    }
+    setUsers(u === FAILED ? [] : u.users ?? []);
+    setTenant(t === FAILED ? null : t.tenant ?? null);
+    setAudit(a === FAILED ? [] : a.entries ?? []);
+    setLoading(false);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -82,6 +93,34 @@ export default function AdminPage() {
 
   if (!roleAtLeast(role, 'admin')) {
     return <p className="text-sm text-gray-500">Esta sección es solo para administradores.</p>;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-16 text-sm text-gray-500">
+        <span
+          className="h-5 w-5 animate-spin rounded-full border-2 border-t-transparent"
+          style={{ borderColor: 'var(--brand-primary, #7c3aed)', borderTopColor: 'transparent' }}
+        />
+        Cargando…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <div className="flex flex-col items-start gap-3 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          <p>No se pudieron cargar los datos de administración.</p>
+          <button
+            onClick={() => load()}
+            className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+          >
+            Reintentar
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (

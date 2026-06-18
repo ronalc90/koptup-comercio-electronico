@@ -205,7 +205,16 @@ export default function DashboardPage() {
 
   const profit = totalRevenue - totalExpenses
 
-  const ordersPaola = orders.filter((o) => o.vendor?.toLowerCase().includes('paola')).length
+  // Vendor breakdown — agrupamos por el campo `vendor` del pedido; los pedidos
+  // sin vendedora se atribuyen al usuario actual.
+  const vendorCounts = orders.reduce<Record<string, number>>((acc, o) => {
+    const name = o.vendor?.trim() || owner
+    acc[name] = (acc[name] ?? 0) + 1
+    return acc
+  }, {})
+  const vendorBreakdown = Object.entries(vendorCounts)
+    .sort((a, b) => b[1] - a[1])
+  const VENDOR_COLORS = ['#7c3aed', '#8b5cf6', '#a78bfa', '#0ea5e9', '#10b981']
 
   const totalOrders = orders.length
   const avgPerOrder = activeOrders.length > 0 ? totalRevenue / activeOrders.length : 0
@@ -425,7 +434,18 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-sm font-semibold text-gray-500 mb-3 uppercase tracking-wide">Vendedora</h2>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                <VendorCard name="Paola" count={ordersPaola} color="#7c3aed" />
+                {vendorBreakdown.length > 0 ? (
+                  vendorBreakdown.map(([name, count], idx) => (
+                    <VendorCard
+                      key={name}
+                      name={name}
+                      count={count}
+                      color={VENDOR_COLORS[idx % VENDOR_COLORS.length]}
+                    />
+                  ))
+                ) : (
+                  <VendorCard name={owner} count={0} color="#7c3aed" />
+                )}
               </div>
             </div>
 

@@ -247,6 +247,7 @@ export default function SettingsPage() {
   const [currentPwd, setCurrentPwd] = useState('')
   const [newPwd, setNewPwd] = useState('')
   const [confirmPwd, setConfirmPwd] = useState('')
+  const [changingPwd, setChangingPwd] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
 
   /* ─────── Preferencias visuales ─────── */
@@ -440,15 +441,41 @@ export default function SettingsPage() {
     }
   }
 
-  function handlePasswordChange(e: React.FormEvent) {
+  async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault()
-    toast('Contacta soporte para cambiar contraseña', {
-      icon: '🔒',
-      style: { borderRadius: '12px', fontSize: '14px' },
-    })
-    setCurrentPwd('')
-    setNewPwd('')
-    setConfirmPwd('')
+    if (changingPwd) return
+
+    if (!currentPwd || !newPwd || !confirmPwd) {
+      toast.error('Completa todos los campos')
+      return
+    }
+    if (newPwd !== confirmPwd) {
+      toast.error('La nueva contraseña y su confirmación no coinciden')
+      return
+    }
+
+    setChangingPwd(true)
+    try {
+      const res = await fetch('/api/account/password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword: currentPwd, newPassword: newPwd }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'No se pudo cambiar la contraseña')
+
+      playSuccess(owner)
+      toast.success('Contraseña cambiada correctamente')
+      setCurrentPwd('')
+      setNewPwd('')
+      setConfirmPwd('')
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'No se pudo cambiar la contraseña'
+      playError(owner)
+      toast.error(msg)
+    } finally {
+      setChangingPwd(false)
+    }
   }
 
   async function handleLogout() {
@@ -511,7 +538,7 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-xl flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
-            <p className="text-xs text-gray-500">Tu Tienda Meraki</p>
+            <p className="text-xs text-gray-500">{config.name}</p>
           </div>
           <button
             onClick={() => setHelpOpen(true)}
@@ -703,10 +730,12 @@ export default function SettingsPage() {
             </div>
             <button
               type="submit"
-              className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+              disabled={changingPwd}
+              className="flex w-full items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
               style={{ background: '#7c3aed' }}
             >
-              Cambiar contraseña
+              {changingPwd && <Loader2 className="h-4 w-4 animate-spin" />}
+              {changingPwd ? 'Cambiando...' : 'Cambiar contraseña'}
             </button>
           </form>
         </Section>
@@ -899,7 +928,7 @@ export default function SettingsPage() {
 
             <ToggleRow
               label="Mostrar logo en guías"
-              description="Incluye el logo de Tu Tienda Meraki en la cabecera de cada guía."
+              description="Incluye el logo del negocio en la cabecera de cada guía."
               checked={showPrintLogo}
               onChange={handleShowPrintLogoChange}
             />

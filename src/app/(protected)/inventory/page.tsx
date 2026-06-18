@@ -314,6 +314,16 @@ export default function InventoryPage() {
     loadItems()
   }, [loadItems])
 
+  // Bloquea el scroll del fondo mientras haya algún modal/overlay abierto.
+  const anyModalOpen = modalOpen || !!deleteConfirm || helpOpen || !!lightboxSrc
+  useEffect(() => {
+    if (anyModalOpen) document.body.style.overflow = 'hidden'
+    else document.body.style.overflow = ''
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [anyModalOpen])
+
   const filtered = items.filter((item) => {
     const matchView = view === 'verified' ? item.status === 'Bueno' : item.status === 'Malo'
     const matchSearch =

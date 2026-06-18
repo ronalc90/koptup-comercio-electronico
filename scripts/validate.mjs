@@ -129,10 +129,12 @@ else record('3. unit tests', true, 'omitido (--skip-tests)');
       // Permitidos: migrate (DDL); api/admin y api/billing (gestionan
       // users/tenants/charges —no son tablas del guard— filtrando tenant_id con
       // doble .eq); api/superadmin (única superficie cross-tenant legítima,
-      // gateada por requireSuperadmin).
+      // gateada por requireSuperadmin); api/account/password (cambia la propia
+      // contraseña en `users` filtrando por id + tenant_id de la sesión).
       if (rel.includes('api/migrate') || rel.includes('api/admin')
         || rel.includes('api/superadmin') || rel.includes('api/billing')
-        || rel.includes('api/cron') || rel.includes('api/alerts')) continue;
+        || rel.includes('api/cron') || rel.includes('api/alerts')
+        || rel.includes('api/account/password')) continue;
       const c = readFileSync(p, 'utf8');
       if (/getServiceClient\s*\(/.test(c)) offenders.push(rel);
     }
