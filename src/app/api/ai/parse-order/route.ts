@@ -1,9 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getRequestScopedClient } from '@/lib/tenantServer';
-import { getSession } from '@/lib/auth';
+import { loadTenantConfig } from '@/lib/tenantConfigServer';
+import type { TenantConfig } from '@/lib/tenants.config';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-const SYSTEM_PROMPT = `Eres un asistente de "Tu Tienda Meraki", un negocio colombiano de pantuflas, maxisacos y accesorios.
+/**
+ * Construye la instrucción de sistema para el extractor de pedidos a partir de
+ * la config EFECTIVA del tenant. La identidad del negocio, su dominio, las
+ * categorías válidas y las pistas de captura son específicas del tenant; las
+ * reglas de extracción y el esquema JSON de salida son genéricos.
+ */
+function buildSystemPrompt(cfg: TenantConfig): string {
+  return `${cfg.ai.systemPrompt}
+
+Dominio del negocio: ${cfg.ai.domain}.
+Categorías válidas: ${cfg.categories.join(', ')}.
+
+Pistas de captura para este negocio: ${cfg.ai.captureHints}
 
 Tu trabajo es extraer la información de pedidos del texto que te envían. Los pedidos suelen llegar por WhatsApp con este formato:
 - Nombre del cliente
@@ -24,7 +38,7 @@ SIEMPRE responde con un JSON válido con esta estructura:
     "detail": "string",
     "value_to_collect": number,
     "city": "string (si se menciona, si no 'Bogotá')",
-    "product_ref": "string (PANT para pantuflas, MAX para maxisaco, POC para pocillo, o vacío)",
+    "product_ref": "string (código o referencia del producto si se reconoce, o vacío)",
     "comment": "string (instrucciones especiales como 'llamar cliente', mensajes personalizados, etc.)"
   },
   "message": "string (resumen amigable de lo que entendiste)"
@@ -40,17 +54,14 @@ Si el texto NO es un pedido o falta información crítica, responde:
 Reglas:
 - El valor siempre es un número sin puntos ni comas (ej: 60000, no $60.000)
 - Si el teléfono viene sin separadores, mantenlo así
-- Si mencionan "clásica", "vaquita", "stitch", "perrito", etc. son pantuflas (PANT)
-- Si mencionan "maxisaco", "promo cool", "pandita" son maxisacos (MAX)
+- Clasifica el producto dentro de las categorías válidas cuando sea posible
 - Si mencionan "talla" seguido de número, inclúyelo en el detalle
 - Si hay instrucciones como "llamar cliente" o mensajes especiales, van en comment
 - La ciudad por defecto es Bogotá si no se especifica`;
+}
 
-async function resolveApiKey(): Promise<string | null> {
+async function resolveApiKey(supabase: SupabaseClient): Promise<string | null> {
   try {
-    const scoped = await getRequestScopedClient();
-    if (!scoped) return process.env.OPENAI_API_KEY ?? null;
-    const supabase = scoped.client;
     const { data, error } = await supabase
       .from('settings')
       .select('value')
@@ -67,10 +78,13 @@ async function resolveApiKey(): Promise<string | null> {
 }
 
 export async function POST(request: NextRequest) {
-  if (!(await getSession())) {
+  const scoped = await getRequestScopedClient();
+  if (!scoped) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
-  const apiKey = await resolveApiKey();
+  const { ctx, client } = scoped;
+
+  const apiKey = await resolveApiKey(client);
 
   if (!apiKey) {
     return NextResponse.json(
@@ -86,10 +100,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mensaje vacío' }, { status: 400 });
     }
 
+    const cfg = await loadTenantConfig(ctx.tenantId, ctx.tenantSlug);
     const openai = new OpenAI({ apiKey });
 
     const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: buildSystemPrompt(cfg) },
     ];
 
     if (context && Array.isArray(context)) {

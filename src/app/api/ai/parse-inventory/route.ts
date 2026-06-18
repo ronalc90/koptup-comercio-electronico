@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { getRequestScopedClient } from '@/lib/tenantServer';
-import { getSession } from '@/lib/auth';
+import { loadTenantConfig } from '@/lib/tenantConfigServer';
+import type { TenantConfig } from '@/lib/tenants.config';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
-async function resolveApiKey(): Promise<string | null> {
+async function resolveApiKey(supabase: SupabaseClient): Promise<string | null> {
   try {
-    const scoped = await getRequestScopedClient();
-    if (!scoped) return process.env.OPENAI_API_KEY ?? null;
-    const supabase = scoped.client;
     const { data, error } = await supabase
       .from('settings')
       .select('value')
@@ -18,22 +17,30 @@ async function resolveApiKey(): Promise<string | null> {
   return process.env.OPENAI_API_KEY ?? null;
 }
 
-const SYSTEM_PROMPT = `Eres un asistente de inventario de "Tu Tienda Meraki", un negocio colombiano de pantuflas, maxisacos y accesorios.
+/**
+ * Construye el prompt de sistema especializado por tenant. La identidad, el
+ * dominio del negocio y las categorías válidas vienen de la config del tenant
+ * (no se hardcodean Meraki/pantuflas). El esquema JSON de salida y la forma de
+ * la respuesta se mantienen idénticos para cualquier tenant.
+ */
+function buildSystemPrompt(cfg: TenantConfig): string {
+  const categorias = cfg.categories.join(', ');
+  return `${cfg.ai.systemPrompt}
 
-Tu trabajo es registrar productos en el inventario a partir del texto o voz del usuario. El usuario te dirá cosas como:
-- "Tengo 10 pantuflas vaquita blanca talla 38 las dejé en la canasta C015"
-- "Llegaron 5 maxisacos cool pandita, están en C003"
-- "3 pares de stitch rosado talla 36 en canasta C020"
-- "Puse 8 clásicas miel talla 40 en la caja C007"
+${cfg.ai.captureHints}
+
+Tu trabajo es registrar productos en el inventario a partir del texto o voz del usuario.
+
+Categorías válidas: ${categorias}
 
 Extrae:
-- model: nombre/modelo del producto (Vaca, Stitch, Clásica, Pandita, etc.)
-- category: Pantuflas, Maxisaco, Pocillo, Bolso, Accesorio
-- product_id: código (PA001=Vaca, PA002=Vaca peluda, PANT=pantuflas genérico, MAX=maxisaco, etc.)
+- model: nombre/modelo del producto
+- category: una de las categorías válidas listadas arriba
+- product_id: código interno del producto si se menciona o se puede inferir
 - color: color mencionado
-- size: talla mencionada (formato "36-37", "38-39", "40-41")
+- size: talla/medida mencionada (si aplica)
 - quantity: cantidad
-- basket_location: canasta/caja donde lo dejó (C001, C002, etc.)
+- basket_location: canasta/caja/ubicación donde se dejó (C001, C002, etc.)
 - type: Adulto por defecto, Niño si lo menciona
 - observations: notas adicionales
 
@@ -62,16 +69,20 @@ Si falta información:
 }
 
 Reglas:
-- Si no dice canasta, preguntar
+- Si no dice ubicación/canasta, preguntar
 - Si no dice cantidad, asumir 1
-- Talla: convertir "38" a "38-39", "36" a "36-37", "40" a "40-41"
+- La categoría debe ser una de las categorías válidas listadas arriba
 - Puede registrar múltiples items en un solo mensaje`;
+}
 
 export async function POST(request: NextRequest) {
-  if (!(await getSession())) {
+  const scoped = await getRequestScopedClient();
+  if (!scoped) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
   }
-  const apiKey = await resolveApiKey();
+  const { ctx, client } = scoped;
+
+  const apiKey = await resolveApiKey(client);
   if (!apiKey) {
     return NextResponse.json({ error: 'API key no configurada. Ve a Configuración.' }, { status: 500 });
   }
@@ -82,9 +93,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Mensaje vacío' }, { status: 400 });
     }
 
+    const cfg = await loadTenantConfig(ctx.tenantId, ctx.tenantSlug);
+    const systemPrompt = buildSystemPrompt(cfg);
+
     const openai = new OpenAI({ apiKey });
     const messages: OpenAI.ChatCompletionMessageParam[] = [
-      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
     ];
 
     if (context && Array.isArray(context)) {
