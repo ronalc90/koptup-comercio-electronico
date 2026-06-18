@@ -13,6 +13,8 @@ interface AnalyzedProduct {
   size: string | null;
   description: string;
   suggested_cost: number;
+  /** URL pública de la foto ya subida al storage del negocio (si se subió). */
+  image_url?: string;
 }
 
 interface ProductPhotoAIProps {
@@ -25,6 +27,7 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalyzedProduct | null>(null);
   const [context, setContext] = useState('');
+  const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showCamera, setShowCamera] = useState(false);
@@ -72,6 +75,29 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
     stream?.getTracks().forEach(t => t.stop());
     setStream(null);
     setShowCamera(false);
+  };
+
+  // Sube la foto analizada al storage del negocio y devuelve los datos + la URL.
+  // Así la foto queda guardada con el producto (antes se descartaba tras analizar).
+  const useResult = async () => {
+    if (!result) return;
+    setSaving(true);
+    try {
+      let image_url: string | undefined;
+      if (image) {
+        const res = await fetch('/api/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image }),
+        });
+        const data = await res.json();
+        if (res.ok && data.url) image_url = data.url;
+        else toast.error('No se pudo guardar la foto; se usarán solo los datos');
+      }
+      onProductAnalyzed({ ...result, image_url });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const analyze = async () => {
@@ -185,8 +211,8 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
               </div>
 
               <div className="flex gap-2">
-                <button onClick={() => onProductAnalyzed(result)} className="flex-1 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-1.5">
-                  <Check className="w-4 h-4" /> Usar datos
+                <button onClick={useResult} disabled={saving} className="flex-1 py-2.5 bg-green-600 text-white rounded-lg font-medium hover:bg-green-700 transition flex items-center justify-center gap-1.5 disabled:opacity-60">
+                  {saving ? <><Loader2 className="w-4 h-4 animate-spin" /> Guardando...</> : <><Check className="w-4 h-4" /> Usar datos</>}
                 </button>
                 <button onClick={() => { setImage(null); setResult(null); }} className="flex-1 py-2.5 bg-gray-100 text-gray-700 rounded-lg font-medium hover:bg-gray-200 transition">
                   Tomar otra foto

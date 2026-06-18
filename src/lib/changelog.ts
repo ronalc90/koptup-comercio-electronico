@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.033',
+    date: '2026-06-18',
+    highlights: [
+      'Las categorías de producto ahora son las de tu negocio (según su rubro), no las de pantuflas. Aplica en Productos e Inventario.',
+      'Las fotos de los productos ya se ven: miniatura en el catálogo (lista y celular) y en el formulario, donde además puedes subir o cambiar la foto. La opción "Con Foto IA" ahora también guarda la foto.',
+      'Se corrigió un mensaje confuso del panel: ya no dice "Margen 0.0%" cuando aún no ha entrado recaudo; ahora indica que el margen se calcula cuando lleguen los pagos.',
+      'Arreglo en móvil: en Administración (y otras pantallas largas) ya se puede bajar hasta el final; antes la barra inferior tapaba el último bloque.',
+    ],
+  },
+  {
     version: '1.032',
     date: '2026-06-18',
     highlights: [

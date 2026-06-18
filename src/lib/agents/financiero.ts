@@ -16,11 +16,13 @@ export function analyzeFinanciero(data: TenantData, meta: AgentMeta) {
 
   let revenue = 0, productCost = 0, operating = 0;
   let pendingCourier = 0, receivable = 0;
+  let expectedRevenue = 0; // valor a cobrar de pedidos vigentes (recaudado o no)
 
   for (const o of orders) {
     if (o.delivery_status === 'Cancelado') continue;
     const income = realized(o);
     revenue += income;
+    expectedRevenue += o.value_to_collect || 0;
     productCost += o.product_cost || 0;
     operating += o.operating_cost || 0;
     pendingCourier += getCourierPending(o);
@@ -46,14 +48,26 @@ export function analyzeFinanciero(data: TenantData, meta: AgentMeta) {
   const margin = revenue > 0 ? profit / revenue : 0;
 
   findings.push({
-    id: 'utilidad', severity: profit >= 0 ? 'info' : 'critical', title: 'Utilidad neta',
-    detail: `Ingresos ${revenue} − costos ${productCost} − operación ${operating} − gastos ${totalExpenses}.`,
+    id: 'utilidad', severity: profit >= 0 ? 'info' : 'critical', title: 'Utilidad neta (recaudada)',
+    detail: `Recaudado ${revenue} − costos ${productCost} − operación ${operating} − gastos ${totalExpenses}.`,
     entity: 'Periodo', value: profit,
   });
-  findings.push({
-    id: 'margen', severity: margin < 0.1 ? 'warning' : 'info', title: 'Margen neto',
-    detail: `${(margin * 100).toFixed(1)}% sobre ingresos.`, entity: 'Periodo', value: Math.round(margin * 1000) / 10,
-  });
+  if (revenue > 0) {
+    // Margen real sobre lo efectivamente recaudado.
+    findings.push({
+      id: 'margen', severity: margin < 0.1 ? 'warning' : 'info', title: 'Margen neto',
+      detail: `${(margin * 100).toFixed(1)}% sobre lo recaudado (${revenue}).`,
+      entity: 'Periodo', value: Math.round(margin * 1000) / 10,
+    });
+  } else if (expectedRevenue > 0) {
+    // Aún no entra plata: NO es un margen de 0% (eso alarmaba sin razón). Es que
+    // todavía no hay recaudo; el margen se calcula cuando lleguen los pagos.
+    findings.push({
+      id: 'margen', severity: 'info', title: 'Margen neto — pendiente de recaudo',
+      detail: `Aún no hay recaudo; hay ${expectedRevenue} por cobrar. El margen se calcula cuando entren los pagos.`,
+      entity: 'Periodo', value: 0,
+    });
+  }
   if (pendingCourier > 0) findings.push({
     id: 'pdte-mensajero', severity: 'info', title: 'Pendiente de liquidación (mensajero)',
     detail: `El mensajero/courier debe liquidar ${pendingCourier}.`, entity: 'Recaudo', value: pendingCourier,
@@ -63,6 +77,7 @@ export function analyzeFinanciero(data: TenantData, meta: AgentMeta) {
     detail: `Pedidos entregados con saldo pendiente: ${receivable}.`, entity: 'Recaudo', value: receivable,
   });
 
-  const summary = `Utilidad ${profit} · margen ${(margin * 100).toFixed(1)}% · ${findings.filter((f) => f.id.startsWith('loss-')).length} pedido(s) con pérdida.`;
+  const marginText = revenue > 0 ? `margen ${(margin * 100).toFixed(1)}%` : 'sin recaudo aún';
+  const summary = `Utilidad ${profit} · ${marginText} · ${findings.filter((f) => f.id.startsWith('loss-')).length} pedido(s) con pérdida.`;
   return buildReport('financiero', meta, summary, findings);
 }

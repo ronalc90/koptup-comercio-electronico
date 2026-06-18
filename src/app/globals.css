@@ -297,9 +297,14 @@ input, select, textarea { font-size: 16px !important; }
   border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
-/* Mobile bottom nav spacing */
+/* Mobile bottom nav spacing.
+   La barra inferior mide ~83-91px (botón central h-11 + etiqueta + paddings +
+   borde), así que 5rem (80px) dejaba el último contenido atrapado debajo de la
+   barra: la página ya estaba al final del scroll y "no dejaba bajar más". Se
+   reserva 6.5rem para que el último elemento siempre libre la barra, con
+   holgura para densidad compacta y escalado de fuente. */
 .mobile-nav-padding {
-  padding-bottom: calc(5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
 }
 @media (min-width: 768px) {
   .mobile-nav-padding {

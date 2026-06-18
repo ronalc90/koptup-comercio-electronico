@@ -1,7 +1,7 @@
 'use client'
 
-import { use, useEffect, useState, useCallback } from 'react'
-import { Plus, Search, Pencil, Trash2, X, Check, AlertTriangle, PackageSearch, Download, Camera, HelpCircle } from 'lucide-react'
+import { use, useEffect, useMemo, useState, useCallback, useRef } from 'react'
+import { Plus, Search, Pencil, Trash2, X, Check, AlertTriangle, PackageSearch, Download, Camera, HelpCircle, ImagePlus, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import type { Product } from '@/lib/types'
@@ -11,18 +11,20 @@ import ProductPhotoAI from '@/components/products/ProductPhotoAI'
 import PageHelpModal from '@/components/shared/PageHelpModal'
 import { PRODUCTS_HELP } from '@/lib/pageHelp'
 import { useUser } from '@/lib/UserContext'
+import { useTenant } from '@/lib/TenantContext'
 import { isOwnerSupported } from '@/lib/db'
 import { productUsage, type ProductUsage } from '@/lib/plans'
 
-const CATEGORIES = ['Pantuflas', 'Maxisaco', 'Pocillo', 'Bolso', 'Otro'] as const
-type Category = (typeof CATEGORIES)[number]
+// Categoría comodín que siempre se ofrece además de las propias del negocio.
+const CATCH_ALL_CATEGORY = 'Otro'
 
 const EMPTY_FORM = {
   code: '',
   name: '',
   cost: '',
-  category: 'Pantuflas' as Category,
+  category: '',
   active: true,
+  image_url: '',
 }
 
 function SupabaseBanner() {
@@ -101,19 +103,32 @@ async function syncInventoryReference(
   return targets.length
 }
 
+// Paleta estable: cada categoría (sea de la industria que sea) recibe siempre el
+// mismo color, derivado de su nombre. Así no hay que mantener un mapa por negocio.
+const CATEGORY_PALETTE = [
+  'bg-purple-100 text-purple-700',
+  'bg-blue-100 text-blue-700',
+  'bg-orange-100 text-orange-700',
+  'bg-pink-100 text-pink-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-700',
+  'bg-cyan-100 text-cyan-700',
+  'bg-rose-100 text-rose-700',
+]
+
+function categoryColor(category: string): string {
+  if (!category || category === CATCH_ALL_CATEGORY) return 'bg-gray-100 text-gray-600'
+  let hash = 0
+  for (let i = 0; i < category.length; i++) hash = (hash * 31 + category.charCodeAt(i)) >>> 0
+  return CATEGORY_PALETTE[hash % CATEGORY_PALETTE.length]
+}
+
 function CategoryBadge({ category }: { category: string }) {
-  const colors: Record<string, string> = {
-    Pantuflas: 'bg-purple-100 text-purple-700',
-    Maxisaco: 'bg-blue-100 text-blue-700',
-    Pocillo: 'bg-orange-100 text-orange-700',
-    Bolso: 'bg-pink-100 text-pink-700',
-    Otro: 'bg-gray-100 text-gray-600',
-  }
   return (
     <span
       className={cn(
-        'inline-block rounded-full px-2.5 py-0.5 text-xs font-medium',
-        colors[category] ?? 'bg-gray-100 text-gray-600',
+        'inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium',
+        categoryColor(category),
       )}
     >
       {category}
@@ -130,9 +145,19 @@ export default function ProductsPage({
   void use(searchParams)
 
   const owner = useUser()
+  const { config } = useTenant()
+  // Categorías propias del negocio (de su config por industria) + la comodín
+  // "Otro". Antes estaban hardcodeadas a pantuflas para todos los negocios.
+  const categories = useMemo(() => {
+    const base = config.categories?.length ? config.categories : []
+    return Array.from(new Set([...base, CATCH_ALL_CATEGORY]))
+  }, [config.categories])
+
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [supabaseOk, setSupabaseOk] = useState(true)
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -211,7 +236,7 @@ export default function ProductsPage({
       return
     }
     setEditingProduct(null)
-    setForm({ ...EMPTY_FORM })
+    setForm({ ...EMPTY_FORM, category: categories[0] ?? CATCH_ALL_CATEGORY })
     setModalOpen(true)
   }
 
@@ -221,8 +246,9 @@ export default function ProductsPage({
       code: product.code,
       name: product.name,
       cost: String(product.cost),
-      category: product.category as Category,
+      category: product.category || categories[0] || CATCH_ALL_CATEGORY,
       active: product.active,
+      image_url: product.image_url ?? '',
     })
     setModalOpen(true)
   }
@@ -231,6 +257,44 @@ export default function ProductsPage({
     setModalOpen(false)
     setEditingProduct(null)
     setForm({ ...EMPTY_FORM })
+  }
+
+  // Sube una foto al storage del negocio y guarda su URL en el formulario.
+  // Reutiliza /api/upload-image (valida tipo y tamaño, namespacea por tenant).
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // permite re-subir el mismo archivo
+    if (!file) return
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+      toast.error('Formato no permitido (usa JPG, PNG o WEBP)')
+      return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('La imagen supera 5 MB')
+      return
+    }
+    setUploadingPhoto(true)
+    try {
+      const dataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo'))
+        reader.readAsDataURL(file)
+      })
+      const res = await fetch('/api/upload-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: dataUrl }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json.url) throw new Error(json.error || 'No se pudo subir la imagen')
+      setForm((f) => ({ ...f, image_url: json.url }))
+      toast.success('Foto subida')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo subir la imagen')
+    } finally {
+      setUploadingPhoto(false)
+    }
   }
 
   async function handleSave() {
@@ -269,6 +333,7 @@ export default function ProductsPage({
         cost,
         category: form.category,
         active: form.active,
+        image_url: form.image_url || null,
       }
       if (hasOwner) payload.owner = owner
       if (editingProduct) {
@@ -478,7 +543,23 @@ export default function ProductsPage({
                     <td className="px-5 py-4 font-mono text-xs font-medium text-purple-700">
                       {product.code}
                     </td>
-                    <td className="px-5 py-4 font-medium text-gray-800">{product.name}</td>
+                    <td className="px-5 py-4 font-medium text-gray-800">
+                      <div className="flex items-center gap-3">
+                        {product.image_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={product.image_url}
+                            alt={product.name}
+                            className="h-9 w-9 shrink-0 rounded-lg border border-gray-100 object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-gray-100 bg-gray-50">
+                            <PackageSearch className="h-4 w-4 text-gray-300" />
+                          </span>
+                        )}
+                        <span>{product.name}</span>
+                      </div>
+                    </td>
                     <td className="px-5 py-4 text-gray-700">{formatCurrency(product.cost)}</td>
                     <td className="px-5 py-4">
                       <CategoryBadge category={product.category} />
@@ -530,6 +611,14 @@ export default function ProductsPage({
                 className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
+                  {product.image_url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.image_url}
+                      alt={product.name}
+                      className="h-12 w-12 shrink-0 rounded-xl border border-gray-100 object-cover"
+                    />
+                  )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-bold text-purple-600">
@@ -581,6 +670,45 @@ export default function ProductsPage({
         onClose={closeModal}
       >
         <div className="space-y-4">
+          {/* Foto del producto */}
+          <div className="flex items-center gap-3">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-gray-200 bg-gray-50">
+              {form.image_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.image_url} alt="Foto del producto" className="h-full w-full object-cover" />
+              ) : (
+                <ImagePlus className="h-6 w-6 text-gray-300" />
+              )}
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <button
+                type="button"
+                onClick={() => photoInputRef.current?.click()}
+                disabled={uploadingPhoto}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60"
+              >
+                {uploadingPhoto ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                {form.image_url ? 'Cambiar foto' : 'Subir foto'}
+              </button>
+              {form.image_url && (
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, image_url: '' }))}
+                  className="text-left text-xs font-medium text-red-500 hover:text-red-600"
+                >
+                  Quitar foto
+                </button>
+              )}
+            </div>
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handlePhotoUpload}
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1">
               <label className="block text-xs font-semibold text-gray-600">
@@ -600,10 +728,10 @@ export default function ProductsPage({
               </label>
               <select
                 value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value as Category }))}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
               >
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
                   </option>
@@ -733,8 +861,9 @@ export default function ProductsPage({
               code: analyzed.code,
               name: analyzed.name,
               cost: String(analyzed.suggested_cost),
-              category: (CATEGORIES.includes(analyzed.category as Category) ? analyzed.category : 'Otro') as Category,
+              category: categories.includes(analyzed.category) ? analyzed.category : CATCH_ALL_CATEGORY,
               active: true,
+              image_url: analyzed.image_url ?? '',
             });
             setEditingProduct(null);
             setModalOpen(true);

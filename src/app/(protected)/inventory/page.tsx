@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import {
   Plus,
   Search,
@@ -25,8 +25,8 @@ import PhotoCapture from '@/components/shared/PhotoCapture'
 import ImageLightbox from '@/components/shared/ImageLightbox'
 import PageHelpModal from '@/components/shared/PageHelpModal'
 import { INVENTORY_HELP } from '@/lib/pageHelp'
+import { useTenant } from '@/lib/TenantContext'
 
-const CATEGORIES = ['Pantuflas', 'Maxisacos', 'Accesorios', 'Otro']
 const COLORS = ['Negro', 'Blanco', 'Gris', 'Beige', 'Rosado', 'Azul', 'Verde', 'Rojo', 'Morado', 'Multicolor']
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '35', '36', '37', '38', '39', '40', '41', '42', 'Única']
 const MONTH_NAMES = [
@@ -55,9 +55,11 @@ interface ModalProps {
   onClose: () => void
   onSave: (item: Partial<InventoryItem>) => Promise<void>
   saving: boolean
+  /** Categorías propias del negocio (vienen del padre, según su industria). */
+  categories: string[]
 }
 
-function InventoryModal({ item, onClose, onSave, saving }: ModalProps) {
+function InventoryModal({ item, onClose, onSave, saving, categories }: ModalProps) {
   const [form, setForm] = useState<Omit<InventoryItem, 'id' | 'created_at'>>(
     item
       ? {
@@ -126,7 +128,7 @@ function InventoryModal({ item, onClose, onSave, saving }: ModalProps) {
               onChange={(e) => set('category', e.target.value)}
             >
               <option value="">Seleccionar</option>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
 
@@ -263,6 +265,12 @@ function InventoryModal({ item, onClose, onSave, saving }: ModalProps) {
 
 export default function InventoryPage() {
   const owner = useUser()
+  const { config } = useTenant()
+  // Categorías propias del negocio (config por industria) + comodín "Otro".
+  const categories = useMemo(
+    () => Array.from(new Set([...(config.categories ?? []), 'Otro'])),
+    [config.categories],
+  )
   const [items, setItems] = useState<InventoryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [helpOpen, setHelpOpen] = useState(false)
@@ -472,7 +480,7 @@ export default function InventoryPage() {
               onChange={(e) => setFilterCategory(e.target.value)}
             >
               <option value="">Categoría</option>
-              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <select
               className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-300"
@@ -687,6 +695,7 @@ export default function InventoryPage() {
           onClose={() => { setModalOpen(false); setEditItem(null) }}
           onSave={handleSave}
           saving={saving}
+          categories={categories}
         />
       )}
 
