@@ -84,10 +84,14 @@ npm install
 cp .env.example .env.local
 ```
 
-Edita `.env.local` con tus credenciales:
+Edita `.env.local` con tus credenciales (ver `.env.example` para la lista completa y notas):
 - **NEXT_PUBLIC_SUPABASE_URL**: URL de tu proyecto Supabase
 - **NEXT_PUBLIC_SUPABASE_ANON_KEY**: Anon key de Supabase
-- **OPENAI_API_KEY**: Tu API key de OpenAI
+- **SUPABASE_SERVICE_ROLE_KEY**: service_role key (servidor) — **obligatoria en producción**; sin ella las rutas del servidor degradan a anon
+- **AUTH_SECRET**: secreto HS256 de ≥32 chars — **obligatoria en producción** (firma los JWT de sesión)
+- **OPENAI_API_KEY**: API key de OpenAI (opcional; también configurable por-negocio en Configuración)
+- **SUPABASE_JWT_SECRET** (opcional): activa el aislamiento por RLS (migración 003)
+- **CRON_SECRET** (opcional): autoriza el cron de agentes IA
 
 ### 3. Crear tablas en Supabase
 

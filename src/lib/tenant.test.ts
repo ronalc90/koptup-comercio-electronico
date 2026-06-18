@@ -12,8 +12,10 @@ import { createSession, verifySession, validatePassword, MIN_PASSWORD_LENGTH } f
 
 describe('tenant core', () => {
   it('reconoce las tablas de negocio', () => {
-    expect(TENANT_TABLES).toEqual(['products', 'orders', 'inventory', 'settings', 'expenses']);
+    expect(TENANT_TABLES).toEqual(['products', 'orders', 'inventory', 'settings', 'expenses', 'alerts', 'charges']);
     expect(isTenantTable('orders')).toBe(true);
+    expect(isTenantTable('alerts')).toBe(true);
+    expect(isTenantTable('charges')).toBe(true);
     expect(isTenantTable('users')).toBe(false);
     expect(isTenantTable('tenants')).toBe(false);
   });

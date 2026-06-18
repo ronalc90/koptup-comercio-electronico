@@ -208,10 +208,21 @@ export const supabase: SupabaseClient = isConfigured
 
 export const supabaseConfigured = isConfigured;
 
+let _warnedNoServiceKey = false;
+
 /** Cliente con service role (sin acotar). Solo servidor; usar con cuidado. */
 export function getServiceClient(): SupabaseClient {
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-  if (!isConfigured || !serviceKey) return rawBrowserClient;
+  if (!isConfigured || !serviceKey) {
+    // En producción, operar sin service role degrada a la anon key y rompe rutas
+    // del servidor (admin/superadmin/login/cron…). Avisar una vez en vez de
+    // fallar en silencio. En dev/local es esperado (no se hace ruido siempre).
+    if (!_warnedNoServiceKey && process.env.NODE_ENV === 'production' && isConfigured && !serviceKey) {
+      _warnedNoServiceKey = true;
+      console.error('[config] Falta SUPABASE_SERVICE_ROLE_KEY: las rutas del servidor degradan a anon y pueden fallar.');
+    }
+    return rawBrowserClient;
+  }
   return createClient(supabaseUrl, serviceKey);
 }
 

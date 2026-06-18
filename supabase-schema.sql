@@ -28,9 +28,11 @@ CREATE TABLE IF NOT EXISTS orders (
   detail TEXT,
   comment TEXT,
   value_to_collect INTEGER DEFAULT 0,
-  -- v1.012: renombrada desde payment_cash_bogo. Efectivo cobrado por el
-  -- mensajero/courier que aún no se ha liquidado al negocio.
-  payment_courier_pending INTEGER DEFAULT 0,
+  -- Efectivo cobrado por el mensajero/courier que aún no se ha liquidado al
+  -- negocio. NOTA: en producción la columna se llama `payment_cash_bogo` (el
+  -- rename a `payment_courier_pending` planeado en v1.012 nunca se aplicó). El
+  -- código resuelve el nombre real en runtime con courierPendingColumn().
+  payment_cash_bogo INTEGER DEFAULT 0,
   payment_cash INTEGER DEFAULT 0,
   payment_transfer INTEGER DEFAULT 0,
   product_cost INTEGER DEFAULT 0,
@@ -81,6 +83,10 @@ CREATE TABLE IF NOT EXISTS expenses (
   category VARCHAR(50) DEFAULT 'otro',
   expense_date DATE DEFAULT CURRENT_DATE,
   owner VARCHAR(50) DEFAULT 'Paola',
+  -- Vínculo opcional a un pedido/producto (gastos atribuibles). Existen en
+  -- producción; se declaran aquí para que un entorno nuevo reproduzca el esquema.
+  order_id INTEGER,
+  product_ref VARCHAR(20),
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
