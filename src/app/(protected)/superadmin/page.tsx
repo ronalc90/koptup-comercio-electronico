@@ -7,6 +7,13 @@ import { useTenant } from '@/lib/TenantContext';
 import { PLANS_ORDER, getPlan, productLimit, planPrice, formatCOP } from '@/lib/plans';
 import { licenseState, LICENSE_LABELS, addMonths, type LicenseStatus } from '@/lib/billing';
 
+interface TenantConfigShape {
+  categories?: string[];
+  tagline?: string;
+  phone?: string;
+  theme?: { primary?: string };
+  ai?: { domain?: string };
+}
 interface TenantRow {
   id: number;
   name: string;
@@ -17,10 +24,15 @@ interface TenantRow {
   active: boolean;
   billing_status: string | null;
   license_until: string | null;
+  config: TenantConfigShape | null;
   usage?: { orders: number; products: number; inventory: number; expenses: number; users: number };
 }
 
-const EMPTY = { name: '', slug: '', industry: '', logo: '', plan: 'free', adminEmail: '', adminPassword: '' };
+const EMPTY = {
+  name: '', slug: '', industry: '', logo: '', plan: 'free', adminEmail: '', adminPassword: '',
+  // Personalización del negocio (categorías separadas por coma, marca, IA).
+  categories: '', tagline: '', phone: '', primaryColor: '', aiDomain: '',
+};
 const STATUS_STYLE: Record<LicenseStatus, string> = {
   active: 'bg-green-50 text-green-700',
   trial: 'bg-slate-100 text-slate-600',
@@ -40,6 +52,10 @@ export default function SuperadminPage() {
   const [payAmount, setPayAmount] = useState('');
   const [payMonths, setPayMonths] = useState('1');
   const [payingBusy, setPayingBusy] = useState(false);
+  // Modal de configuración del negocio (categorías/marca/IA).
+  const [editingCfg, setEditingCfg] = useState<TenantRow | null>(null);
+  const [cfgForm, setCfgForm] = useState({ categories: '', tagline: '', phone: '', primaryColor: '', aiDomain: '' });
+  const [cfgBusy, setCfgBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [m, b] = await Promise.all([
@@ -116,6 +132,46 @@ export default function SuperadminPage() {
     return () => window.removeEventListener('keydown', onKey);
   }, [paying]);
 
+  function openEditConfig(t: TenantRow) {
+    const c = t.config ?? {};
+    setCfgForm({
+      categories: (c.categories ?? []).join(', '),
+      tagline: c.tagline ?? '',
+      phone: c.phone ?? '',
+      primaryColor: c.theme?.primary ?? '',
+      aiDomain: c.ai?.domain ?? '',
+    });
+    setEditingCfg(t);
+  }
+
+  async function saveConfig() {
+    if (!editingCfg) return;
+    setCfgBusy(true);
+    try {
+      const res = await fetch('/api/superadmin/tenants', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingCfg.id,
+          categories: cfgForm.categories.split(',').map((c) => c.trim()).filter(Boolean),
+          tagline: cfgForm.tagline,
+          phone: cfgForm.phone,
+          primaryColor: cfgForm.primaryColor,
+          aiDomain: cfgForm.aiDomain,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo guardar');
+      toast.success('Configuración guardada');
+      setEditingCfg(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setCfgBusy(false);
+    }
+  }
+
   async function createTenant() {
     if (!form.name || !form.adminEmail || !form.adminPassword) {
       toast.error('Nombre, email y contraseña del admin son requeridos');
@@ -124,7 +180,13 @@ export default function SuperadminPage() {
     setBusy(true);
     try {
       const res = await fetch('/api/superadmin/tenants', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          // categorías: de "a, b, c" a array para sanitizeConfigOverride.
+          categories: form.categories.split(',').map((c) => c.trim()).filter(Boolean),
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'No se pudo crear');
@@ -189,6 +251,30 @@ export default function SuperadminPage() {
             {PLANS_ORDER.map((p) => <option key={p} value={p}>{getPlan(p).label}</option>)}
           </select>
         </div>
+
+        {/* Personalización del negocio (opcional): sin esto arranca con un base
+            genérico, no con el de Meraki. */}
+        <details className="mt-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2">
+          <summary className="cursor-pointer text-xs font-semibold text-gray-600">
+            Personalización (categorías, marca, IA) — opcional
+          </summary>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <input className="rounded-xl border px-3 py-2 text-sm sm:col-span-2" placeholder="Categorías separadas por coma (ej. Cascos, Repuestos, Aceites)"
+              value={form.categories} onChange={(e) => setForm({ ...form, categories: e.target.value })} />
+            <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Eslogan (ej. Todo para tu moto)"
+              value={form.tagline} onChange={(e) => setForm({ ...form, tagline: e.target.value })} />
+            <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Teléfono de contacto"
+              value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Rubro para la IA (ej. motocicletas y repuestos)"
+              value={form.aiDomain} onChange={(e) => setForm({ ...form, aiDomain: e.target.value })} />
+            <label className="flex items-center gap-2 text-sm text-gray-600">
+              Color de marca
+              <input type="color" className="h-8 w-12 rounded border" value={form.primaryColor || '#7c3aed'}
+                onChange={(e) => setForm({ ...form, primaryColor: e.target.value })} />
+            </label>
+          </div>
+        </details>
+
         <button onClick={createTenant} disabled={busy}
           className="mt-3 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           style={{ background: 'var(--brand-primary, #7c3aed)' }}>
@@ -226,6 +312,11 @@ export default function SuperadminPage() {
                   className="rounded-lg border px-2 py-1 text-xs" title="Plan">
                   {PLANS_ORDER.map((p) => <option key={p} value={p}>{getPlan(p).label}</option>)}
                 </select>
+                <button onClick={() => openEditConfig(t)}
+                  className="rounded-lg px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  title="Editar categorías, marca e IA del negocio">
+                  Config
+                </button>
                 <button onClick={() => recordPayment(t)}
                   className="rounded-lg px-2 py-1 text-xs font-semibold bg-purple-50 text-purple-700"
                   style={{ background: 'color-mix(in srgb, var(--brand-primary, #7c3aed) 12%, white)', color: 'var(--brand-primary, #7c3aed)' }}>
@@ -282,6 +373,57 @@ export default function SuperadminPage() {
                 className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
                 style={{ background: 'var(--brand-primary, #7c3aed)' }}>
                 {payingBusy ? 'Registrando…' : 'Registrar pago'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de configuración del negocio (categorías / marca / IA) */}
+      {editingCfg && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Configurar ${editingCfg.name}`}
+          onClick={(e) => { if (e.target === e.currentTarget) setEditingCfg(null); }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Configurar {editingCfg.name}</h2>
+            <p className="text-xs text-gray-400 mb-4">Categorías, marca e IA propias del negocio. Aplica sin re-login.</p>
+
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Categorías (separadas por coma)</label>
+            <input value={cfgForm.categories} onChange={(e) => setCfgForm({ ...cfgForm, categories: e.target.value })}
+              placeholder="Cascos, Repuestos, Aceites" className="w-full rounded-xl border px-3 py-2 text-sm mb-3" />
+
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Eslogan</label>
+            <input value={cfgForm.tagline} onChange={(e) => setCfgForm({ ...cfgForm, tagline: e.target.value })}
+              className="w-full rounded-xl border px-3 py-2 text-sm mb-3" />
+
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Teléfono de contacto</label>
+            <input value={cfgForm.phone} onChange={(e) => setCfgForm({ ...cfgForm, phone: e.target.value })}
+              className="w-full rounded-xl border px-3 py-2 text-sm mb-3" />
+
+            <label className="block text-sm font-semibold text-gray-700 mb-1">Rubro para la IA</label>
+            <input value={cfgForm.aiDomain} onChange={(e) => setCfgForm({ ...cfgForm, aiDomain: e.target.value })}
+              placeholder="motocicletas y repuestos" className="w-full rounded-xl border px-3 py-2 text-sm mb-3" />
+
+            <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-4">
+              Color de marca
+              <input type="color" value={cfgForm.primaryColor || '#7c3aed'}
+                onChange={(e) => setCfgForm({ ...cfgForm, primaryColor: e.target.value })}
+                className="h-8 w-12 rounded border" />
+            </label>
+
+            <div className="flex gap-3">
+              <button onClick={() => setEditingCfg(null)}
+                className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                Cancelar
+              </button>
+              <button onClick={saveConfig} disabled={cfgBusy}
+                className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: 'var(--brand-primary, #7c3aed)' }}>
+                {cfgBusy ? 'Guardando…' : 'Guardar'}
               </button>
             </div>
           </div>

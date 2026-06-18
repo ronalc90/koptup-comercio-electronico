@@ -23,7 +23,7 @@ export async function GET() {
   const db = getServiceClient();
   const { data: tenants, error } = await db
     .from('tenants')
-    .select('id, name, slug, logo, industry, plan, active, billing_status, license_until')
+    .select('id, name, slug, logo, industry, plan, active, billing_status, license_until, config')
     .order('id');
   if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
