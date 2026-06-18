@@ -31,6 +31,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Imagen muy grande (máx 5 MB)' }, { status: 413 });
     }
 
+    // No confiar solo en el MIME declarado del data-URI: verificar los magic
+    // bytes reales del archivo para que no se almacene algo que no es imagen.
+    const isJpeg = buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    const isPng = buffer.length > 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    const isWebp = buffer.length > 12 &&
+      buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP';
+    if (!isJpeg && !isPng && !isWebp) {
+      return NextResponse.json({ error: 'El archivo no es una imagen válida (jpeg/png/webp)' }, { status: 415 });
+    }
+
     // Generate unique filename
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).slice(2, 8);

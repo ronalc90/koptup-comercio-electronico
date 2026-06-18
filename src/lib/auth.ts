@@ -125,7 +125,32 @@ export async function getSession(): Promise<TenantContext | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(COOKIE_NAME)?.value;
   if (!token) return null;
-  return verifySession(token);
+  const ctx = await verifySession(token);
+  if (!ctx) return null;
+
+  // Revocación de sesión: el JWT dura 30 días, así que verificamos contra la BD
+  // que el usuario SIGUE activo y usamos su rol ACTUAL (no el del token, que pudo
+  // quedar viejo tras desactivarlo o bajarle el rol). Resiliente: si la consulta
+  // falla o no hay fila (respaldo pre-migración con userId null) se respeta el
+  // JWT para no tumbar accesos por un error transitorio.
+  if (ctx.userId != null) {
+    try {
+      const db = getServiceClient();
+      const { data, error } = await db
+        .from('users')
+        .select('active, role')
+        .eq('id', ctx.userId)
+        .eq('tenant_id', ctx.tenantId)
+        .maybeSingle();
+      if (!error && data) {
+        if (data.active === false) return null; // desactivado ⇒ sesión revocada
+        if (isRole(data.role)) ctx.role = data.role as Role; // rol vigente
+      }
+    } catch {
+      /* error transitorio ⇒ se respeta el JWT verificado */
+    }
+  }
+  return ctx;
 }
 
 // ---- Fuente de usuarios -----------------------------------------------------
@@ -184,6 +209,12 @@ async function tenantById(id: number): Promise<{ slug: string; name?: string; lo
 // está inactivo o si la contraseña es la incorrecta) — anti-enumeración.
 const LOGIN_FAIL = 'Usuario o contraseña incorrectos';
 
+// Hash bcrypt fijo (válido) para igualar el tiempo de respuesta cuando el usuario
+// NO existe: así `bcrypt.compare` corre igual y no hay oráculo de tiempo que
+// permita enumerar qué usuarios existen. (Es el hash de un valor cualquiera; no
+// se usa para autenticar a nadie.)
+const TIMING_DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
 export async function login(
   username: string,
   password: string,
@@ -193,7 +224,10 @@ export async function login(
   // 1) Fuente real: tabla users (post-migración).
   const row = await lookupUser(identifier);
   if (row) {
-    if (!row.active) return { success: false, error: LOGIN_FAIL };
+    if (!row.active) {
+      await verifyPassword(password, TIMING_DUMMY_HASH); // iguala tiempo
+      return { success: false, error: LOGIN_FAIL };
+    }
     const ok = await verifyPassword(password, row.password_hash);
     if (!ok) return { success: false, error: LOGIN_FAIL };
     const t = await tenantById(row.tenant_id);
@@ -214,6 +248,9 @@ export async function login(
   //    Una vez aplicada la migración, la tabla `users` (bcrypt) es la ÚNICA
   //    fuente: nada de credenciales en texto plano puede iniciar sesión.
   if (await isTenantSupported()) {
+    // Usuario inexistente post-migración: quema el mismo tiempo de bcrypt que un
+    // usuario real para no filtrar por timing quién existe.
+    await verifyPassword(password, TIMING_DUMMY_HASH);
     return { success: false, error: LOGIN_FAIL };
   }
   const fallback = FALLBACK_USERS[identifier];
