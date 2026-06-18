@@ -12,6 +12,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.035',
+    date: '2026-06-18',
+    highlights: [
+      'Se eliminó una advertencia técnica en la consola del navegador ("Multiple GoTrueClient instances") creando un solo cliente de Supabase e inyectando el token de seguridad por petición. Sin cambios visibles para ti.',
+    ],
+  },
+  {
     version: '1.034',
     date: '2026-06-18',
     highlights: [

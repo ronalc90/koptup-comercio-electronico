@@ -148,34 +148,39 @@ export function getActiveTenantId(): number | null {
   return _activeTenantId;
 }
 
-// La app NO usa Supabase Auth (sesión propia por JWT en cookie). Desactivamos la
-// persistencia de auth para no crear varias instancias GoTrue que compitan por
-// el storage (warning "Multiple GoTrueClient instances").
-const rawBrowserClient: SupabaseClient = isConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey, { auth: { persistSession: false, autoRefreshToken: false } })
-  : createMockClient();
-
 // ---- Token de Supabase por usuario (ruta de hardening, opt-in) --------------
 // Si la app firma un JWT con tenant_id (SUPABASE_JWT_SECRET configurada), el
 // TenantProvider lo inyecta aquí y el cliente del navegador lo usa como bearer,
 // de modo que RLS (migración 003) fuerza el aislamiento en la BD. Si no hay
-// token, se usa el cliente anon de siempre.
-let _authedClient: SupabaseClient | null = null;
+// token, se usa el anon de siempre. Se declara ANTES del cliente porque su fetch
+// lee este valor en cada request.
 let _sbToken: string | null = null;
 
 export function setSupabaseAuthToken(token: string | null): void {
-  if (token === _sbToken) return;
   _sbToken = token;
-  _authedClient = token && isConfigured
-    ? createClient(supabaseUrl, supabaseAnonKey, {
-        global: { headers: { Authorization: `Bearer ${token}` } },
-        auth: { persistSession: false, autoRefreshToken: false },
-      })
-    : null;
 }
 
+// La app NO usa Supabase Auth (sesión propia por JWT en cookie). Creamos UN SOLO
+// cliente de navegador para evitar el warning "Multiple GoTrueClient instances"
+// (antes se creaba un segundo cliente al fijar el token). El bearer del usuario
+// se inyecta por request con un fetch propio: si hay JWT con tenant_id va en
+// Authorization (apikey anon se conserva para el gateway); si no, queda el anon.
+const rawBrowserClient: SupabaseClient = isConfigured
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: {
+        fetch: (input: RequestInfo | URL, init: RequestInit = {}) => {
+          if (!_sbToken) return fetch(input, init);
+          const headers = new Headers(init.headers);
+          headers.set('Authorization', `Bearer ${_sbToken}`);
+          return fetch(input, { ...init, headers });
+        },
+      },
+    })
+  : createMockClient();
+
 function activeBrowserClient(): SupabaseClient {
-  return _authedClient ?? rawBrowserClient;
+  return rawBrowserClient;
 }
 
 /**
