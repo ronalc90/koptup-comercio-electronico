@@ -29,10 +29,6 @@ import { useTenant } from '@/lib/TenantContext'
 
 const COLORS = ['Negro', 'Blanco', 'Gris', 'Beige', 'Rosado', 'Azul', 'Verde', 'Rojo', 'Morado', 'Multicolor']
 const SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '35', '36', '37', '38', '39', '40', '41', '42', 'Única']
-const MONTH_NAMES = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-]
 
 const EMPTY_FORM: Omit<InventoryItem, 'id' | 'created_at'> = {
   basket_location: '',

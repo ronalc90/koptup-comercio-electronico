@@ -8,12 +8,6 @@ import {
   Plus,
   AlertTriangle,
   ShoppingBag,
-  PackageCheck,
-  Undo2,
-  XCircle,
-  Banknote,
-  TrendingUp,
-  ArrowRightLeft,
   ChevronDown,
   ChevronUp,
 } from 'lucide-react'

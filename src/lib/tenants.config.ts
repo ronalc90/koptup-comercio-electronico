@@ -6,7 +6,6 @@
  *
  * Se indexa por `slug`. Si un slug no existe, se cae al de meraki.
  */
-import { DEFAULT_TENANT_SLUG } from './tenant';
 import type { ModuleKey } from './modules';
 
 export interface TenantTheme {
