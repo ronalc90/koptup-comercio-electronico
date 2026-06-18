@@ -20,6 +20,7 @@ import { supabase } from '@/lib/supabase'
 import type { Order } from '@/lib/types'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useUser } from '@/lib/UserContext'
+import { useTenant } from '@/lib/TenantContext'
 import { isOwnerSupported } from '@/lib/db'
 import { GuideCard } from '@/components/dispatch/DispatchGuide'
 import WhatsAppLink from '@/components/shared/WhatsAppLink'
@@ -116,6 +117,7 @@ function RouteView({
   date: string
   onClose: () => void
 }) {
+  const { config } = useTenant()
   const groups = orders.reduce<Record<string, Order[]>>((acc, order) => {
     const zone = (order.complement?.trim() || 'Sin barrio').split(/[,;]/)[0].trim()
     if (!acc[zone]) acc[zone] = []
@@ -167,7 +169,7 @@ function RouteView({
         {/* Print header — hidden on screen */}
         <div className="hidden print:block mb-6 border-b-2 border-gray-800 pb-4">
           <h1 className="text-2xl font-black text-center text-gray-900 uppercase tracking-tight">
-            Tu Tienda Meraki — Ruta de Envío
+            {config.name} — Ruta de Envío
           </h1>
           <p className="text-center text-sm text-gray-600 mt-1">
             Fecha: {formatDateDisplay(date)}
@@ -263,7 +265,7 @@ function RouteView({
           </table>
           {/* Print footer */}
           <div className="mt-6 pt-4 border-t border-gray-400 flex justify-between text-xs text-gray-500">
-            <span>Tu Tienda Meraki — 3203880422</span>
+            <span>{config.phone ? `${config.name} — ${config.phone}` : config.name}</span>
             <span>
               Total pedidos: {orders.length} | Total valor: {formatCurrency(totalValue)}
             </span>

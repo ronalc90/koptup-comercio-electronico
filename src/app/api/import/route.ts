@@ -130,7 +130,6 @@ export async function POST(request: NextRequest) {
     try { formData = await request.formData(); } catch { return NextResponse.json({ error: 'Envía un archivo Excel como FormData' }, { status: 400 }); }
     const file = formData.get('file') as File;
     const forceType = formData.get('type') as string | null;
-    const owner = formData.get('owner') as string || 'Paola';
 
     if (!file) {
       return NextResponse.json({ error: 'No se recibió archivo' }, { status: 400 });
@@ -143,6 +142,10 @@ export async function POST(request: NextRequest) {
     const scoped = await getRequestScopedClient();
     if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
     const supabase = scoped.client;
+    // El `tenant_id` lo inyecta el guard del cliente acotado; el `owner` es solo
+    // la persona dueña/registradora de la fila. Si el form no lo envía, caemos al
+    // usuario autenticado de la sesión (neutral por tenant), no a un nombre fijo.
+    const owner = (formData.get('owner') as string) || scoped.ctx.username;
     const results: { type: string; inserted: number; errors: string[] }[] = [];
 
     for (const sheet of workbook.worksheets) {

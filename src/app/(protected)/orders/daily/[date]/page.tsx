@@ -20,14 +20,33 @@ import {
 import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import type { Order, DailyKPIs } from '@/lib/types'
-import { cn, formatCurrency, getDayOfWeek, sameVendor } from '@/lib/utils'
+import { cn, formatCurrency, getDayOfWeek, sameVendor, vendorDisplayName } from '@/lib/utils'
 import { useUser } from '@/lib/UserContext'
 import { isOwnerSupported, courierPendingColumn } from '@/lib/db'
 import WhatsAppLink from '@/components/shared/WhatsAppLink'
 import { DELIVERY_TYPE_OPTIONS as DELIVERY_TYPE_DEFS, getCourierPending } from '@/lib/types'
 
 const DELIVERY_STATUS_OPTIONS = ['Confirmado', 'Enviado', 'Entregado', 'Pagado', 'Devolucion', 'Cancelado'] as const
-const VENDOR_OPTIONS = ['Paola']
+
+/**
+ * Deriva las opciones de vendedor a partir de los datos reales: los valores
+ * `vendor` distintos ya presentes en los pedidos del día, más el usuario
+ * actual. Se deduplica de forma insensible a mayúsculas/espacios y se ordena
+ * alfabéticamente. Si no hay datos, queda solo el usuario actual. Nunca se
+ * asume una vendedora fija (la app es multi-tenant).
+ */
+function buildVendorOptions(orders: Order[], currentUser: string): string[] {
+  const byKey = new Map<string, string>()
+  const add = (raw: string | null | undefined) => {
+    const value = (raw ?? '').trim()
+    if (!value) return
+    const key = value.toLowerCase()
+    if (!byKey.has(key)) byKey.set(key, value)
+  }
+  add(currentUser)
+  for (const o of orders) add(o.vendor)
+  return Array.from(byKey.values()).sort((a, b) => a.localeCompare(b, 'es'))
+}
 
 function padDate(n: number) {
   return String(n).padStart(2, '0')
@@ -72,7 +91,7 @@ function KPIItem({ label, value, small }: KPIItemProps) {
   )
 }
 
-function computeKPIs(orders: Order[]): DailyKPIs {
+function computeKPIs(orders: Order[], currentUser: string): DailyKPIs {
   const delivered = orders.filter((o) => o.delivery_status === 'Entregado')
   const active = orders.filter((o) => o.delivery_status === 'Confirmado' || o.delivery_status === 'Entregado')
   return {
@@ -88,7 +107,7 @@ function computeKPIs(orders: Order[]): DailyKPIs {
     revenueCash: delivered.reduce((s, o) => s + (o.payment_cash ?? 0), 0),
     revenueTransfer: delivered.reduce((s, o) => s + (o.payment_transfer ?? 0), 0),
     totalRevenue: delivered.reduce((s, o) => s + (o.value_to_collect ?? 0), 0),
-    ordersOwner: orders.filter((o) => sameVendor(o.vendor, 'Paola')).length,
+    ordersOwner: orders.filter((o) => sameVendor(o.vendor, currentUser)).length,
     totalCosts: active.reduce((s, o) => s + (o.product_cost ?? 0), 0),
     totalOperatingCosts: active.reduce((s, o) => s + (o.operating_cost ?? 0), 0),
     profit:
@@ -109,6 +128,7 @@ const STATUS_COLORS: Record<string, string> = {
 interface OrderRowBaseProps {
   order: Order
   onUpdate: (id: number, changes: Partial<Order>) => Promise<void>
+  vendorOptions: string[]
 }
 
 function useOrderRowState(order: Order, onUpdate: OrderRowBaseProps['onUpdate']) {
@@ -126,8 +146,15 @@ function useOrderRowState(order: Order, onUpdate: OrderRowBaseProps['onUpdate'])
   return { saving, handleChange }
 }
 
-function OrderTableRow({ order, onUpdate }: OrderRowBaseProps) {
+function vendorOptionsWith(order: Order, vendorOptions: string[]): string[] {
+  const current = (order.vendor ?? '').trim()
+  if (!current || vendorOptions.some((v) => sameVendor(v, current))) return vendorOptions
+  return [...vendorOptions, current]
+}
+
+function OrderTableRow({ order, onUpdate, vendorOptions }: OrderRowBaseProps) {
   const { saving, handleChange } = useOrderRowState(order, onUpdate)
+  const options = vendorOptionsWith(order, vendorOptions)
 
   return (
     <tr className="border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
@@ -188,7 +215,7 @@ function OrderTableRow({ order, onUpdate }: OrderRowBaseProps) {
           disabled={saving}
           className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs outline-none cursor-pointer disabled:opacity-60"
         >
-          {VENDOR_OPTIONS.map((v) => (
+          {options.map((v) => (
             <option key={v} value={v}>
               {v || '—'}
             </option>
@@ -199,9 +226,10 @@ function OrderTableRow({ order, onUpdate }: OrderRowBaseProps) {
   )
 }
 
-function OrderMobileCard({ order, onUpdate }: OrderRowBaseProps) {
+function OrderMobileCard({ order, onUpdate, vendorOptions }: OrderRowBaseProps) {
   const [expanded, setExpanded] = useState(false)
   const { saving, handleChange } = useOrderRowState(order, onUpdate)
+  const options = vendorOptionsWith(order, vendorOptions)
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white shadow-sm overflow-hidden">
@@ -298,7 +326,7 @@ function OrderMobileCard({ order, onUpdate }: OrderRowBaseProps) {
                 disabled={saving}
                 className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs outline-none"
               >
-                {VENDOR_OPTIONS.map((v) => (
+                {options.map((v) => (
                   <option key={v} value={v}>
                     {v || '—'}
                   </option>
@@ -421,7 +449,8 @@ export default function DailyOrdersPage({
     }
   }
 
-  const kpis = computeKPIs(orders)
+  const kpis = computeKPIs(orders, owner)
+  const vendorOptions = buildVendorOptions(orders, owner)
 
   const dayName = getDayOfWeek(new Date(date + 'T00:00:00'))
   const displayDate = formatDisplayDate(date)
@@ -510,7 +539,7 @@ export default function DailyOrdersPage({
           </div>
         </div>
 
-        <KPIItem label="Paola" value={kpis.ordersOwner} />
+        <KPIItem label={vendorDisplayName(owner, 'Vendedor') || 'Vendedor'} value={kpis.ordersOwner} />
 
         <KPIItem label="Costos" value={formatCurrency(kpis.totalCosts)} />
         <KPIItem label="Gastos Op." value={formatCurrency(kpis.totalOperatingCosts)} />
@@ -558,7 +587,7 @@ export default function DailyOrdersPage({
               </thead>
               <tbody>
                 {orders.map((order) => (
-                  <OrderTableRow key={order.id} order={order} onUpdate={handleUpdateOrder} />
+                  <OrderTableRow key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} />
                 ))}
               </tbody>
             </table>
@@ -567,7 +596,7 @@ export default function DailyOrdersPage({
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 md:hidden">
             {orders.map((order) => (
-              <OrderMobileCard key={order.id} order={order} onUpdate={handleUpdateOrder} />
+              <OrderMobileCard key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} />
             ))}
           </div>
         </>

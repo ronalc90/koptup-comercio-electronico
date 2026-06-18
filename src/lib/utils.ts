@@ -85,10 +85,17 @@ export function getDayOfWeek(date: Date): string {
  * (ej. "paola"), pero queremos que la columna `vendor` quede con la
  * primera letra en mayúscula para que los conteos por vendedora sean
  * consistentes entre formularios (/orders/new) y el asistente.
+ *
+ * No se asume ninguna vendedora por defecto: la app es multi-tenant y el
+ * vendedor debe reflejar al usuario/negocio real. Si no hay `owner`, se
+ * devuelve `fallback` (por defecto cadena vacía).
  */
-export function vendorDisplayName(owner: string | null | undefined): string {
+export function vendorDisplayName(
+  owner: string | null | undefined,
+  fallback = '',
+): string {
   const raw = (owner ?? '').trim();
-  if (!raw) return 'Paola';
+  if (!raw) return fallback;
   return raw.charAt(0).toUpperCase() + raw.slice(1).toLowerCase();
 }
 

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { Printer, X, Type, Minus, Plus } from 'lucide-react';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -10,6 +9,7 @@ import {
   getPrintCustomSizes,
   setPrintCustomSizes,
   resolvePrintSizes,
+  getShowPrintLogo,
   PRINT_FONT_LABELS,
   PRINT_SIZE_MIN,
   PRINT_SIZE_MAX,
@@ -17,6 +17,7 @@ import {
   type PrintSizes,
 } from '@/lib/preferences';
 import { useUser } from '@/lib/UserContext';
+import { useTenant } from '@/lib/TenantContext';
 
 type FontSize = PrintFontSize;
 
@@ -194,6 +195,14 @@ export function GuideCard({
   sizes?: PrintSizes;
   fontSize?: FontSize;
 }) {
+  const owner = useUser();
+  const { config } = useTenant();
+  const [showLogo, setShowLogo] = useState(true);
+
+  useEffect(() => {
+    setShowLogo(getShowPrintLogo(owner));
+  }, [owner]);
+
   const resolved: PrintSizes =
     sizes ??
     (fontSize && fontSize !== 'custom'
@@ -216,17 +225,17 @@ export function GuideCard({
     >
       {/* Header */}
       <div className="bg-black flex items-center justify-center gap-2 px-3 py-2 guide-card-header">
-        <Image
-          src="/logo-meraki.svg"
-          alt="Meraki"
-          width={50}
-          height={34}
-          className="invert"
-          style={{ filter: 'invert(1)' }}
-        />
+        {showLogo && (
+          <span
+            aria-hidden="true"
+            className="leading-none"
+            style={{ fontSize: `${resolved.header * 1.6}pt` }}
+          >
+            {config.logo}
+          </span>
+        )}
         <div className="text-white text-center">
-          <p className="font-bold leading-tight" style={{ fontSize: `${resolved.header}pt` }}>Tu Tienda</p>
-          <p className="font-bold leading-tight" style={{ fontSize: `${resolved.header}pt` }}>Meraki</p>
+          <p className="font-bold leading-tight" style={{ fontSize: `${resolved.header}pt` }}>{config.name}</p>
         </div>
       </div>
 
@@ -279,10 +288,12 @@ export function GuideCard({
       </div>
 
       {/* Footer */}
-      <div className="border-t-2 border-black px-2 py-1 text-center guide-card-footer">
-        <p className="font-semibold text-gray-700 leading-tight" style={{ fontSize: `${resolved.footer}pt`, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>Mayor Información</p>
-        <p className="font-bold text-gray-900 leading-tight" style={{ fontSize: `${resolved.footer}pt`, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>3203880422.</p>
-      </div>
+      {config.phone && (
+        <div className="border-t-2 border-black px-2 py-1 text-center guide-card-footer">
+          <p className="font-semibold text-gray-700 leading-tight" style={{ fontSize: `${resolved.footer}pt`, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>Mayor Información</p>
+          <p className="font-bold text-gray-900 leading-tight" style={{ fontSize: `${resolved.footer}pt`, overflowWrap: 'anywhere', wordBreak: 'break-word' }}>{config.phone}</p>
+        </div>
+      )}
     </div>
   );
 }

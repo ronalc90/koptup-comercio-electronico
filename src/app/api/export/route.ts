@@ -1,7 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server'
 import ExcelJS from 'exceljs'
 import { getRequestScopedClient } from '@/lib/tenantServer'
+import { loadTenantConfig } from '@/lib/tenantConfigServer'
 import { isOwnerSupported } from '@/lib/db'
+
+/**
+ * Convierte el nombre del negocio en un slug seguro para nombres de archivo
+ * (minúsculas, sin acentos ni símbolos). Si no queda nada usable, cae a
+ * 'export' para que el archivo siempre tenga un prefijo válido.
+ */
+function slugifyName(name: string): string {
+  const slug = name
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+  return slug || 'export'
+}
 
 const HEADER_FILL: ExcelJS.Fill = {
   type: 'pattern',
@@ -48,20 +64,6 @@ function addBorders(sheet: ExcelJS.Worksheet) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8F8F8' } }
       }
     })
-  })
-}
-
-function autoWidth(sheet: ExcelJS.Worksheet) {
-  sheet.columns.forEach((col) => {
-    if (!col.header) return
-    let max = String(col.header).length
-    if (col.eachCell) {
-      col.eachCell({ includeEmpty: false }, (cell) => {
-        const len = String(cell.value ?? '').length
-        if (len > max) max = len
-      })
-    }
-    col.width = Math.min(max + 4, 45)
   })
 }
 
@@ -295,8 +297,12 @@ export async function GET(request: NextRequest) {
   const scoped = await getRequestScopedClient()
   if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const supabase = scoped.client
+  // Marca por tenant: el nombre real del negocio (no la marca de Meraki).
+  const tenantConfig = await loadTenantConfig(scoped.ctx.tenantId, scoped.ctx.tenantSlug)
+  const businessName = tenantConfig.name
+  const fileSlug = slugifyName(businessName)
   const workbook = new ExcelJS.Workbook()
-  workbook.creator = 'Tu Tienda Meraki'
+  workbook.creator = businessName
   workbook.created = new Date()
   const hasOwner = await isOwnerSupported()
 
@@ -432,7 +438,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type':
           'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        'Content-Disposition': `attachment; filename="meraki-${type}-${new Date().toISOString().slice(0, 10)}.xlsx"`,
+        'Content-Disposition': `attachment; filename="${fileSlug}-${type}-${new Date().toISOString().slice(0, 10)}.xlsx"`,
       },
     })
   } catch (err) {

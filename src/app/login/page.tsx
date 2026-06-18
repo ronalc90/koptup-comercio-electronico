@@ -6,7 +6,7 @@ import toast from 'react-hot-toast'
 
 export default function LoginPage() {
   const router = useRouter()
-  const [username, setUsername] = useState('Paola')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [rememberDevice, setRememberDevice] = useState(true)
   const [loading, setLoading] = useState(false)
@@ -89,15 +89,15 @@ export default function LoginPage() {
               className="inline-flex items-center justify-center w-20 h-20 rounded-2xl mb-4 shadow-lg"
               style={{ background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(8px)' }}
             >
-              <span className="text-5xl select-none" role="img" aria-label="pantufla">
-                🩴
+              <span className="text-5xl select-none" role="img" aria-label="tienda">
+                🏪
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              Tu Tienda Meraki
+              Meraki
             </h1>
             <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
-              Gestión de pedidos y despachos
+              Gestión de pedidos y catálogo
             </p>
           </div>
 
@@ -299,7 +299,7 @@ export default function LoginPage() {
 
         {/* Footer note */}
         <p className="mt-6 text-center text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
-          Pantuflas y maxisacos con amor desde Colombia 🇨🇴
+          Plataforma de gestión de pedidos y catálogo
         </p>
       </div>
     </main>

@@ -17,7 +17,6 @@ import { syncInventoryOnOrderSave } from '@/lib/inventorySync'
 import { DELIVERY_TYPE_OPTIONS, type DeliveryType } from '@/lib/types'
 
 type DeliveryStatus = 'Confirmado' | 'Entregado' | 'Devolucion' | 'Cancelado'
-type Vendor = 'Paola'
 
 interface OrderForm {
   client_name: string
@@ -42,7 +41,7 @@ interface OrderForm {
   payment_cash: string
   payment_transfer: string
   delivery_type: DeliveryType
-  vendor: Vendor
+  vendor: string
   delivery_status: DeliveryStatus
   order_date: string
   is_exchange: boolean
@@ -71,7 +70,7 @@ const EMPTY_FORM: OrderForm = {
   payment_cash: '',
   payment_transfer: '',
   delivery_type: 'Mensajeria',
-  vendor: 'Paola',
+  vendor: '',
   delivery_status: 'Confirmado',
   order_date: '',
   is_exchange: false,
@@ -201,6 +200,9 @@ export default function NewOrderPage({
 
   const [form, setForm] = useState<OrderForm>({
     ...EMPTY_FORM,
+    // El vendedor por defecto es el usuario actualmente logueado (multi-tenant),
+    // ya normalizado con la misma regla que se persiste en la BD.
+    vendor: vendorDisplayName(owner),
     order_date: prefillDate,
   })
 
@@ -285,7 +287,7 @@ export default function NewOrderPage({
         payment_transfer: parseFloat(form.payment_transfer) || 0,
         product_cost,
         delivery_type: form.delivery_type || '',
-        vendor: vendorDisplayName(owner),
+        vendor: form.vendor.trim() || vendorDisplayName(owner),
         delivery_status: form.delivery_status,
         is_exchange: form.is_exchange,
         order_date: form.order_date,
@@ -424,7 +426,7 @@ export default function NewOrderPage({
                 payment_transfer: 0,
                 product_cost,
                 delivery_type: 'Mensajeria',
-                vendor: 'Paola',
+                vendor: vendorDisplayName(owner),
                 delivery_status: 'Confirmado',
                 is_exchange: false,
                 order_date: orderDate,

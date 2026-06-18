@@ -116,11 +116,14 @@ describe('vendorDisplayName', () => {
     expect(vendorDisplayName('Paola')).toBe('Paola');
   });
 
-  it('default a "Paola" si owner es vacío o null', () => {
-    expect(vendorDisplayName('')).toBe('Paola');
-    expect(vendorDisplayName('   ')).toBe('Paola');
-    expect(vendorDisplayName(null)).toBe('Paola');
-    expect(vendorDisplayName(undefined)).toBe('Paola');
+  it('owner vacío/null devuelve el fallback (por defecto cadena vacía, no un nombre fijo)', () => {
+    // Antes caía a "Paola" (supuesto de Meraki). Ahora es neutro por tenant.
+    expect(vendorDisplayName('')).toBe('');
+    expect(vendorDisplayName('   ')).toBe('');
+    expect(vendorDisplayName(null)).toBe('');
+    expect(vendorDisplayName(undefined)).toBe('');
+    // Acepta un fallback explícito (ej. la etiqueta de un KPI).
+    expect(vendorDisplayName('', 'Vendedor')).toBe('Vendedor');
   });
 
   it('corta espacios en blanco al inicio y fin', () => {
