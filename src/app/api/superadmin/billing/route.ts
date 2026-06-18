@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
   const concept = typeof body.concept === 'string' && body.concept.trim() ? body.concept.trim() : null;
 
   if (!Number.isInteger(tenantId)) return NextResponse.json({ error: 'tenantId inválido' }, { status: 400 });
-  if (!Number.isFinite(amount) || amount < 0) return NextResponse.json({ error: 'monto inválido' }, { status: 400 });
+  if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'monto inválido (debe ser mayor a 0)' }, { status: 400 });
   if (!Number.isInteger(months) || months < 1) return NextResponse.json({ error: 'meses inválido (mín 1)' }, { status: 400 });
 
   const db = getServiceClient();

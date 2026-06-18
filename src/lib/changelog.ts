@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.028',
+    date: '2026-06-17',
+    highlights: [
+      'Protección anti fuerza bruta en el inicio de sesión: tras varios intentos fallidos seguidos se bloquea temporalmente (usando la IP real, no falsificable).',
+      'Cobro con un formulario claro (en vez de ventanitas del navegador): muestra el monto sugerido y hasta cuándo quedará la licencia antes de confirmar; accesible y apto para móvil.',
+      'El cobro ahora exige un monto mayor a 0 (ya no se puede extender una licencia con un pago de $0).',
+    ],
+  },
+  {
     version: '1.027',
     date: '2026-06-17',
     highlights: [

@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import { Building2, Plus, DollarSign } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
 import { PLANS_ORDER, getPlan, productLimit, planPrice, formatCOP } from '@/lib/plans';
-import { licenseState, LICENSE_LABELS, type LicenseStatus } from '@/lib/billing';
+import { licenseState, LICENSE_LABELS, addMonths, type LicenseStatus } from '@/lib/billing';
 
 interface TenantRow {
   id: number;
@@ -35,6 +35,11 @@ export default function SuperadminPage() {
   const [form, setForm] = useState({ ...EMPTY });
   const [busy, setBusy] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
+  // Modal de cobro (reemplaza window.prompt).
+  const [paying, setPaying] = useState<TenantRow | null>(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMonths, setPayMonths] = useState('1');
+  const [payingBusy, setPayingBusy] = useState(false);
 
   const load = useCallback(async () => {
     const [m, b] = await Promise.all([
@@ -61,20 +66,43 @@ export default function SuperadminPage() {
     if (res.ok) { toast.success('Actualizado'); await load(); } else toast.error('No se pudo actualizar');
   }
 
-  async function recordPayment(t: TenantRow) {
-    const suggested = planPrice(t.plan);
-    const amountStr = window.prompt(`Registrar pago de "${t.name}" (COP):`, String(suggested));
-    if (amountStr === null) return;
-    const monthsStr = window.prompt('¿Cuántos meses de licencia?', '1');
-    if (monthsStr === null) return;
-    const res = await fetch('/api/superadmin/billing', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tenantId: t.id, amount: Number(amountStr), months: Number(monthsStr) }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok) { toast.success(`Pago registrado · licencia hasta ${data.license_until}`); await load(); }
-    else toast.error(data.error || 'No se pudo registrar el pago');
+  function recordPayment(t: TenantRow) {
+    setPayAmount(String(planPrice(t.plan)));
+    setPayMonths('1');
+    setPaying(t);
   }
+
+  async function confirmPayment() {
+    if (!paying) return;
+    const amount = Number(payAmount);
+    const months = Number(payMonths);
+    if (!Number.isFinite(amount) || amount <= 0) { toast.error('Monto inválido (debe ser mayor a 0)'); return; }
+    if (!Number.isInteger(months) || months < 1) { toast.error('Meses inválido (mínimo 1)'); return; }
+    setPayingBusy(true);
+    try {
+      const res = await fetch('/api/superadmin/billing', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: paying.id, amount, months }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'No se pudo registrar el pago');
+      toast.success(`Pago registrado · licencia hasta ${data.license_until}`);
+      setPaying(null);
+      await load();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setPayingBusy(false);
+    }
+  }
+
+  // Cerrar el modal de cobro con Escape.
+  useEffect(() => {
+    if (!paying) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setPaying(null); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [paying]);
 
   async function createTenant() {
     if (!form.name || !form.adminEmail || !form.adminPassword) {
@@ -193,6 +221,52 @@ export default function SuperadminPage() {
           {tenants.length === 0 && <li className="text-xs text-gray-400 py-2">Sin negocios.</li>}
         </ul>
       </div>
+
+      {/* Modal de cobro (accesible, reemplaza window.prompt) */}
+      {paying && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Registrar pago de ${paying.name}`}
+          onClick={(e) => { if (e.target === e.currentTarget) setPaying(null); }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Cobrar a {paying.name}</h2>
+            <p className="text-xs text-gray-400 mb-4">
+              Plan {getPlan(paying.plan).label} · sugerido {formatCOP(planPrice(paying.plan))}/mes
+            </p>
+            <label className="block text-sm font-semibold text-gray-700 mb-1" htmlFor="pay-amount">Monto (COP)</label>
+            <input id="pay-amount" type="number" min="0" value={payAmount} autoFocus
+              onChange={(e) => setPayAmount(e.target.value)}
+              className="w-full rounded-xl border px-3 py-2 text-sm mb-3" />
+            <label className="block text-sm font-semibold text-gray-700 mb-1" htmlFor="pay-months">Meses de licencia</label>
+            <input id="pay-months" type="number" step="1" min="1" value={payMonths}
+              onChange={(e) => setPayMonths(e.target.value)}
+              className="w-full rounded-xl border px-3 py-2 text-sm mb-3" />
+            <p className="text-xs text-gray-500 mb-4">
+              Nueva licencia hasta:{' '}
+              <span className="font-semibold text-gray-800">
+                {addMonths(
+                  paying.license_until && paying.license_until > today ? paying.license_until : today,
+                  Math.max(0, Math.floor(Number(payMonths) || 0)),
+                )}
+              </span>
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setPaying(null)}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100">
+                Cancelar
+              </button>
+              <button onClick={confirmPayment} disabled={payingBusy}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+                style={{ background: 'var(--brand-primary, #7c3aed)' }}>
+                {payingBusy ? 'Registrando…' : 'Registrar pago'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
