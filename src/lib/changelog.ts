@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.029',
+    date: '2026-06-17',
+    highlights: [
+      'Agentes IA automáticos: los 5 agentes pueden correr solos (una vez al día) por cada negocio y dejar ALERTAS guardadas — ya no hay que abrir la pantalla para que analicen.',
+      'Las alertas sin resolver aparecen arriba en el Dashboard; se pueden marcar como resueltas con un toque.',
+      'El superadmin puede correr los agentes al instante desde "Plataforma" con el botón "Correr agentes".',
+    ],
+  },
+  {
     version: '1.028',
     date: '2026-06-17',
     highlights: [

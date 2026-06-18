@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
-import { Building2, Plus, DollarSign } from 'lucide-react';
+import { Building2, Plus, DollarSign, Bot } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
 import { PLANS_ORDER, getPlan, productLimit, planPrice, formatCOP } from '@/lib/plans';
 import { licenseState, LICENSE_LABELS, addMonths, type LicenseStatus } from '@/lib/billing';
@@ -57,6 +57,18 @@ export default function SuperadminPage() {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, plan }),
     });
     if (res.ok) { toast.success('Plan actualizado'); await load(); } else toast.error('No se pudo cambiar el plan');
+  }
+
+  async function runAgentsNow() {
+    toast.loading('Corriendo agentes…', { id: 'cron' });
+    try {
+      const res = await fetch('/api/cron/run-agents', { cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Falló');
+      toast.success(`Agentes corridos en ${data.tenants} negocio(s) · ${data.newAlerts} alerta(s) nueva(s)`, { id: 'cron' });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error', { id: 'cron' });
+    }
   }
 
   async function toggleActive(t: TenantRow) {
@@ -137,11 +149,19 @@ export default function SuperadminPage() {
           <Building2 className="w-6 h-6" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
           <h1 className="text-2xl font-bold text-gray-900">Plataforma</h1>
         </div>
-        <div className="text-right">
-          <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1 justify-end">
-            <DollarSign className="w-3.5 h-3.5" /> Ingresos
-          </p>
-          <p className="text-lg font-bold text-gray-900">{formatCOP(revenue)}</p>
+        <div className="flex items-center gap-3">
+          <button onClick={runAgentsNow}
+            className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-semibold text-white"
+            style={{ background: 'var(--brand-primary, #7c3aed)' }}
+            title="Corre los agentes IA en todos los negocios y genera alertas">
+            <Bot className="w-4 h-4" /> Correr agentes
+          </button>
+          <div className="text-right">
+            <p className="text-xs text-gray-400 uppercase tracking-wide flex items-center gap-1 justify-end">
+              <DollarSign className="w-3.5 h-3.5" /> Ingresos
+            </p>
+            <p className="text-lg font-bold text-gray-900">{formatCOP(revenue)}</p>
+          </div>
         </div>
       </div>
 

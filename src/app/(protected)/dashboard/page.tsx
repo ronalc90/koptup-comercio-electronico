@@ -36,6 +36,7 @@ import { cn, formatCurrency } from '@/lib/utils'
 import { downloadExcel } from '@/lib/export'
 import { useUser } from '@/lib/UserContext'
 import { isOwnerSupported } from '@/lib/db'
+import AlertsBanner from '@/components/shared/AlertsBanner'
 import PageHelpModal from '@/components/shared/PageHelpModal'
 import { DASHBOARD_HELP } from '@/lib/pageHelp'
 
@@ -313,6 +314,7 @@ export default function DashboardPage() {
       {helpOpen && <PageHelpModal content={DASHBOARD_HELP} onClose={() => setHelpOpen(false)} />}
 
       <div className="mx-auto max-w-5xl px-4 py-4 space-y-6">
+        <AlertsBanner />
         {loading ? (
           <div className="flex h-64 items-center justify-center">
             <div
