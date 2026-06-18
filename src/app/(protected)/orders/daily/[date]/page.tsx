@@ -434,7 +434,8 @@ export default function DailyOrdersPage({
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/orders')}
-              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+              className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Volver a Pedidos"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -451,15 +452,17 @@ export default function DailyOrdersPage({
           {/* Prev / Next day navigation */}
           <button
             onClick={() => router.push(`/orders/daily/${offsetDate(date, -1)}`)}
-            className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50 shadow-sm transition-colors"
+            className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50 shadow-sm transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             title="Día anterior"
+            aria-label="Día anterior"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
           <button
             onClick={() => router.push(`/orders/daily/${offsetDate(date, 1)}`)}
-            className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50 shadow-sm transition-colors"
+            className="rounded-xl border border-gray-200 bg-white p-2 text-gray-500 hover:bg-gray-50 shadow-sm transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             title="Día siguiente"
+            aria-label="Día siguiente"
           >
             <ChevronRight className="h-4 w-4" />
           </button>

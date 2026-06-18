@@ -695,7 +695,7 @@ export default function AssistantPage() {
             <BookOpen className="w-4 h-4" />
           </button>
           {messages.length > 0 && (
-            <button onClick={clearChat} className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition" title="Limpiar chat (sin guardar)">
+            <button onClick={clearChat} className="p-2 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition" title="Limpiar chat (sin guardar)" aria-label="Limpiar chat">
               <Trash2 className="w-4 h-4" />
             </button>
           )}
@@ -908,6 +908,7 @@ export default function AssistantPage() {
           <button
             onClick={isRecording ? stopRecording : startRecording}
             disabled={isLoading}
+            aria-label={isRecording ? 'Detener grabación de voz' : 'Grabar mensaje por voz'}
             className={`relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition ${
               isRecording ? 'bg-red-500 text-white recording-pulse' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
@@ -927,6 +928,7 @@ export default function AssistantPage() {
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
+            aria-label="Enviar mensaje"
             className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition disabled:opacity-40"
           >
             <Send className="w-5 h-5" />
@@ -985,7 +987,7 @@ export default function AssistantPage() {
               <h3 className="font-bold text-gray-900 text-lg">
                 {String(selectedItem.model || selectedItem.client_name || selectedItem.name || 'Detalle')}
               </h3>
-              <button onClick={() => setSelectedItem(null)} className="p-1.5 rounded-lg hover:bg-gray-100">
+              <button onClick={() => setSelectedItem(null)} className="p-2 rounded-lg hover:bg-gray-100" aria-label="Cerrar detalle">
                 <X className="w-5 h-5 text-gray-400" />
               </button>
             </div>

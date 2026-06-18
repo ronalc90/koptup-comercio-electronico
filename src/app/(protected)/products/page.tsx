@@ -60,7 +60,8 @@ function Modal({ open, title, onClose, children }: ModalProps) {
           <h2 className="text-base font-bold text-gray-800">{title}</h2>
           <button
             onClick={onClose}
-            className="rounded-lg p-1.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
+            aria-label="Cerrar"
+            className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -425,6 +426,7 @@ export default function ProductsPage({
         {search && (
           <button
             onClick={() => setSearch('')}
+            aria-label="Limpiar búsqueda"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
           >
             <X className="h-3.5 w-3.5" />
@@ -500,6 +502,7 @@ export default function ProductsPage({
                           onClick={() => openEdit(product)}
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
                           title="Editar"
+                          aria-label="Editar producto"
                         >
                           <Pencil className="h-4 w-4" />
                         </button>
@@ -507,6 +510,7 @@ export default function ProductsPage({
                           onClick={() => setDeleteTarget(product)}
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                           title="Eliminar"
+                          aria-label="Eliminar producto"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -550,13 +554,15 @@ export default function ProductsPage({
                     )}
                     <button
                       onClick={() => openEdit(product)}
-                      className="rounded-lg p-2 text-gray-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
+                      aria-label="Editar producto"
+                      className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:bg-purple-50 hover:text-purple-600 transition-colors"
                     >
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
                       onClick={() => setDeleteTarget(product)}
-                      className="rounded-lg p-2 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                      aria-label="Eliminar producto"
+                      className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                     >
                       <Trash2 className="h-4 w-4" />
                     </button>

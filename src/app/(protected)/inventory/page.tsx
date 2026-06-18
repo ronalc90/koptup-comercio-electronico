@@ -91,7 +91,7 @@ function InventoryModal({ item, onClose, onSave, saving }: ModalProps) {
           <h2 className="text-lg font-bold text-gray-900">
             {isEdit ? 'Editar Producto' : 'Agregar Producto'}
           </h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-gray-100">
+          <button onClick={onClose} aria-label="Cerrar" className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-gray-100">
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
@@ -565,12 +565,14 @@ export default function InventoryPage() {
                         <div className="flex items-center justify-center gap-2">
                           <button
                             onClick={() => { setEditItem(item); setModalOpen(true) }}
+                            aria-label="Editar producto"
                             className="rounded-lg p-1.5 hover:bg-purple-100 text-purple-600"
                           >
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(item)}
+                            aria-label="Eliminar producto"
                             className="rounded-lg p-1.5 hover:bg-red-100 text-red-500"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
@@ -629,13 +631,15 @@ export default function InventoryPage() {
                       <div className="flex gap-1">
                         <button
                           onClick={() => { setEditItem(item); setModalOpen(true) }}
-                          className="rounded-lg p-1.5 hover:bg-purple-100 text-purple-600"
+                          aria-label="Editar producto"
+                          className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-purple-100 text-purple-600"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
                           onClick={() => setDeleteConfirm(item)}
-                          className="rounded-lg p-1.5 hover:bg-red-100 text-red-500"
+                          aria-label="Eliminar producto"
+                          className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-red-100 text-red-500"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

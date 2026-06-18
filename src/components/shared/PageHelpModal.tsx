@@ -50,7 +50,7 @@ export default function PageHelpModal({ content, onClose }: PageHelpModalProps) 
           </div>
           <button
             onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0"
+            className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors shrink-0"
             aria-label="Cerrar"
           >
             <X className="h-5 w-5" />

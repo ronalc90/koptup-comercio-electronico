@@ -342,7 +342,7 @@ export default function OrdersPage({
         <div className="flex items-center justify-center gap-1 rounded-xl border border-gray-200 bg-white px-1 py-1 shadow-sm sm:order-2">
           <button
             onClick={prevMonth}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 transition-colors"
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Mes anterior"
           >
             <ChevronLeft className="h-4 w-4" />
@@ -352,7 +352,7 @@ export default function OrdersPage({
           </span>
           <button
             onClick={nextMonth}
-            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 transition-colors"
+            className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             aria-label="Mes siguiente"
           >
             <ChevronRight className="h-4 w-4" />
@@ -440,7 +440,7 @@ export default function OrdersPage({
           >
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
               <h3 className="font-bold text-gray-900">{kpiLabels[kpiFilter]}</h3>
-              <button onClick={() => setKpiFilter(null)} className="p-1.5 rounded-lg hover:bg-gray-100">
+              <button onClick={() => setKpiFilter(null)} className="p-1.5 rounded-lg hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center" aria-label="Cerrar">
                 <X className="h-5 w-5 text-gray-500" />
               </button>
             </div>

@@ -103,7 +103,7 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
             <Sparkles className="w-5 h-5 text-purple-600" />
             <h2 className="font-bold text-lg">Agregar con IA</h2>
           </div>
-          <button onClick={() => { closeCamera(); onClose(); }} className="p-1 hover:bg-gray-100 rounded-full">
+          <button onClick={() => { closeCamera(); onClose(); }} aria-label="Cerrar" className="p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-gray-100 rounded-full">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -114,7 +114,7 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
             <div className="relative rounded-xl overflow-hidden bg-black">
               <video ref={videoRef} autoPlay playsInline className="w-full" />
               <div className="absolute bottom-4 left-0 right-0 flex justify-center">
-                <button onClick={capturePhoto} className="w-16 h-16 bg-white rounded-full border-4 border-purple-600 hover:scale-105 transition" />
+                <button onClick={capturePhoto} aria-label="Tomar foto" className="w-16 h-16 bg-white rounded-full border-4 border-purple-600 hover:scale-105 transition" />
               </div>
             </div>
           )}
@@ -143,7 +143,7 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
           {!showCamera && image && (
             <div className="relative">
               <img src={image} alt="Producto" className="w-full rounded-xl" />
-              <button onClick={() => { setImage(null); setResult(null); }} className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70">
+              <button onClick={() => { setImage(null); setResult(null); }} aria-label="Quitar foto" className="absolute top-2 right-2 bg-black/50 text-white p-1.5 rounded-full hover:bg-black/70">
                 <X className="w-4 h-4" />
               </button>
             </div>

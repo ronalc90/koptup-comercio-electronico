@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.027',
+    date: '2026-06-17',
+    highlights: [
+      'Accesibilidad móvil: los botones de solo icono (editar, eliminar, cerrar, voz, foto, cambiar de día/mes…) ahora tienen etiqueta para lectores de pantalla.',
+      'Áreas táctiles más cómodas: los botones chicos se ampliaron al mínimo recomendado (44px) para tocar más fácil en el celular.',
+      'Foco visible al navegar con teclado y mejor contraste de textos tenues en modo oscuro.',
+    ],
+  },
+  {
     version: '1.026',
     date: '2026-06-17',
     highlights: [

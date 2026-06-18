@@ -257,7 +257,8 @@ export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputP
           {/* Voice button */}
           <button
             onClick={isRecording ? stopRecording : startRecording}
-            className={`relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition ${
+            aria-label={isRecording ? 'Detener grabación de voz' : 'Grabar voz'}
+            className={`relative flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition ${
               isRecording
                 ? 'bg-red-500 text-white recording-pulse'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -289,7 +290,8 @@ export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputP
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
-            className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Enviar mensaje"
+            className="flex-shrink-0 w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Send className="w-5 h-5" />
           </button>

@@ -757,8 +757,9 @@ export default function SettingsPage() {
                 <button
                   type="button"
                   onClick={() => setShowApiKey((v) => !v)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 flex min-w-[44px] min-h-[44px] items-center justify-center text-gray-400 hover:text-gray-600"
                   tabIndex={-1}
+                  aria-label={showApiKey ? 'Ocultar API key' : 'Mostrar API key'}
                 >
                   {showApiKey
                     ? <EyeOff className="h-4 w-4" />
@@ -1061,7 +1062,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={() => setChangelogOpen(false)}
-                className="rounded-lg p-1.5 text-gray-400 hover:bg-white hover:text-gray-600"
+                className="flex min-w-[44px] min-h-[44px] items-center justify-center rounded-lg p-1.5 text-gray-400 hover:bg-white hover:text-gray-600"
                 aria-label="Cerrar"
               >
                 <XCircle className="h-5 w-5" />

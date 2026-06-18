@@ -33,7 +33,7 @@ export default function ImageLightbox({ src, alt, onClose }: ImageLightboxProps)
       <button
         type="button"
         onClick={onClose}
-        className="absolute top-4 right-4 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20 transition"
+        className="absolute top-4 right-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white backdrop-blur hover:bg-white/20 transition"
         aria-label="Cerrar"
       >
         <X className="h-5 w-5" />

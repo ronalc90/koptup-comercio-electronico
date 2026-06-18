@@ -134,6 +134,7 @@ export default function PhotoCapture({ onPhotoReady, currentUrl, compact }: Phot
             <button
               type="button"
               onClick={capturePhoto}
+              aria-label="Tomar foto"
               className="w-12 h-12 rounded-full bg-white shadow-lg flex items-center justify-center active:scale-90 transition"
             >
               <div className="w-10 h-10 rounded-full border-2 border-purple-600" />
@@ -141,6 +142,7 @@ export default function PhotoCapture({ onPhotoReady, currentUrl, compact }: Phot
             <button
               type="button"
               onClick={stopCamera}
+              aria-label="Cerrar cámara"
               className="w-10 h-10 rounded-full bg-black/50 text-white flex items-center justify-center"
             >
               <X className="w-5 h-5" />

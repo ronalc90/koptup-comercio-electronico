@@ -80,7 +80,7 @@ html[data-reduce-motion="1"] *::after {
   html.dark .text-gray-700 { color: #cbd5e1 !important; }
   html.dark .text-gray-600 { color: #94a3b8 !important; }
   html.dark .text-gray-500 { color: #94a3b8 !important; }
-  html.dark .text-gray-400 { color: #64748b !important; }
+  html.dark .text-gray-400 { color: #94a3b8 !important; } /* a11y: subido de #64748b para cumplir WCAG AA (>=4.5:1) sobre fondo oscuro */
 
   html.dark .border-gray-100,
   html.dark .border-gray-200,
@@ -312,3 +312,21 @@ input, select, textarea { font-size: 16px !important; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ──────────────────────────────────────────────────────────────────
+ * Accesibilidad (aditivo)
+ * ────────────────────────────────────────────────────────────────── */
+
+/* Foco visible solo para navegación por teclado. --brand-primary cae a
+ * #7c3aed (color de marca) si la variable no está definida. */
+:focus-visible {
+  outline: 2px solid var(--brand-primary, #7c3aed);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Utilidad para asegurar área táctil mínima (44x44px, WCAG 2.5.5/2.5.8). */
+.tap-target {
+  min-width: 44px;
+  min-height: 44px;
+}

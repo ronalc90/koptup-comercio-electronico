@@ -66,6 +66,7 @@ function PrintView({ orders, onClose, sizes }: { orders: Order[]; onClose: () =>
           <button
             onClick={onClose}
             className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50"
+            aria-label="Cerrar vista de impresión"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
@@ -154,6 +155,7 @@ function RouteView({
           <button
             onClick={onClose}
             className="rounded-xl border border-gray-200 p-2 hover:bg-gray-50"
+            aria-label="Cerrar ruta sugerida"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
