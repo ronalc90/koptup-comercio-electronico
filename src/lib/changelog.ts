@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.036',
+    date: '2026-06-18',
+    highlights: [
+      'Onboarding de negocios nuevos sin tocar código: cada negocio tiene sus propias categorías, marca (nombre, color, eslogan, teléfono) y rubro para la IA, guardados en la base de datos.',
+      'Un negocio nuevo ya NO hereda las categorías ni el asistente de pantuflas de Meraki: arranca con un base genérico y el superadmin lo personaliza.',
+      'El asistente de IA (chat, captura de pedidos, inventario y "Con Foto IA") ahora habla del rubro de TU negocio, no de pantuflas.',
+      'Plataforma (superadmin): al crear un negocio puedes definir su personalización, y un botón "Config" permite editarla después; aplica sin volver a entrar.',
+    ],
+  },
+  {
     version: '1.035',
     date: '2026-06-18',
     highlights: [
