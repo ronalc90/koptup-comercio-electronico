@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { setActiveTenant, setSupabaseAuthToken } from './supabase';
-import { getTenantConfig, type TenantConfig } from './tenants.config';
+import { getTenantConfig, resolveTenantConfig, type TenantConfig, type TenantConfigOverrides } from './tenants.config';
 import type { Role } from './tenant';
 
 export interface TenantClientContext {
@@ -20,6 +20,8 @@ interface ProviderProps {
   /** Nombre/logo reales del tenant (BD) — para negocios creados al vuelo. */
   tenantName?: string;
   tenantLogo?: string;
+  /** Overrides de config del negocio (categorías/marca/IA) guardados en BD. */
+  configOverrides?: TenantConfigOverrides | null;
   role: Role;
   /** true solo si la migración multi-tenant ya corrió (columna tenant_id). */
   armed: boolean;
@@ -28,7 +30,7 @@ interface ProviderProps {
   children: React.ReactNode;
 }
 
-export function TenantProvider({ tenantId, tenantSlug, tenantName, tenantLogo, role, armed, sbToken = null, children }: ProviderProps) {
+export function TenantProvider({ tenantId, tenantSlug, tenantName, tenantLogo, configOverrides = null, role, armed, sbToken = null, children }: ProviderProps) {
   // Arma el guard del navegador (y el token de Supabase, si hay) en el PRIMER
   // render (síncrono, vía el inicializador perezoso de useState) — así queda
   // listo antes de que los hijos ejecuten sus efectos de carga de datos.
@@ -42,13 +44,13 @@ export function TenantProvider({ tenantId, tenantSlug, tenantName, tenantLogo, r
     return null;
   });
 
-  // El tema/categorías salen de la config estática por slug; el nombre y el
-  // logo se sobreescriben con los reales de BD (así un tenant creado al vuelo
-  // muestra SU marca, no la de meraki).
-  const config = useMemo<TenantConfig>(() => {
-    const base = getTenantConfig(tenantSlug);
-    return { ...base, name: tenantName || base.name, logo: tenantLogo || base.logo };
-  }, [tenantSlug, tenantName, tenantLogo]);
+  // Config efectiva = base (estática del slug o genérica) + overrides de BD +
+  // nombre/logo reales. Así un negocio creado al vuelo muestra SU marca,
+  // categorías e IA, no las de Meraki.
+  const config = useMemo<TenantConfig>(
+    () => resolveTenantConfig(tenantSlug, configOverrides, tenantName, tenantLogo),
+    [tenantSlug, configOverrides, tenantName, tenantLogo],
+  );
 
   useEffect(() => {
     setSupabaseAuthToken(sbToken);

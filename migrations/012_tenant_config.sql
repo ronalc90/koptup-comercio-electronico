@@ -1,0 +1,14 @@
+-- 012_tenant_config.sql
+-- Onboarding sin tocar código: cada negocio puede tener su propia configuración
+-- (categorías, marca/tema, textos e IA) guardada en la BD. Antes la config vivía
+-- SOLO en código (src/lib/tenants.config.ts, estática por slug), así que un
+-- negocio creado en runtime heredaba la config de Meraki (pantuflas).
+--
+-- `config` es un jsonb con forma parcial de TenantConfig:
+--   { categories?: string[], tagline?, phone?, theme?: {...},
+--     ai?: { domain?, systemPrompt?, captureHints? },
+--     navModules?: string[], moduleLabels?: {...} }
+-- La app mezcla este override sobre un base (config estática del slug si existe,
+-- o un default GENÉRICO). NULL ⇒ usa el base tal cual (retrocompatible: Meraki y
+-- PrimeraMayo siguen con su config estática).
+ALTER TABLE tenants ADD COLUMN IF NOT EXISTS config jsonb;

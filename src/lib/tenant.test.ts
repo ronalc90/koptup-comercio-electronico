@@ -6,7 +6,7 @@ import {
   isRole,
   roleAtLeast,
 } from './tenant';
-import { getTenantConfig, KNOWN_TENANT_SLUGS } from './tenants.config';
+import { getTenantConfig, resolveTenantConfig, KNOWN_TENANT_SLUGS } from './tenants.config';
 import { withTenant } from './supabase';
 import { createSession, verifySession, validatePassword, MIN_PASSWORD_LENGTH } from './auth';
 
@@ -38,10 +38,38 @@ describe('tenant config', () => {
     expect(KNOWN_TENANT_SLUGS).toContain('meraki');
     expect(KNOWN_TENANT_SLUGS).toContain('primeramayo');
   });
-  it('cae a meraki ante slug desconocido', () => {
-    expect(getTenantConfig('no-existe').slug).toBe('meraki');
+  it('cae a un base GENÉRICO (no Meraki) ante slug desconocido', () => {
+    // Un negocio creado en runtime no debe heredar las categorías de pantuflas.
+    const desconocido = getTenantConfig('no-existe');
+    expect(desconocido.slug).toBe('generic');
+    expect(desconocido.categories).not.toContain('Pantuflas');
     expect(getTenantConfig('primeramayo').categories).toContain('Cascos');
     expect(getTenantConfig('meraki').categories).toContain('Pantuflas');
+  });
+});
+
+describe('resolveTenantConfig (config efectiva = base + overrides BD)', () => {
+  it('mezcla overrides de BD sobre el genérico para un negocio nuevo', () => {
+    const cfg = resolveTenantConfig(
+      'tienda-nueva',
+      { categories: ['Camisas', 'Pantalones'], theme: { primary: '#dc2626' }, ai: { domain: 'ropa' } },
+      'Mi Tienda',
+      '👕',
+    );
+    expect(cfg.name).toBe('Mi Tienda');
+    expect(cfg.logo).toBe('👕');
+    expect(cfg.categories).toEqual(['Camisas', 'Pantalones']);
+    expect(cfg.theme.primary).toBe('#dc2626');
+    expect(cfg.ai.domain).toBe('ropa');
+    // El nombre se interpola en el prompt genérico.
+    expect(cfg.ai.systemPrompt).toContain('Mi Tienda');
+    expect(cfg.ai.systemPrompt).not.toContain('{name}');
+  });
+
+  it('sin overrides respeta la config estática del slug conocido', () => {
+    const cfg = resolveTenantConfig('meraki', null, 'Tu Tienda Meraki', '🩴');
+    expect(cfg.categories).toContain('Pantuflas');
+    expect(cfg.theme.primary).toBe('#7c3aed');
   });
 });
 

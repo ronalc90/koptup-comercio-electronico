@@ -127,9 +127,94 @@ export const TENANT_CONFIGS: Record<string, TenantConfig> = {
   },
 };
 
+/**
+ * Default GENÉRICO para negocios creados en runtime (slug no conocido en código).
+ * Antes esos negocios caían a la config de Meraki (pantuflas); ahora arrancan
+ * con algo neutro y luego el superadmin personaliza categorías/marca/IA, que se
+ * guardan en la BD (columna `tenants.config`) y se mezclan con este base.
+ */
+export const GENERIC_TENANT_CONFIG: TenantConfig = {
+  slug: 'generic',
+  name: 'Mi Negocio',
+  logo: '🏪',
+  tagline: 'Gestión de pedidos y catálogo',
+  theme: {
+    primary: '#7c3aed',
+    primaryDark: '#5b21b6',
+    primaryLight: '#a78bfa',
+    gradient: 'linear-gradient(135deg, #7c3aed 0%, #9061f9 50%, #a78bfa 100%)',
+  },
+  categories: ['General', 'Otro'],
+  modules: ['pedidos', 'inventario', 'despachos', 'dashboard', 'asistente'],
+  ai: {
+    domain: 'productos y pedidos',
+    systemPrompt:
+      'Eres el asistente de {name}. Ayudas a capturar pedidos, consultar inventario ' +
+      'y entender el negocio. Reconoces productos, cantidades, precios y los datos del ' +
+      'cliente (nombre, teléfono, dirección) y el valor a cobrar.',
+    captureHints:
+      'Extrae nombre del cliente, teléfono, dirección, los productos con su cantidad y ' +
+      'el valor a cobrar.',
+  },
+};
+
 export function getTenantConfig(slug: string | null | undefined): TenantConfig {
   if (slug && TENANT_CONFIGS[slug]) return TENANT_CONFIGS[slug];
-  return TENANT_CONFIGS[DEFAULT_TENANT_SLUG];
+  // Slug desconocido (negocio creado en runtime) ⇒ base genérico, NO Meraki.
+  return GENERIC_TENANT_CONFIG;
+}
+
+/**
+ * Override por-tenant guardado en BD (`tenants.config`, jsonb). Todo opcional:
+ * lo que no venga se hereda del base (config estática del slug o el genérico).
+ */
+export interface TenantConfigOverrides {
+  categories?: string[];
+  tagline?: string;
+  phone?: string;
+  logo?: string;
+  modules?: string[];
+  navModules?: ModuleKey[];
+  moduleLabels?: Partial<Record<ModuleKey, string>>;
+  theme?: Partial<TenantTheme>;
+  ai?: Partial<TenantConfig['ai']>;
+}
+
+/**
+ * Config EFECTIVA de un negocio: base (estática del slug si existe, o genérica)
+ * + overrides de la BD + nombre/logo reales. Es lo que la app debe usar para
+ * pintar marca, categorías y especializar la IA.
+ */
+export function resolveTenantConfig(
+  slug: string | null | undefined,
+  overrides?: TenantConfigOverrides | null,
+  name?: string | null,
+  logo?: string | null,
+): TenantConfig {
+  const base = slug && TENANT_CONFIGS[slug] ? TENANT_CONFIGS[slug] : GENERIC_TENANT_CONFIG;
+  const o = overrides ?? {};
+  const merged: TenantConfig = {
+    ...base,
+    slug: slug || base.slug,
+    name: name || base.name,
+    logo: logo || o.logo || base.logo,
+    tagline: o.tagline ?? base.tagline,
+    phone: o.phone ?? base.phone,
+    categories: o.categories && o.categories.length > 0 ? o.categories : base.categories,
+    modules: o.modules ?? base.modules,
+    navModules: o.navModules ?? base.navModules,
+    moduleLabels: o.moduleLabels ?? base.moduleLabels,
+    theme: { ...base.theme, ...(o.theme ?? {}) },
+    ai: { ...base.ai, ...(o.ai ?? {}) },
+  };
+  // El default genérico usa {name} en el prompt; lo interpolamos con el real.
+  if (merged.ai.systemPrompt.includes('{name}')) {
+    merged.ai = {
+      ...merged.ai,
+      systemPrompt: merged.ai.systemPrompt.split('{name}').join(merged.name),
+    };
+  }
+  return merged;
 }
 
 /** Slugs conocidos por la app (para validación y seeds). */

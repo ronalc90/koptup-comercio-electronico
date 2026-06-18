@@ -19,6 +19,40 @@ function slugify(s: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+/**
+ * Construye el override de config del negocio (categorías/marca/IA) a partir del
+ * body, saneando cada campo. Devuelve undefined si no hay nada que guardar.
+ * Es lo que permite onboardear un negocio cualquiera SIN tocar código.
+ */
+function sanitizeConfigOverride(body: Record<string, unknown>): Record<string, unknown> | undefined {
+  const o: Record<string, unknown> = {};
+
+  if (Array.isArray(body.categories)) {
+    const cats = body.categories
+      .filter((c): c is string => typeof c === 'string' && c.trim().length > 0)
+      .map((c) => c.trim().slice(0, 40));
+    if (cats.length) o.categories = Array.from(new Set(cats)).slice(0, 40);
+  }
+  if (typeof body.tagline === 'string' && body.tagline.trim()) o.tagline = body.tagline.trim().slice(0, 120);
+  if (typeof body.phone === 'string' && body.phone.trim()) o.phone = body.phone.trim().slice(0, 40);
+
+  const color = typeof body.primaryColor === 'string' ? body.primaryColor.trim() : '';
+  if (/^#[0-9a-fA-F]{6}$/.test(color)) {
+    // Un solo color de marca: lo aplicamos a acentos y al degradado de cabecera.
+    o.theme = {
+      primary: color,
+      primaryDark: color,
+      primaryLight: color,
+      gradient: `linear-gradient(135deg, ${color} 0%, ${color} 100%)`,
+    };
+  }
+  if (typeof body.aiDomain === 'string' && body.aiDomain.trim()) {
+    o.ai = { domain: body.aiDomain.trim().slice(0, 80) };
+  }
+
+  return Object.keys(o).length ? o : undefined;
+}
+
 /** Lista todos los tenants de la plataforma. */
 export async function GET() {
   const auth = await requireSuperadmin();
@@ -27,7 +61,7 @@ export async function GET() {
   const db = getServiceClient();
   const { data, error } = await db
     .from('tenants')
-    .select('id, name, slug, logo, industry, plan, active, created_at')
+    .select('id, name, slug, logo, industry, plan, active, created_at, config')
     .order('id');
   if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ tenants: data ?? [] });
@@ -59,11 +93,14 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getServiceClient();
+  // Config inicial del negocio (categorías/marca/IA). Sin esto, un negocio nuevo
+  // hereda el base genérico; con esto arranca ya con SU rubro.
+  const config = sanitizeConfigOverride(body) ?? null;
 
   // 1) Crear el tenant.
   const { data: tenant, error: tErr } = await db
     .from('tenants')
-    .insert({ name, slug, industry, logo, plan, active: true })
+    .insert({ name, slug, industry, logo, plan, active: true, config })
     .select('id, name, slug, logo, industry, plan, active')
     .single();
   if (tErr || !tenant) {
@@ -113,14 +150,15 @@ export async function PATCH(request: NextRequest) {
   const id = Number(body.id);
   if (!Number.isInteger(id)) return NextResponse.json({ error: 'id inválido' }, { status: 400 });
 
-  const updates: { active?: boolean; plan?: string; billing_status?: string } = {};
+  const updates: { active?: boolean; plan?: string; billing_status?: string; config?: Record<string, unknown> } = {};
   if (typeof body.active === 'boolean') updates.active = body.active;
   if (isPlan(body.plan)) updates.plan = body.plan;
   if (['trial', 'active', 'suspended', 'cancelled'].includes(body.billing_status)) {
     updates.billing_status = body.billing_status;
   }
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: 'Nada para actualizar (active/plan/billing_status)' }, { status: 400 });
+  const configOverride = sanitizeConfigOverride(body);
+  if (Object.keys(updates).length === 0 && !configOverride) {
+    return NextResponse.json({ error: 'Nada para actualizar (active/plan/billing_status/config)' }, { status: 400 });
   }
 
   const db = getServiceClient();
@@ -138,13 +176,20 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
+  // Config: edición PARCIAL sobre lo ya guardado (no se pisa todo el objeto).
+  if (configOverride) {
+    const { data: existing } = await db.from('tenants').select('config').eq('id', id).maybeSingle();
+    const current = existing?.config && typeof existing.config === 'object' ? (existing.config as Record<string, unknown>) : {};
+    updates.config = { ...current, ...configOverride };
+  }
+
   const { error } = await db.from('tenants').update(updates).eq('id', id);
   if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   await recordAudit(db, {
     tenantId: id,
     actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
-    action: updates.plan ? 'plan_changed' : 'tenant_status_changed',
+    action: updates.plan ? 'plan_changed' : updates.config ? 'tenant_config_changed' : 'tenant_status_changed',
     entity: 'tenant',
     entityId: id,
     detail: updates,

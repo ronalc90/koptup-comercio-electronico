@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import { isTenantSupported } from '@/lib/db';
 import { mintSupabaseToken, supabaseJwtSecret } from '@/lib/supabaseJwt';
+import { getServiceClient } from '@/lib/supabase';
+import type { TenantConfigOverrides } from '@/lib/tenants.config';
 import AppShell from '@/components/layout/AppShell';
 import { UserProvider } from '@/lib/UserContext';
 import { TenantProvider } from '@/lib/TenantContext';
@@ -33,6 +35,19 @@ export default async function ProtectedLayout({
       )
     : null;
 
+  // Config propia del negocio (categorías/marca/tema/IA) guardada en BD. Se lee
+  // fresca por request (no va en el JWT) para que un cambio del superadmin
+  // aplique sin re-login. Null ⇒ el cliente usa el base estático/genérico.
+  let configOverrides: TenantConfigOverrides | null = null;
+  if (armed) {
+    const { data: tenantRow } = await getServiceClient()
+      .from('tenants')
+      .select('config')
+      .eq('id', session.tenantId)
+      .maybeSingle();
+    configOverrides = (tenantRow?.config as TenantConfigOverrides | null) ?? null;
+  }
+
   return (
     <UserProvider username={session.username}>
       <TenantProvider
@@ -40,6 +55,7 @@ export default async function ProtectedLayout({
         tenantSlug={session.tenantSlug}
         tenantName={session.tenantName}
         tenantLogo={session.tenantLogo}
+        configOverrides={configOverrides}
         role={session.role}
         armed={armed}
         sbToken={sbToken}

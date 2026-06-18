@@ -10,6 +10,7 @@ export type AuditAction =
   | 'plan_changed'
   | 'tenant_created'
   | 'tenant_status_changed'
+  | 'tenant_config_changed'
   | 'user_created'
   | 'user_updated';
 
@@ -52,6 +53,7 @@ export const AUDIT_LABELS: Record<AuditAction, string> = {
   plan_changed: 'Plan cambiado',
   tenant_created: 'Negocio creado',
   tenant_status_changed: 'Estado de negocio cambiado',
+  tenant_config_changed: 'Configuración del negocio cambiada',
   user_created: 'Usuario creado',
   user_updated: 'Usuario actualizado',
 };
