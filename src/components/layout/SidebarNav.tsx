@@ -20,12 +20,7 @@ import { useState, type ElementType } from 'react';
 import { useTenant } from '@/lib/TenantContext';
 import { useUser } from '@/lib/UserContext';
 import { tenantNav, type ModuleKey } from '@/lib/modules';
-
-const ROLE_LABELS: Record<string, string> = {
-  admin: 'Administrador',
-  member: 'Equipo',
-  viewer: 'Solo lectura',
-};
+import { roleLabel } from '@/lib/tenant';
 
 const MODULE_ICONS: Record<ModuleKey, ElementType> = {
   dashboard: LayoutDashboard,
@@ -190,7 +185,7 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-gray-900 truncate capitalize">{username}</p>
-              <p className="text-xs text-gray-400 truncate">{ROLE_LABELS[role] ?? 'Equipo'}</p>
+              <p className="text-xs text-gray-400 truncate">{roleLabel(role)}</p>
             </div>
           )}
           {!collapsed && (

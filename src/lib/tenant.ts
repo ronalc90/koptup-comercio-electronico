@@ -34,6 +34,17 @@ export function roleAtLeast(role: Role, min: Role): boolean {
   return ROLE_RANK[role] >= ROLE_RANK[min];
 }
 
+/** Etiquetas de rol NEUTRAS de género (sirven para hombre o mujer). */
+export const ROLE_LABELS: Record<Role, string> = {
+  superadmin: 'Superadmin',
+  admin: 'Admin',
+  member: 'Equipo',
+  viewer: 'Solo lectura',
+};
+export function roleLabel(role: Role): string {
+  return ROLE_LABELS[role] ?? 'Equipo';
+}
+
 export interface Tenant {
   id: number;
   name: string;

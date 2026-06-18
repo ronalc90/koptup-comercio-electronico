@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.030',
+    date: '2026-06-17',
+    highlights: [
+      'Textos sin género: el rol ya no dice "Administradora" (femenino). Ahora muestra etiquetas neutras (Admin, Superadmin, Equipo, Solo lectura) que sirven para cualquier persona.',
+      'El perfil en Configuración muestra el nombre real del negocio (no siempre "Tu Tienda Meraki").',
+    ],
+  },
+  {
     version: '1.029',
     date: '2026-06-17',
     highlights: [

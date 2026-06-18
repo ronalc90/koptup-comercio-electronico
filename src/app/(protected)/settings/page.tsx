@@ -78,6 +78,8 @@ import {
   type CurrencyFormat,
 } from '@/lib/preferences'
 import { useUser } from '@/lib/UserContext'
+import { useTenant } from '@/lib/TenantContext'
+import { roleLabel } from '@/lib/tenant'
 import ExcelImport from '@/components/shared/ExcelImport'
 import { GuideCard } from '@/components/dispatch/DispatchGuide'
 import { playSuccess, playTick, playError } from '@/lib/sound'
@@ -239,6 +241,7 @@ function PrintSizeStepper({
 export default function SettingsPage() {
   const router = useRouter()
   const owner = useUser()
+  const { role, config } = useTenant()
 
   /* ─────── Contraseña ─────── */
   const [currentPwd, setCurrentPwd] = useState('')
@@ -534,9 +537,9 @@ export default function SettingsPage() {
               {(owner?.[0] ?? 'P').toUpperCase()}
             </div>
             <div>
-              <p className="text-lg font-bold text-gray-900">{owner || 'Paola'}</p>
-              <p className="text-sm text-gray-500">Administradora</p>
-              <p className="text-xs text-gray-400 mt-0.5">Tu Tienda Meraki</p>
+              <p className="text-lg font-bold text-gray-900 capitalize">{owner || 'Paola'}</p>
+              <p className="text-sm text-gray-500">{roleLabel(role)}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{config.name}</p>
             </div>
           </div>
         </Section>
