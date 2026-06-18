@@ -180,6 +180,10 @@ async function tenantById(id: number): Promise<{ slug: string; name?: string; lo
   }
 }
 
+// Mensaje único para CUALQUIER fallo de login (no revela si el usuario existe,
+// está inactivo o si la contraseña es la incorrecta) — anti-enumeración.
+const LOGIN_FAIL = 'Usuario o contraseña incorrectos';
+
 export async function login(
   username: string,
   password: string,
@@ -189,9 +193,9 @@ export async function login(
   // 1) Fuente real: tabla users (post-migración).
   const row = await lookupUser(identifier);
   if (row) {
-    if (!row.active) return { success: false, error: 'Usuario inactivo' };
+    if (!row.active) return { success: false, error: LOGIN_FAIL };
     const ok = await verifyPassword(password, row.password_hash);
-    if (!ok) return { success: false, error: 'Contraseña incorrecta' };
+    if (!ok) return { success: false, error: LOGIN_FAIL };
     const t = await tenantById(row.tenant_id);
     const context: TenantContext = {
       userId: row.id,
@@ -210,11 +214,11 @@ export async function login(
   //    Una vez aplicada la migración, la tabla `users` (bcrypt) es la ÚNICA
   //    fuente: nada de credenciales en texto plano puede iniciar sesión.
   if (await isTenantSupported()) {
-    return { success: false, error: 'Usuario no encontrado' };
+    return { success: false, error: LOGIN_FAIL };
   }
   const fallback = FALLBACK_USERS[identifier];
-  if (!fallback) return { success: false, error: 'Usuario no encontrado' };
-  if (password !== fallback.password) return { success: false, error: 'Contraseña incorrecta' };
+  if (!fallback) return { success: false, error: LOGIN_FAIL };
+  if (password !== fallback.password) return { success: false, error: LOGIN_FAIL };
 
   const context: TenantContext = {
     userId: null,

@@ -20,7 +20,7 @@ export async function GET() {
     .is('resolved_at', null)
     .order('created_at', { ascending: false })
     .limit(50);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ alerts: data ?? [] });
 }
 
@@ -39,6 +39,6 @@ export async function PATCH(request: NextRequest) {
     .update({ resolved_at: new Date().toISOString() })
     .eq('id', id)
     .eq('tenant_id', ctx.tenantId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ success: true });
 }

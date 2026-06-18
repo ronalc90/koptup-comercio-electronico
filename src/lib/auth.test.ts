@@ -203,18 +203,18 @@ describe('login con tabla users (post-migración)', () => {
     expect(res.context?.email).toBe('paola@meraki.test');
   });
 
-  it('contraseña incorrecta es rechazada', async () => {
+  it('contraseña incorrecta es rechazada (mensaje genérico, sin enumeración)', async () => {
     userRow = await seedUser();
     const res = await login('paola', 'clave-mala');
     expect(res.success).toBe(false);
-    expect(res.error).toBe('Contraseña incorrecta');
+    expect(res.error).toBe('Usuario o contraseña incorrectos');
   });
 
-  it('usuario inactivo es rechazado sin verificar contraseña', async () => {
+  it('usuario inactivo es rechazado sin verificar contraseña (mensaje genérico)', async () => {
     userRow = await seedUser({ active: false });
     const res = await login('paola', 'clave-buena-1');
     expect(res.success).toBe(false);
-    expect(res.error).toBe('Usuario inactivo');
+    expect(res.error).toBe('Usuario o contraseña incorrectos');
   });
 
   it('un rol desconocido en la fila cae a "member" (mínimo privilegio)', async () => {
@@ -243,7 +243,7 @@ describe('login con tabla users (post-migración)', () => {
     userRow = null;
     const res = await login('paola', '1234');
     expect(res.success).toBe(false);
-    expect(res.error).toBe('Usuario no encontrado');
+    expect(res.error).toBe('Usuario o contraseña incorrectos');
   });
 });
 
@@ -258,20 +258,20 @@ describe('login fallback (pre-migración, sin tabla users)', () => {
     expect(res.context?.tenantSlug).toBe('meraki');
   });
 
-  it('rechaza contraseña incorrecta en el respaldo', async () => {
+  it('rechaza contraseña incorrecta en el respaldo (mensaje genérico)', async () => {
     tenantSupported = false;
     userRow = null;
     const res = await login('paola', 'no-es-1234');
     expect(res.success).toBe(false);
-    expect(res.error).toBe('Contraseña incorrecta');
+    expect(res.error).toBe('Usuario o contraseña incorrectos');
   });
 
-  it('rechaza un usuario desconocido en el respaldo', async () => {
+  it('rechaza un usuario desconocido en el respaldo (mensaje genérico)', async () => {
     tenantSupported = false;
     userRow = null;
     const res = await login('desconocido', '1234');
     expect(res.success).toBe(false);
-    expect(res.error).toBe('Usuario no encontrado');
+    expect(res.error).toBe('Usuario o contraseña incorrectos');
   });
 });
 

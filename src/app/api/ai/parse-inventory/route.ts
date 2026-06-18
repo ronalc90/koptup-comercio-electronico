@@ -108,6 +108,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(JSON.parse(content));
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('AI parse-inventory error:', msg);
+    return NextResponse.json({ error: 'No se pudo procesar el inventario' }, { status: 500 });
   }
 }

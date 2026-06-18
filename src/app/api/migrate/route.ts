@@ -64,6 +64,7 @@ UPDATE orders SET delivery_type = 'Otro'       WHERE delivery_type = 'Otros';
     return NextResponse.json({ message: 'Migration applied successfully', status: 'ok' });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: msg, status: 'failed' }, { status: 500 });
+    console.error('Migrate error:', msg);
+    return NextResponse.json({ error: 'No se pudo aplicar la migración', status: 'failed' }, { status: 500 });
   }
 }

@@ -24,6 +24,7 @@ export async function GET() {
     return NextResponse.json(result);
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'Error desconocido';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('Automations run error:', msg);
+    return NextResponse.json({ error: 'No se pudieron correr las automatizaciones' }, { status: 500 });
   }
 }

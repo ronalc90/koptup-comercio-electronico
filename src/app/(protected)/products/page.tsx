@@ -544,11 +544,11 @@ export default function ProductsPage({
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {product.active ? (
-                      <span className="inline-block rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      <span className="inline-block whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                         Activo
                       </span>
                     ) : (
-                      <span className="inline-block rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      <span className="inline-block whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                         Inactivo
                       </span>
                     )}

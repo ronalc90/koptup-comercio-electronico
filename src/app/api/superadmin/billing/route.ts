@@ -16,7 +16,7 @@ export async function GET() {
 
   const db = getServiceClient();
   const { data: charges, error } = await db.from('charges').select('tenant_id, amount');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   const byTenant: Record<number, number> = {};
   let total = 0;
@@ -34,13 +34,20 @@ export async function POST(request: NextRequest) {
 
   const body = await request.json().catch(() => ({}));
   const tenantId = Number(body.tenantId);
-  const amount = Math.round(Number(body.amount));
-  const months = Math.round(Number(body.months));
+  // Enteros estrictos (no redondear decimales en silencio) + tope de meses.
+  const amount = Number(body.amount);
+  const months = Number(body.months);
   const concept = typeof body.concept === 'string' && body.concept.trim() ? body.concept.trim() : null;
 
   if (!Number.isInteger(tenantId)) return NextResponse.json({ error: 'tenantId inválido' }, { status: 400 });
-  if (!Number.isFinite(amount) || amount <= 0) return NextResponse.json({ error: 'monto inválido (debe ser mayor a 0)' }, { status: 400 });
-  if (!Number.isInteger(months) || months < 1) return NextResponse.json({ error: 'meses inválido (mín 1)' }, { status: 400 });
+  // Tope superior sano: evita fat-finger (montos astronómicos que distorsionan
+  // los totales) y el desbordamiento del int4 de charges.amount.
+  if (!Number.isInteger(amount) || amount <= 0 || amount > 100_000_000) {
+    return NextResponse.json({ error: 'monto inválido (entero entre 1 y 100.000.000)' }, { status: 400 });
+  }
+  if (!Number.isInteger(months) || months < 1 || months > 120) {
+    return NextResponse.json({ error: 'meses inválido (entero entre 1 y 120)' }, { status: 400 });
+  }
 
   const db = getServiceClient();
   const { data: t } = await db.from('tenants').select('license_until').eq('id', tenantId).maybeSingle();
@@ -58,13 +65,13 @@ export async function POST(request: NextRequest) {
     period_start: base,
     period_end: newUntil,
   });
-  if (cErr) return NextResponse.json({ error: cErr.message }, { status: 500 });
+  if (cErr) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   const { error: uErr } = await db
     .from('tenants')
     .update({ license_until: newUntil, billing_status: 'active' })
     .eq('id', tenantId);
-  if (uErr) return NextResponse.json({ error: uErr.message }, { status: 500 });
+  if (uErr) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   await recordAudit(db, {
     tenantId,

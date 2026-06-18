@@ -30,8 +30,16 @@ export async function POST(request: NextRequest) {
   try {
     const { image, context } = await request.json();
 
-    if (!image) {
+    if (typeof image !== 'string' || !image) {
       return NextResponse.json({ error: 'No se envió imagen' }, { status: 400 });
+    }
+    // Solo data-uri de imagen permitida (jpeg/png/webp) + límite de tamaño.
+    if (!/^data:image\/(?:jpeg|png|webp);base64,/.test(image)) {
+      return NextResponse.json({ error: 'Tipo de imagen no permitido (jpeg/png/webp)' }, { status: 415 });
+    }
+    const sizeBytes = Math.floor(((image.split(',')[1] || '').length) * 0.75);
+    if (sizeBytes > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Imagen muy grande (máx 5 MB)' }, { status: 413 });
     }
 
     const openai = new OpenAI({ apiKey });
@@ -86,6 +94,7 @@ Responde SIEMPRE en JSON:
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Product analyze error:', msg);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // No filtramos el error interno al cliente.
+    return NextResponse.json({ error: 'No se pudo analizar la imagen' }, { status: 500 });
   }
 }

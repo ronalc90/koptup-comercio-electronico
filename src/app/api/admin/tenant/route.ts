@@ -15,7 +15,7 @@ export async function GET() {
     .select('id, name, slug, logo, industry, plan, active, created_at')
     .eq('id', auth.ctx.tenantId)
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ tenant: data });
 }
 
@@ -37,6 +37,6 @@ export async function PATCH(request: NextRequest) {
 
   const db = getServiceClient();
   const { error } = await db.from('tenants').update(updates).eq('id', auth.ctx.tenantId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ success: true });
 }

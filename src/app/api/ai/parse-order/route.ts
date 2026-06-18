@@ -118,6 +118,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     console.error('AI parse error:', message);
-    return NextResponse.json({ error: `Error al procesar: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'No se pudo procesar el pedido' }, { status: 500 });
   }
 }

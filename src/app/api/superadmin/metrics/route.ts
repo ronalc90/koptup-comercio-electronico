@@ -25,7 +25,7 @@ export async function GET() {
     .from('tenants')
     .select('id, name, slug, logo, industry, plan, active, billing_status, license_until')
     .order('id');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   const metrics = await Promise.all(
     (tenants ?? []).map(async (t) => {

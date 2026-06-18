@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Account wipe error:', message);
     return NextResponse.json(
-      { error: `Error al restablecer la cuenta: ${message}` },
+      { error: 'No se pudo restablecer la cuenta' },
       { status: 500 },
     );
   }

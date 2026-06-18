@@ -22,7 +22,7 @@ export async function GET() {
     .select('id, email, username, role, active, created_at')
     .eq('tenant_id', auth.ctx.tenantId)
     .order('id');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ users: data ?? [] });
 }
 
@@ -62,7 +62,10 @@ export async function POST(request: NextRequest) {
   if (error) {
     // 23505 = unique_violation (email ya existe en el tenant)
     const conflict = (error as { code?: string }).code === '23505';
-    return NextResponse.json({ error: error.message }, { status: conflict ? 409 : 500 });
+    return NextResponse.json(
+      { error: conflict ? 'Ya existe un usuario con ese email en tu negocio' : 'No se pudo crear el usuario' },
+      { status: conflict ? 409 : 500 },
+    );
   }
   await recordAudit(db, {
     tenantId: auth.ctx.tenantId,
@@ -98,8 +101,18 @@ export async function PATCH(request: NextRequest) {
 
   const db = getServiceClient();
   // Doble filtro id + tenant_id: un admin no puede tocar usuarios de otro tenant.
-  const { error } = await db.from('users').update(updates).eq('id', id).eq('tenant_id', auth.ctx.tenantId);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // `.select()` nos da las filas afectadas: si es 0, el usuario NO es de este
+  // negocio → 404 y NO se audita (evita respuestas/auditoría engañosas en IDOR).
+  const { data: affected, error } = await db
+    .from('users')
+    .update(updates)
+    .eq('id', id)
+    .eq('tenant_id', auth.ctx.tenantId)
+    .select('id');
+  if (error) return NextResponse.json({ error: 'No se pudo actualizar el usuario' }, { status: 500 });
+  if (!affected || affected.length === 0) {
+    return NextResponse.json({ error: 'Usuario no encontrado en tu negocio' }, { status: 404 });
+  }
   await recordAudit(db, {
     tenantId: auth.ctx.tenantId,
     actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },

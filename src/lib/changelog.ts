@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.032',
+    date: '2026-06-18',
+    highlights: [
+      'Refuerzo de seguridad tras una auditoría completa: se cerraron varios huecos sin cambiar nada de tu día a día.',
+      'La base de datos ahora rechaza datos imposibles (costos o montos negativos, estados de pedido inválidos, códigos de producto repetidos en el mismo negocio).',
+      'Al editar usuarios, si el usuario no es de tu negocio la app responde "no encontrado" en vez de aparentar que lo cambió.',
+      'Inicio de sesión más seguro: el mensaje de error es el mismo aunque falle el usuario o la contraseña (no se filtra cuál existe).',
+      'El análisis de fotos con IA solo acepta imágenes (jpg/png/webp) de hasta 5 MB.',
+      'Los mensajes de error técnicos ya no se muestran al usuario (se registran en el servidor).',
+      'Arreglo visual: la etiqueta "Activo/Inactivo" ya no se recorta en celulares angostos.',
+    ],
+  },
+  {
     version: '1.031',
     date: '2026-06-18',
     highlights: [

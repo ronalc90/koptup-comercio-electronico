@@ -29,7 +29,7 @@ export async function GET() {
     .from('tenants')
     .select('id, name, slug, logo, industry, plan, active, created_at')
     .order('id');
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
   return NextResponse.json({ tenants: data ?? [] });
 }
 
@@ -68,8 +68,9 @@ export async function POST(request: NextRequest) {
     .single();
   if (tErr || !tenant) {
     const conflict = (tErr as { code?: string })?.code === '23505';
+    if (!conflict) console.error('Crear tenant error:', tErr?.message);
     return NextResponse.json(
-      { error: conflict ? `El slug "${slug}" ya existe` : tErr?.message || 'No se pudo crear el tenant' },
+      { error: conflict ? `El slug "${slug}" ya existe` : 'No se pudo crear el negocio' },
       { status: conflict ? 409 : 500 },
     );
   }
@@ -87,7 +88,8 @@ export async function POST(request: NextRequest) {
     // Rollback best-effort: borramos el tenant recién creado para no dejarlo
     // huérfano (sin admin no habría forma de entrar).
     await db.from('tenants').delete().eq('id', tenant.id);
-    return NextResponse.json({ error: `No se pudo crear el admin: ${uErr.message}` }, { status: 400 });
+    console.error('Crear admin del tenant error:', uErr.message);
+    return NextResponse.json({ error: 'No se pudo crear el administrador del negocio' }, { status: 400 });
   }
 
   await recordAudit(db, {
@@ -137,7 +139,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { error } = await db.from('tenants').update(updates).eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   await recordAudit(db, {
     tenantId: id,

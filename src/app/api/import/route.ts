@@ -272,6 +272,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ results });
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Error procesando archivo';
-    return NextResponse.json({ error: msg }, { status: 500 });
+    console.error('Import error:', msg);
+    return NextResponse.json({ error: 'No se pudo procesar el archivo' }, { status: 500 });
   }
 }

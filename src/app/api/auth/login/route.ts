@@ -2,26 +2,32 @@ import { NextRequest, NextResponse } from 'next/server';
 import { login } from '@/lib/auth';
 import { rateLimit, clearRateLimit } from '@/lib/rateLimit';
 
-// Anti fuerza bruta: 8 intentos por (IP + usuario) cada 10 min. Best-effort
-// (en memoria por instancia). Un login exitoso resetea el contador.
-const MAX_ATTEMPTS = 8;
+// Anti fuerza bruta: 12 intentos por IP cada 10 min. Best-effort (en memoria por
+// instancia). Un login exitoso resetea el contador. Se limita por IP y NO por
+// usuario, para que un atacante no pueda bloquear a propósito una cuenta conocida
+// (DoS dirigido); el usuario legítimo desde su propia IP no se ve afectado.
+const MAX_ATTEMPTS = 12;
 const WINDOW_MS = 10 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
-  const { username, password } = await request.json();
+  const body = await request.json().catch(() => null);
+  const username = body?.username;
+  const password = body?.password;
 
-  if (!username || !password) {
+  // Validar TIPOS (no solo presencia): un objeto/array evitaba esto y reventaba
+  // con 500 más adelante.
+  if (typeof username !== 'string' || typeof password !== 'string' || !username.trim() || !password) {
     return NextResponse.json({ error: 'Usuario y contraseña requeridos' }, { status: 400 });
   }
 
   // IP confiable: x-real-ip (lo fija Vercel) o el ÚLTIMO valor de x-forwarded-for
   // (el que agrega la plataforma). El primero de XFF lo controla el cliente y se
-  // podría falsear para evadir el límite. El username queda como segundo factor.
+  // podría falsear para evadir el límite.
   const xff = request.headers.get('x-forwarded-for');
   const ip = request.headers.get('x-real-ip')?.trim()
     || xff?.split(',').pop()?.trim()
     || 'unknown';
-  const rlKey = `login:${ip}:${String(username).toLowerCase().trim()}`;
+  const rlKey = `login:${ip}`;
   const rl = rateLimit(rlKey, MAX_ATTEMPTS, WINDOW_MS);
   if (!rl.allowed) {
     return NextResponse.json(

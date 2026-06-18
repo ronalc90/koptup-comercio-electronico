@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Settings GET error:', message);
-    return NextResponse.json({ error: `Error al leer configuración: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'No se pudo leer la configuración' }, { status: 500 });
   }
 }
 
@@ -96,6 +96,6 @@ export async function PUT(request: NextRequest) {
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Settings PUT error:', message);
-    return NextResponse.json({ error: `Error al guardar configuración: ${message}` }, { status: 500 });
+    return NextResponse.json({ error: 'No se pudo guardar la configuración' }, { status: 500 });
   }
 }

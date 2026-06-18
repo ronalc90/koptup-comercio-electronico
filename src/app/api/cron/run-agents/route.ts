@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
 
   const db = getServiceClient();
   const { data: tenants, error } = await db.from('tenants').select('id, slug').eq('active', true);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
 
   const now = new Date().toISOString();
   let newAlerts = 0;
