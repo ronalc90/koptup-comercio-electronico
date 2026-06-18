@@ -128,6 +128,12 @@ function InventoryModal({ item, onClose, onSave, saving, categories }: ModalProp
               onChange={(e) => set('category', e.target.value)}
             >
               <option value="">Seleccionar</option>
+              {/* Conserva una categoría legada (de datos viejos o de otra config)
+                  que ya no está en la lista del negocio, para no perderla ni
+                  cambiarla en silencio al editar. */}
+              {form.category && !categories.includes(form.category) && (
+                <option value={form.category}>{form.category}</option>
+              )}
               {categories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
@@ -382,7 +388,7 @@ export default function InventoryPage() {
           <div className="flex items-center justify-between gap-3">
             <div>
               <h1 className="text-xl font-bold text-gray-900">Inventario</h1>
-              <p className="text-xs text-gray-500">Tu Tienda Meraki</p>
+              <p className="text-xs text-gray-500">{config.name}</p>
             </div>
             <div className="flex items-center gap-2">
               <button
@@ -665,7 +671,7 @@ export default function InventoryPage() {
       </div>
 
       {/* Summary bar */}
-      <div className="fixed inset-x-0 z-40 bg-white border-t border-gray-100 px-4 py-2 shadow-lg md:bottom-0" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+      <div className="fixed inset-x-0 z-40 bg-white border-t border-gray-100 px-4 py-2 shadow-lg md:bottom-0" style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom, 0px))' }}>
         <div className="mx-auto max-w-6xl flex items-center justify-between text-sm">
           <div className="flex items-center gap-2 text-gray-600">
             <Layers className="h-4 w-4" style={{ color: '#7c3aed' }} />

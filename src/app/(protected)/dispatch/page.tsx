@@ -523,7 +523,7 @@ export default function DispatchPage() {
 
       {/* Bottom action bar — toggle between Guías / Ruta */}
       {selected.size > 0 && (
-        <div className="fixed inset-x-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3 z-40 md:bottom-0" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+        <div className="fixed inset-x-0 bg-white border-t border-gray-200 shadow-lg px-4 py-3 z-40 md:bottom-0" style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom, 0px))' }}>
           <div className="mx-auto max-w-3xl">
             <div className="flex items-center justify-between gap-3 mb-3">
               <div className="text-sm text-gray-600">

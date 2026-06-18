@@ -921,18 +921,20 @@ export default function SettingsPage() {
           <dl className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <dt className="text-sm text-gray-500">Nombre del negocio</dt>
-              <dd className="text-sm font-semibold text-gray-900">Tu Tienda Meraki</dd>
+              <dd className="text-sm font-semibold text-gray-900">{config.name}</dd>
             </div>
-            <div className="flex items-center justify-between gap-2">
-              <dt className="text-sm text-gray-500 flex items-center gap-1.5">
-                <Phone className="h-3.5 w-3.5" />
-                Teléfono de contacto
-              </dt>
-              <dd className="text-sm font-semibold text-gray-900">3203880422</dd>
-            </div>
+            {config.phone && (
+              <div className="flex items-center justify-between gap-2">
+                <dt className="text-sm text-gray-500 flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5" />
+                  Teléfono de contacto
+                </dt>
+                <dd className="text-sm font-semibold text-gray-900">{config.phone}</dd>
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2">
               <dt className="text-sm text-gray-500">Productos</dt>
-              <dd className="text-sm font-semibold text-gray-900">Pantuflas · Maxisacos</dd>
+              <dd className="text-sm font-semibold text-gray-900">{config.categories.join(' · ')}</dd>
             </div>
           </dl>
           <p className="mt-3 text-xs text-gray-400">

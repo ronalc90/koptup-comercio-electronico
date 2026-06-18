@@ -87,6 +87,25 @@ describe('analyzeFinanciero', () => {
   it('ignora pedidos cancelados', () => {
     expect(r.findings.some((f) => f.id === 'loss-3')).toBe(false);
   });
+
+  it('sin recaudo pero con pedidos por cobrar: margen es info (no warning) y "pendiente de recaudo"', () => {
+    // Regresión #14: antes reportaba "Margen 0.0%" (warning) cuando aún no
+    // entraba plata; debe ser info y NO alarmar.
+    const sinRecaudo = analyzeFinanciero(
+      {
+        orders: [
+          order({ id: 10, value_to_collect: 80000, delivery_status: 'Confirmado' }),
+          order({ id: 11, value_to_collect: 50000, delivery_status: 'Enviado' }),
+        ],
+        products: [], inventory: [], expenses: [],
+      },
+      meta,
+    );
+    const margen = sinRecaudo.findings.find((f) => f.id === 'margen');
+    expect(margen).toBeDefined();
+    expect(margen?.severity).toBe('info');
+    expect(margen?.title).toContain('pendiente de recaudo');
+  });
 });
 
 describe('analyzeComercial', () => {

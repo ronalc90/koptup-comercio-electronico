@@ -611,13 +611,17 @@ export default function ProductsPage({
                 className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm"
               >
                 <div className="flex items-start justify-between gap-3">
-                  {product.image_url && (
+                  {product.image_url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={product.image_url}
                       alt={product.name}
                       className="h-12 w-12 shrink-0 rounded-xl border border-gray-100 object-cover"
                     />
+                  ) : (
+                    <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-gray-100 bg-gray-50">
+                      <PackageSearch className="h-5 w-5 text-gray-300" />
+                    </span>
                   )}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
@@ -717,7 +721,8 @@ export default function ProductsPage({
               <input
                 type="text"
                 value={form.code}
-                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.slice(0, 10) }))}
+                maxLength={10}
                 placeholder="REF-001"
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
               />
@@ -731,6 +736,12 @@ export default function ProductsPage({
                 onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
                 className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
               >
+                {/* Categoría legada (de datos viejos o de otra config) que ya no
+                    está en la lista del negocio: se muestra para no perderla ni
+                    cambiarla en silencio al editar. */}
+                {form.category && !categories.includes(form.category) && (
+                  <option value={form.category}>{form.category}</option>
+                )}
                 {categories.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -858,7 +869,9 @@ export default function ProductsPage({
           onProductAnalyzed={(analyzed) => {
             setShowPhotoAI(false);
             setForm({
-              code: analyzed.code,
+              // products.code es VARCHAR(10): recortamos el código sugerido por
+              // la IA para que el insert no falle por longitud.
+              code: (analyzed.code || '').slice(0, 10),
               name: analyzed.name,
               cost: String(analyzed.suggested_cost),
               category: categories.includes(analyzed.category) ? analyzed.category : CATCH_ALL_CATEGORY,

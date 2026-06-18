@@ -35,6 +35,7 @@ import { getCourierPending } from '@/lib/types'
 import { cn, formatCurrency } from '@/lib/utils'
 import { downloadExcel } from '@/lib/export'
 import { useUser } from '@/lib/UserContext'
+import { useTenant } from '@/lib/TenantContext'
 import { isOwnerSupported } from '@/lib/db'
 import AlertsBanner from '@/components/shared/AlertsBanner'
 import PageHelpModal from '@/components/shared/PageHelpModal'
@@ -135,6 +136,7 @@ interface ChartDatum {
 
 export default function DashboardPage() {
   const owner = useUser()
+  const { config } = useTenant()
   const router = useRouter()
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -257,7 +259,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between gap-2 sm:gap-3">
             <div className="min-w-0">
               <h1 className="text-lg sm:text-xl font-bold text-gray-900 leading-tight">Dashboard</h1>
-              <p className="text-[11px] sm:text-xs text-gray-500">Tu Tienda Meraki</p>
+              <p className="text-[11px] sm:text-xs text-gray-500">{config.name}</p>
             </div>
             {/* Month selector — aligned right inside the title row */}
             <div className="flex items-center gap-1.5 shrink-0">
@@ -365,7 +367,7 @@ export default function DashboardPage() {
                 }
               />
               <KPICard
-                label="Utilidad"
+                label="Utilidad esperada"
                 value={formatCurrency(profit)}
                 icon={<TrendingUp className="h-5 w-5" />}
                 color={profit >= 0 ? '#10b981' : '#ef4444'}

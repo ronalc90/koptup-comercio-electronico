@@ -667,7 +667,7 @@ export default function AssistantPage() {
   };
 
   const chatUI = (
-    <div className="fixed inset-x-0 top-0 z-40 flex flex-col bg-gray-50 md:static md:inset-auto md:bottom-auto md:z-auto md:max-w-2xl md:mx-auto md:h-[calc(100dvh-3rem)] overflow-hidden" style={{ bottom: 'calc(5rem + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="fixed inset-x-0 top-0 z-40 flex flex-col bg-gray-50 md:static md:inset-auto md:bottom-auto md:z-auto md:max-w-2xl md:mx-auto md:h-[calc(100dvh-3rem)] overflow-hidden" style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header — compact on mobile */}
       <div className="px-3 py-2 border-b border-gray-100 shrink-0 bg-white">
         <div className="flex items-center gap-2">

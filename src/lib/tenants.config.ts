@@ -24,6 +24,8 @@ export interface TenantConfig {
   /** Emoji o URL de logo. */
   logo: string;
   tagline: string;
+  /** Teléfono de contacto del negocio (se muestra en Configuración). */
+  phone?: string;
   theme: TenantTheme;
   /** Categorías de producto propias del negocio. */
   categories: string[];
@@ -53,6 +55,7 @@ export const TENANT_CONFIGS: Record<string, TenantConfig> = {
     name: 'Tu Tienda Meraki',
     logo: '🩴',
     tagline: 'Gestión de pedidos y despachos',
+    phone: '3203880422',
     theme: {
       primary: '#7c3aed',
       primaryDark: '#5b21b6',

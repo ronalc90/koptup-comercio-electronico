@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.034',
+    date: '2026-06-18',
+    highlights: [
+      'Pulido tras una revisión interna de la entrega anterior.',
+      'Al editar un producto/ítem cuya categoría ya no está en la lista del negocio, ahora se conserva y se muestra esa categoría (antes podía cambiarse sola sin avisar).',
+      'El nombre del negocio, el teléfono y las categorías en Configuración, Inventario y Dashboard ya salen del negocio real (no siempre "Tu Tienda Meraki").',
+      'En el catálogo móvil, los productos sin foto muestran un ícono de marcador (mejor alineación).',
+      'La utilidad del Dashboard se rotuló como "Utilidad esperada" para no confundirla con la utilidad ya recaudada.',
+      'Pequeños ajustes de espacio en barras inferiores para que nunca tapen contenido en celular.',
+    ],
+  },
+  {
     version: '1.033',
     date: '2026-06-18',
     highlights: [
