@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.039',
+    date: '2026-06-20',
+    highlights: [
+      'Chat más cómodo en el celular: los botones de Confirmar y Corregir son más grandes y fáciles de tocar con el pulgar, con un recordatorio de que también puedes confirmar diciendo "sí" o "no" por voz.',
+      'La bienvenida del asistente es más clara: muestra un ejemplo de cada cosa que puede hacer (sin una lista interminable) en tarjetas más legibles, y mantiene "Ver todo lo que puedo hacer".',
+      'Tu marca presente: el asistente muestra el logo de tu negocio en el encabezado y en la pantalla de inicio.',
+      'Escribir es más cómodo: la caja de texto y el micrófono son más grandes, el teclado del celular ya no hace zoom al escribir y la tecla Enter dice "Enviar".',
+    ],
+  },
+  {
     version: '1.038',
     date: '2026-06-18',
     highlights: [

@@ -905,8 +905,10 @@ export default function AssistantPage() {
       {/* Header — compact on mobile */}
       <div className="px-3 py-2 border-b border-gray-100 shrink-0 bg-white">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shrink-0">
-            <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />
+          <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center shrink-0 text-base md:text-lg">
+            {config.logo && !config.logo.startsWith('http')
+              ? <span aria-hidden>{config.logo}</span>
+              : <Sparkles className="w-4 h-4 md:w-5 md:h-5 text-white" />}
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="font-bold text-sm md:text-lg leading-tight truncate">Asistente {config.name}</h1>
@@ -953,35 +955,40 @@ export default function AssistantPage() {
       {/* Chat area */}
       <div className="flex-1 overflow-y-auto px-3 py-2 space-y-3 min-h-0">
         {messages.length === 0 && (
-          <div className="py-4 md:py-8 text-gray-400">
-            <div className="text-center mb-4">
-              <Sparkles className="w-10 h-10 md:w-14 md:h-14 mx-auto mb-2 text-purple-200" />
-              <p className="text-base md:text-lg font-semibold text-gray-600 mb-0.5">Hola, soy tu asistente</p>
-              <p className="text-xs md:text-sm text-gray-500 mb-1">Habla o escribe en tus palabras — toca un ejemplo para empezar:</p>
-              <button
-                type="button"
-                onClick={() => setHelpOpen(true)}
-                className="inline-flex items-center gap-1 text-[11px] md:text-xs text-purple-600 hover:text-purple-700 font-medium"
-              >
-                <HelpCircle className="w-3 h-3" />
-                Ver todo lo que puedo hacer
-              </button>
+          <div className="py-3 md:py-8 text-gray-400">
+            <div className="text-center mb-3">
+              <div className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-gradient-to-br from-purple-500 to-purple-700 flex items-center justify-center text-2xl shadow-md">
+                <span aria-hidden>{config.logo && !config.logo.startsWith('http') ? config.logo : '✨'}</span>
+              </div>
+              <p className="text-base md:text-lg font-semibold text-gray-700 mb-0.5">Hola, soy tu asistente</p>
+              <p className="text-xs md:text-sm text-gray-500 px-4">Háblame o escríbeme en tus palabras. Toca un ejemplo para empezar:</p>
             </div>
-            <div className="grid grid-cols-1 gap-1.5 max-w-md mx-auto text-left">
-              {buildAssistantExamples(config.categories).map((ex, i) => (
+            {/* Un ejemplo por capacidad (cubre todo sin scroll infinito en móvil). */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-md mx-auto text-left">
+              {buildAssistantExamples(config.categories)
+                .filter((e, i, arr) => arr.findIndex(x => x.group === e.group) === i)
+                .map((ex, i) => (
                 <button
                   key={i}
                   onClick={() => setInput(ex.text)}
-                  className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-purple-50 border border-transparent hover:border-purple-100 text-xs text-gray-700 text-left transition"
+                  className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-100 shadow-sm hover:bg-purple-50 hover:border-purple-200 active:scale-[0.98] text-xs text-gray-700 text-left transition"
                 >
                   {exampleIcon(ex.group)}
                   <span className="flex-1 min-w-0">
                     <span className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wide leading-tight">{ex.group}</span>
-                    <span className="block leading-snug">&quot;{ex.text}&quot;</span>
+                    <span className="block leading-snug text-gray-700">&quot;{ex.text}&quot;</span>
                   </span>
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => setHelpOpen(true)}
+              className="mt-3 mx-auto flex items-center justify-center gap-1.5 text-xs text-purple-600 hover:text-purple-700 font-medium"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              Ver todo lo que puedo hacer
+            </button>
           </div>
         )}
 
@@ -1107,14 +1114,15 @@ export default function AssistantPage() {
 
       {/* Confirmation bar (shows after photo step) */}
       {pendingAction && photoStepDone && (
-        <div className="mx-2 md:mx-4 mb-1 p-2 md:p-3 bg-yellow-50 border border-yellow-200 rounded-xl animate-fadeIn shrink-0">
-          <p className="text-xs md:text-sm font-semibold text-yellow-800 mb-1.5">¿Confirmar esta acción?</p>
+        <div className="mx-2 md:mx-4 mb-1 p-3 bg-yellow-50 border border-yellow-200 rounded-2xl animate-fadeIn shrink-0 shadow-sm">
+          <p className="text-sm font-semibold text-yellow-900 mb-0.5">¿Confirmar esta acción?</p>
+          <p className="text-[11px] text-yellow-700 mb-2">Toca un botón o dime <span className="font-semibold">&quot;sí&quot;</span> / <span className="font-semibold">&quot;no&quot;</span> por voz.</p>
           <div className="flex gap-2">
-            <button onClick={confirmAction} disabled={isLoading} className="flex-1 flex items-center justify-center gap-1 bg-green-600 text-white rounded-lg py-1.5 md:py-2 text-xs md:text-sm font-medium hover:bg-green-700 transition disabled:opacity-50">
-              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />} Confirmar
+            <button onClick={confirmAction} disabled={isLoading} className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-green-700 active:scale-95 transition disabled:opacity-50">
+              {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />} Confirmar
             </button>
-            <button onClick={rejectAction} className="flex-1 flex items-center justify-center gap-1 bg-white border border-gray-300 text-gray-700 rounded-lg py-1.5 md:py-2 text-xs md:text-sm font-medium hover:bg-gray-50 transition">
-              <X className="w-3.5 h-3.5" /> Corregir
+            <button onClick={rejectAction} disabled={isLoading} className="flex-1 flex items-center justify-center gap-1.5 bg-white border border-gray-300 text-gray-700 rounded-xl py-3 text-sm font-semibold hover:bg-gray-50 active:scale-95 transition disabled:opacity-50">
+              <X className="w-5 h-5" /> Corregir
             </button>
           </div>
         </div>
@@ -1127,7 +1135,7 @@ export default function AssistantPage() {
             onClick={isRecording ? stopRecording : startRecording}
             disabled={isLoading}
             aria-label={isRecording ? 'Detener grabación de voz' : 'Grabar mensaje por voz'}
-            className={`relative flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition ${
+            className={`relative flex-shrink-0 w-11 h-11 rounded-full flex items-center justify-center transition active:scale-95 ${
               isRecording ? 'bg-red-500 text-white recording-pulse' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -1139,15 +1147,17 @@ export default function AssistantPage() {
             onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(input); } }}
             placeholder="Pedido, inventario, consulta..."
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-20"
-            style={{ minHeight: '40px' }}
+            enterKeyHint="send"
+            autoCapitalize="sentences"
+            className="flex-1 resize-none rounded-2xl border border-gray-300 px-4 py-2.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-24"
+            style={{ minHeight: '44px' }}
             disabled={isLoading}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={!input.trim() || isLoading}
             aria-label="Enviar mensaje"
-            className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 transition disabled:opacity-40"
+            className="flex-shrink-0 w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center hover:bg-purple-700 active:scale-95 transition disabled:opacity-40"
           >
             <Send className="w-5 h-5" />
           </button>
