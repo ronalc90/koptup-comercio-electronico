@@ -56,9 +56,13 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
       icon: MODULE_ICONS[m.key] as typeof Bot,
       isAccent: m.accent,
     }));
-  // La sección de administración se muestra a admins (y superadmins).
+  // Administración de usuarios: admin y superadmin.
   if (role === 'admin' || role === 'superadmin') {
     navItems.push({ href: '/admin', label: 'Administración', icon: ShieldCheck, isAccent: false });
+  }
+  // "Mi licencia" es del negocio: solo el admin del negocio. El superadmin NO
+  // tiene licencia propia (gestiona la de TODOS los negocios desde Plataforma).
+  if (role === 'admin') {
     navItems.push({ href: '/billing', label: 'Mi licencia', icon: CreditCard, isAccent: false });
   }
   // La gestión de la plataforma (todos los negocios) solo al superadmin.

@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.046',
+    date: '2026-06-22',
+    highlights: [
+      'Configuración ahora se ajusta al rol. El Superadministrador ya NO ve secciones de un negocio que no le aplican: API de IA, Importar datos (Excel), Preferencias de impresión, datos del Negocio ni la Zona peligrosa (borrar datos).',
+      'El Superadmin tampoco ve "Mi licencia": él gestiona las licencias de TODOS los negocios desde "Plataforma", no tiene una propia.',
+      'Importar Excel y Preferencias de impresión son tareas operativas: ahora solo las ve quien opera el negocio (Equipo), no Admin ni Superadmin.',
+      'Superadmin y Admin conservan: apariencia, preferencias generales, cambiar contraseña y Acerca de. El Admin además administra la cuenta del negocio (API de IA, datos del negocio, licencia).',
+    ],
+  },
+  {
     version: '1.045',
     date: '2026-06-22',
     highlights: [

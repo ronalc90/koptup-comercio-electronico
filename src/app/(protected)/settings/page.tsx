@@ -79,6 +79,7 @@ import {
 } from '@/lib/preferences'
 import { useUser } from '@/lib/UserContext'
 import { useTenant } from '@/lib/TenantContext'
+import { isAdministrativeRole } from '@/lib/permissions'
 import { roleLabel } from '@/lib/tenant'
 import ExcelImport from '@/components/shared/ExcelImport'
 import { GuideCard } from '@/components/dispatch/DispatchGuide'
@@ -740,7 +741,8 @@ export default function SettingsPage() {
           </form>
         </Section>
 
-        {/* API de IA */}
+        {/* API de IA — config del negocio; no aplica al superadmin (no opera un negocio) */}
+        {role !== 'superadmin' && (
         <Section icon={<Cpu className="h-4 w-4" />} title="API de IA">
           <div className="flex items-center justify-between gap-3 mb-4">
             <div>
@@ -836,16 +838,20 @@ export default function SettingsPage() {
             La clave se almacena de forma segura. Solo se muestran los últimos 4 caracteres.
           </p>
         </Section>
+        )}
 
-        {/* Importar datos */}
+        {/* Importar datos — operativo; solo quienes operan el negocio (no admin/superadmin) */}
+        {!isAdministrativeRole(role) && (
         <Section icon={<Zap className="h-4 w-4" />} title="Importar datos">
           <p className="text-xs text-gray-500 mb-3">
             Sube un archivo Excel (.xlsx) con pedidos, inventario o productos. El sistema detecta el tipo automáticamente.
           </p>
           <ExcelImport />
         </Section>
+        )}
 
-        {/* Preferencias de impresión */}
+        {/* Preferencias de impresión — operativo (despacho); solo quienes operan */}
+        {!isAdministrativeRole(role) && (
         <Section icon={<Printer className="h-4 w-4" />} title="Preferencias de impresión">
           <div className="space-y-5">
             <div>
@@ -944,8 +950,10 @@ export default function SettingsPage() {
             </div>
           </div>
         </Section>
+        )}
 
-        {/* Negocio */}
+        {/* Negocio — el superadmin no es un negocio */}
+        {role !== 'superadmin' && (
         <Section icon={<Store className="h-4 w-4" />} title="Negocio">
           <dl className="space-y-3">
             <div className="flex items-center justify-between gap-2">
@@ -970,8 +978,10 @@ export default function SettingsPage() {
             Para modificar datos del negocio, contacta al administrador.
           </p>
         </Section>
+        )}
 
-        {/* Zona peligrosa */}
+        {/* Zona peligrosa — borra datos del negocio; no aplica al superadmin */}
+        {role !== 'superadmin' && (
         <Section
           icon={<ShieldAlert className="h-4 w-4" />}
           title="Zona peligrosa"
@@ -997,6 +1007,7 @@ export default function SettingsPage() {
             </button>
           </div>
         </Section>
+        )}
 
         {/* Acerca de */}
         <Section icon={<Info className="h-4 w-4" />} title="Acerca de">
