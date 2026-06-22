@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { type ElementType } from 'react';
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -9,9 +10,15 @@ import {
   Package,
   Truck,
   Settings,
+  ShieldCheck,
+  CreditCard,
 } from 'lucide-react';
+import { useTenant } from '@/lib/TenantContext';
 
-const navItems = [
+type NavItem = { href: string; label: string; icon: ElementType; isAccent?: boolean };
+
+// Operación del negocio (member/viewer/superadmin).
+const BUSINESS_NAV: NavItem[] = [
   { href: '/dashboard', label: 'Inicio', icon: LayoutDashboard },
   { href: '/orders', label: 'Pedidos', icon: ShoppingBag },
   { href: '/assistant', label: 'Asistente', icon: Plus, isAccent: true },
@@ -20,8 +27,17 @@ const navItems = [
   { href: '/settings', label: 'Config', icon: Settings },
 ];
 
+// El `admin` es administrativo: gestiona equipo y cuenta, no opera el negocio.
+const ADMIN_NAV: NavItem[] = [
+  { href: '/admin', label: 'Equipo', icon: ShieldCheck },
+  { href: '/billing', label: 'Licencia', icon: CreditCard },
+  { href: '/settings', label: 'Config', icon: Settings },
+];
+
 export default function MobileNav() {
   const pathname = usePathname();
+  const { role } = useTenant();
+  const navItems = role === 'admin' ? ADMIN_NAV : BUSINESS_NAV;
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">

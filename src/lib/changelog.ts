@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.040',
+    date: '2026-06-20',
+    highlights: [
+      'El rol "Admin" ahora es puramente administrativo: gestiona el equipo (crear/editar usuarios y roles), la cuenta/configuración y la licencia. Ya NO entra a Dashboard, Pedidos, Asistente, Inventario, Productos, Despacho ni Agentes.',
+      'Quienes operan la tienda usan el rol "Equipo". Las cuentas que venían trabajando como Admin se pasaron a "Equipo" para que sigan operando igual, sin perder nada.',
+      'Al iniciar sesión, un Admin entra directo a "Administración"; su menú muestra solo Equipo, Licencia y Configuración (en celular y computador).',
+      'El Superadministrador conserva acceso a todo (negocio + administración + plataforma).',
+    ],
+  },
+  {
     version: '1.039',
     date: '2026-06-20',
     highlights: [

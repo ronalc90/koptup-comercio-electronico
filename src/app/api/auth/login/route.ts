@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
   const isSecure = process.env.NODE_ENV === 'production'
     || request.nextUrl.protocol === 'https:';
 
-  const response = NextResponse.json({ success: true, username });
+  const response = NextResponse.json({ success: true, username, role: result.context?.role ?? 'member' });
   response.cookies.set('meraki-session', result.token!, {
     httpOnly: true,
     secure: isSecure,

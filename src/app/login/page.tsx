@@ -36,7 +36,8 @@ export default function LoginPage() {
       }
 
       toast.success('Bienvenido/a, ' + username + '!')
-      router.push('/dashboard')
+      // El admin (administrativo) arranca en Administración; el resto en Dashboard.
+      router.push(data.role === 'admin' ? '/admin' : '/dashboard')
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesión'

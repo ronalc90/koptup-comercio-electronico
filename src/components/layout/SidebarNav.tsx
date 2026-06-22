@@ -21,6 +21,7 @@ import { useTenant } from '@/lib/TenantContext';
 import { useUser } from '@/lib/UserContext';
 import { tenantNav, type ModuleKey } from '@/lib/modules';
 import { roleLabel } from '@/lib/tenant';
+import { canAccessModule } from '@/lib/permissions';
 
 const MODULE_ICONS: Record<ModuleKey, ElementType> = {
   dashboard: LayoutDashboard,
@@ -45,13 +46,16 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   const username = useUser();
   const [loggingOut, setLoggingOut] = useState(false);
 
-  // Navegación construida desde el registro de módulos según el tenant.
-  const navItems = tenantNav(config.navModules, config.moduleLabels).map((m) => ({
-    href: m.route,
-    label: m.label,
-    icon: MODULE_ICONS[m.key] as typeof Bot,
-    isAccent: m.accent,
-  }));
+  // Navegación construida desde el registro de módulos según el tenant, filtrada
+  // por rol: el `admin` es administrativo y NO ve los módulos de negocio.
+  const navItems = tenantNav(config.navModules, config.moduleLabels)
+    .filter((m) => canAccessModule(role, m.key))
+    .map((m) => ({
+      href: m.route,
+      label: m.label,
+      icon: MODULE_ICONS[m.key] as typeof Bot,
+      isAccent: m.accent,
+    }));
   // La sección de administración se muestra a admins (y superadmins).
   if (role === 'admin' || role === 'superadmin') {
     navItems.push({ href: '/admin', label: 'Administración', icon: ShieldCheck, isAccent: false });
