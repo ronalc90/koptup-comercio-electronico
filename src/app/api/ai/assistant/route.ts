@@ -434,6 +434,15 @@ Para EDITAR un PRODUCTO existente (nombre, categoría, costo o activar/desactiva
   "needs_confirmation": true
 }
 
+Para ELIMINAR un PRODUCTO del catálogo ("borra el producto X", "elimina el código Y"):
+{
+  "action": "delete_product",
+  "data": { "code": "string o null (código exacto)", "name": "string o null (para ubicarlo por nombre)" },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+IMPORTANTE delete_product: es IRREVERSIBLE. NO inventes el producto; si no es claro, pide el código exacto. El sistema exigirá que la usuaria escriba "Acepto" para borrar (no lo decidas tú).
+
 Para AJUSTAR/CORREGIR el stock de un item de inventario ("corrige el stock de X a 5", "quedan 8 de tal"):
 {
   "action": "adjust_inventory",
@@ -966,6 +975,44 @@ export async function POST(request: NextRequest) {
           payment_timing: o.payment_timing, prepaid_amount: o.prepaid_amount,
         };
         parsed.message = `Aquí está la guía del pedido #${o.order_code} de ${o.client_name}.`;
+      }
+    }
+
+    // Eliminar producto: RESUELVE y PROPONE (irreversible). El cliente exige el
+    // gate "Acepto" antes de borrar. Aquí solo ubicamos el producto (estricto) y
+    // avisamos cuántos items de inventario quedarían sin catálogo.
+    if (parsed.action === 'delete_product') {
+      const d = parsed.data || {};
+      let query = supabase.from('products').select('id, code, name');
+      const code = String(d.code || '').trim();
+      const name = String(d.name || '').trim();
+      if (code) query = query.eq('code', code.toUpperCase());
+      else if (name) query = query.ilike('name', `%${name}%`);
+      const { data: found, error } = await query.limit(5);
+      const resolution = (error || (!code && !name)) ? { kind: 'none' as const } : resolveSingleMatch(found);
+      parsed.confirmed = false;
+      if (resolution.kind === 'none') {
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = error ? 'No pude buscar el producto. Inténtalo de nuevo.' : 'No encontré ese producto. Dame el código exacto para no borrar el equivocado.';
+      } else if (resolution.kind === 'ambiguous') {
+        const list = resolution.candidates.map((p) => `• ${p.name} (${p.code})`).join('\n');
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = `Hay varios productos que coinciden, no borré ninguno. Dame el CÓDIGO exacto del que quieres eliminar:\n${list}`;
+      } else {
+        const product = resolution.item;
+        // Cuenta items de inventario que referencian este producto (por código).
+        let invCount = 0;
+        if (product.code) {
+          const { count } = await supabase.from('inventory').select('id', { count: 'exact', head: true }).eq('product_id', product.code);
+          invCount = count ?? 0;
+        }
+        parsed.data = { product_id: product.id, code: product.code, name: product.name, inventory_count: invCount };
+        parsed.destructive = true;
+        parsed.needs_confirmation = true;
+        const warn = invCount > 0
+          ? ` Atención: hay ${invCount} item(s) de inventario con este código que quedarían sin producto en el catálogo.`
+          : '';
+        parsed.message = `Vas a ELIMINAR el producto "${product.name}" (${product.code}). Esto NO se puede deshacer.${warn}`;
       }
     }
 

@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.042',
+    date: '2026-06-20',
+    highlights: [
+      'El asistente ya puede ELIMINAR un producto del catálogo por chat ("borra el producto C001").',
+      'Con doble seguro porque es irreversible: te avisa cuántos items de inventario quedarían sin producto y exige que escribas literalmente "Acepto" para borrar (no basta "sí" ni tocar un botón).',
+      'Si hay varios productos parecidos, te pide el código exacto y no borra nada.',
+    ],
+  },
+  {
     version: '1.041',
     date: '2026-06-20',
     highlights: [

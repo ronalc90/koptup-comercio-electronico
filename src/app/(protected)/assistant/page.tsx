@@ -23,7 +23,7 @@ import {
   type Workday,
 } from '@/lib/workdayArchive';
 import { detectConfirmIntent } from '@/lib/assistant/confirmIntent';
-import { MODIFYING_ACTIONS, EDITABLE_ORDER_FIELDS, EDITABLE_EXPENSE_FIELDS } from '@/lib/assistant/constants';
+import { MODIFYING_ACTIONS, EDITABLE_ORDER_FIELDS, EDITABLE_EXPENSE_FIELDS, isDestructiveAction, DESTRUCTIVE_CONFIRM_PHRASE } from '@/lib/assistant/constants';
 import {
   normalizeOrderStatus,
   normalizeExpenseCategory,
@@ -265,6 +265,30 @@ export default function AssistantPage() {
     // es "habla en tus palabras", así que confirmar hablando DEBE funcionar.
     if (pendingAction) {
       const intent = detectConfirmIntent(text);
+      // Acciones DESTRUCTIVAS (borrar): NO basta "sí/dale" — la usuaria debe
+      // escribir literalmente "Acepto". Solo "cancela/no" aborta.
+      if (isDestructiveAction(pendingAction.action)) {
+        if (text.trim().toLowerCase() === DESTRUCTIVE_CONFIRM_PHRASE.toLowerCase()) {
+          setMessages(prev => [...prev, { role: 'user', content: text }]);
+          setInput('');
+          await confirmAction();
+          return;
+        }
+        if (intent === 'reject') {
+          setMessages(prev => [...prev, { role: 'user', content: text }]);
+          setInput('');
+          rejectAction();
+          return;
+        }
+        // Cualquier otra cosa: recordamos el gate y NO ejecutamos ni descartamos.
+        setMessages(prev => [...prev,
+          { role: 'user', content: text },
+          { role: 'assistant', content: `Para eliminar escribe exactamente "${DESTRUCTIVE_CONFIRM_PHRASE}" (o di "cancela").` },
+        ]);
+        setInput('');
+        scrollToBottom();
+        return;
+      }
       if (intent === 'confirm') {
         setMessages(prev => [...prev, { role: 'user', content: text }]);
         setInput('');
@@ -852,6 +876,15 @@ export default function AssistantPage() {
       }
       return `Alerta "${rd.title || ''}" marcada como resuelta.`;
     }
+    if (action === 'delete_product') {
+      const pd = data as Record<string, unknown>;
+      const id = pd.product_id;
+      if (!id) return 'No identifiqué el producto a eliminar.';
+      // El guard multi-tenant añade tenant_id; borra por id (ya resuelto en server).
+      const { error } = await supabase.from('products').delete().eq('id', Number(id));
+      if (error) throw new Error('No se pudo eliminar el producto: ' + error.message);
+      return `Producto "${pd.name || ''}" (${pd.code || ''}) eliminado del catálogo.`;
+    }
     return 'Acción no reconocida.';
   };
 
@@ -1002,6 +1035,7 @@ export default function AssistantPage() {
       case 'search_alerts': return <AlertTriangle className="w-4 h-4 text-amber-500" />;
       case 'resolve_alert': return <CheckCircle className="w-4 h-4 text-green-500" />;
       case 'reprint_order_guide': return <FileText className="w-4 h-4 text-blue-500" />;
+      case 'delete_product': return <Trash2 className="w-4 h-4 text-red-500" />;
       default: return null;
     }
   };
@@ -1033,6 +1067,7 @@ export default function AssistantPage() {
       case 'search_alerts': return 'Alertas';
       case 'resolve_alert': return 'Resolver alerta';
       case 'reprint_order_guide': return 'Guía de despacho';
+      case 'delete_product': return 'Eliminar producto';
       default: return '';
     }
   };
@@ -1294,8 +1329,21 @@ export default function AssistantPage() {
         />
       )}
 
-      {/* Confirmation bar (shows after photo step) */}
-      {pendingAction && photoStepDone && (
+      {/* Confirmation bar (shows after photo step) — destructiva vs normal */}
+      {pendingAction && photoStepDone && isDestructiveAction(pendingAction.action) && (
+        <div className="mx-2 md:mx-4 mb-1 p-3 bg-red-50 border border-red-200 rounded-2xl animate-fadeIn shrink-0 shadow-sm">
+          <p className="text-sm font-semibold text-red-800 mb-0.5 flex items-center gap-1.5">
+            <AlertTriangle className="w-4 h-4" /> Acción irreversible
+          </p>
+          <p className="text-[12px] text-red-700 mb-2">
+            Para eliminar, escribe <span className="font-bold">{DESTRUCTIVE_CONFIRM_PHRASE}</span> en el cuadro de abajo y envía. O toca Cancelar.
+          </p>
+          <button onClick={rejectAction} disabled={isLoading} className="w-full flex items-center justify-center gap-1.5 bg-white border border-gray-300 text-gray-700 rounded-xl py-2.5 text-sm font-semibold hover:bg-gray-50 active:scale-95 transition disabled:opacity-50">
+            <X className="w-5 h-5" /> Cancelar
+          </button>
+        </div>
+      )}
+      {pendingAction && photoStepDone && !isDestructiveAction(pendingAction.action) && (
         <div className="mx-2 md:mx-4 mb-1 p-3 bg-yellow-50 border border-yellow-200 rounded-2xl animate-fadeIn shrink-0 shadow-sm">
           <p className="text-sm font-semibold text-yellow-900 mb-0.5">¿Confirmar esta acción?</p>
           <p className="text-[11px] text-yellow-700 mb-2">Toca un botón o dime <span className="font-semibold">&quot;sí&quot;</span> / <span className="font-semibold">&quot;no&quot;</span> por voz.</p>

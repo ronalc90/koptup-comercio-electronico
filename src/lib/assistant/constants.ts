@@ -65,8 +65,24 @@ export const MODIFYING_ACTIONS = [
   'move_inventory',
   'edit_expense',
   'resolve_alert',
+  'delete_product',
   'multi_action',
 ] as const;
+
+/**
+ * Acciones DESTRUCTIVAS (irreversibles): exigen que la usuaria escriba
+ * literalmente "Acepto" para ejecutarse (no basta "sí"/"dale"/botón). Convención
+ * de Meraki para borrados irreversibles (igual que el borrado total de cuenta).
+ */
+export const DESTRUCTIVE_ACTIONS = ['delete_product'] as const;
+
+/** Frase exacta requerida para confirmar una acción destructiva. */
+export const DESTRUCTIVE_CONFIRM_PHRASE = 'Acepto';
+
+/** ¿Esta acción exige el gate "Acepto"? */
+export function isDestructiveAction(action: string | undefined): boolean {
+  return !!action && (DESTRUCTIVE_ACTIONS as readonly string[]).includes(action);
+}
 
 /** Campos editables vía edit_order (whitelist, espejo del servidor). */
 export const EDITABLE_ORDER_FIELDS = [
