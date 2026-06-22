@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.045',
+    date: '2026-06-22',
+    highlights: [
+      'El Superadministrador (Plataforma) ya NO ve los módulos de un negocio (Dashboard, Pedidos, Inventario, Asistente, etc.). Su rol es administrar la plataforma y los equipos, no operar el día a día — igual que el Admin.',
+      'Al iniciar sesión, el Superadmin entra directo a "Plataforma"; su menú muestra Plataforma, Equipo y Configuración (en celular y computador).',
+      'Quienes operan la tienda siguen siendo el rol "Equipo".',
+    ],
+  },
+  {
     version: '1.044',
     date: '2026-06-22',
     highlights: [

@@ -14,15 +14,17 @@ const ALL_MODULES: ModuleKey[] = [
 ];
 
 describe('canAccessModule', () => {
-  it('admin NO ve módulos de negocio, pero sí config', () => {
-    for (const m of BUSINESS_MODULES) {
-      expect(canAccessModule('admin', m), `admin no debe ver ${m}`).toBe(false);
+  it('admin y superadmin NO ven módulos de negocio, pero sí config', () => {
+    for (const role of ['admin', 'superadmin'] as Role[]) {
+      for (const m of BUSINESS_MODULES) {
+        expect(canAccessModule(role, m), `${role} no debe ver ${m}`).toBe(false);
+      }
+      expect(canAccessModule(role, 'config')).toBe(true);
     }
-    expect(canAccessModule('admin', 'config')).toBe(true);
   });
 
-  it('member, viewer y superadmin ven todos los módulos', () => {
-    for (const role of ['member', 'viewer', 'superadmin'] as Role[]) {
+  it('member y viewer ven todos los módulos', () => {
+    for (const role of ['member', 'viewer'] as Role[]) {
       for (const m of ALL_MODULES) {
         expect(canAccessModule(role, m), `${role} debe ver ${m}`).toBe(true);
       }
@@ -50,26 +52,28 @@ describe('isBusinessRoute', () => {
 });
 
 describe('canAccessRoute', () => {
-  it('admin bloqueado en rutas de negocio, permitido en administrativas', () => {
-    expect(canAccessRoute('admin', '/products')).toBe(false);
-    expect(canAccessRoute('admin', '/inventory')).toBe(false);
-    expect(canAccessRoute('admin', '/assistant')).toBe(false);
-    expect(canAccessRoute('admin', '/admin')).toBe(true);
-    expect(canAccessRoute('admin', '/settings')).toBe(true);
-    expect(canAccessRoute('admin', '/billing')).toBe(true);
+  it('admin y superadmin bloqueados en rutas de negocio, permitidos en administrativas/plataforma', () => {
+    for (const role of ['admin', 'superadmin'] as Role[]) {
+      expect(canAccessRoute(role, '/products')).toBe(false);
+      expect(canAccessRoute(role, '/inventory')).toBe(false);
+      expect(canAccessRoute(role, '/assistant')).toBe(false);
+      expect(canAccessRoute(role, '/admin')).toBe(true);
+      expect(canAccessRoute(role, '/settings')).toBe(true);
+      expect(canAccessRoute(role, '/billing')).toBe(true);
+    }
+    expect(canAccessRoute('superadmin', '/superadmin')).toBe(true);
   });
-  it('member y superadmin pueden entrar a rutas de negocio', () => {
+  it('member y viewer pueden entrar a rutas de negocio', () => {
     expect(canAccessRoute('member', '/products')).toBe(true);
     expect(canAccessRoute('viewer', '/inventory')).toBe(true);
-    expect(canAccessRoute('superadmin', '/assistant')).toBe(true);
   });
 });
 
 describe('homeRouteForRole', () => {
-  it('admin arranca en /admin; el resto en /dashboard', () => {
+  it('superadmin → /superadmin; admin → /admin; el resto → /dashboard', () => {
+    expect(homeRouteForRole('superadmin')).toBe('/superadmin');
     expect(homeRouteForRole('admin')).toBe('/admin');
     expect(homeRouteForRole('member')).toBe('/dashboard');
     expect(homeRouteForRole('viewer')).toBe('/dashboard');
-    expect(homeRouteForRole('superadmin')).toBe('/dashboard');
   });
 });

@@ -37,12 +37,21 @@ export const BUSINESS_ROUTES: string[] = [
 ];
 
 /**
- * ¿El rol puede ver/usar este módulo de la navegación? El `admin` solo ve los
- * módulos que NO son de negocio (en la práctica: 'config'). El resto de roles ve
- * los módulos habilitados por el tenant.
+ * Roles ADMINISTRATIVOS (no operan el negocio): `admin` administra su negocio y
+ * `superadmin` administra la PLATAFORMA (todos los negocios). Ninguno entra a los
+ * módulos de operación (pedidos, inventario, dashboard, etc.).
+ */
+export function isAdministrativeRole(role: Role): boolean {
+  return role === 'admin' || role === 'superadmin';
+}
+
+/**
+ * ¿El rol puede ver/usar este módulo de la navegación? Los roles administrativos
+ * (admin/superadmin) solo ven módulos que NO son de negocio (en la práctica:
+ * 'config'); member/viewer ven los módulos de negocio habilitados por el tenant.
  */
 export function canAccessModule(role: Role, key: ModuleKey): boolean {
-  if (role === 'admin') return !BUSINESS_MODULE_SET.has(key);
+  if (isAdministrativeRole(role)) return !BUSINESS_MODULE_SET.has(key);
   return true;
 }
 
@@ -51,13 +60,18 @@ export function isBusinessRoute(pathname: string): boolean {
   return BUSINESS_ROUTES.some((r) => pathname === r || pathname.startsWith(r + '/'));
 }
 
-/** ¿El rol puede entrar a esta ruta? (el `admin` no entra a rutas de negocio). */
+/** ¿El rol puede entrar a esta ruta? (admin/superadmin NO entran a rutas de negocio). */
 export function canAccessRoute(role: Role, pathname: string): boolean {
-  if (role === 'admin' && isBusinessRoute(pathname)) return false;
+  if (isAdministrativeRole(role) && isBusinessRoute(pathname)) return false;
   return true;
 }
 
-/** Ruta de inicio según rol: el `admin` arranca en Administración, el resto en Dashboard. */
+/**
+ * Ruta de inicio según rol: superadmin → Plataforma, admin → Administración,
+ * el resto (operación) → Dashboard.
+ */
 export function homeRouteForRole(role: Role): string {
-  return role === 'admin' ? '/admin' : '/dashboard';
+  if (role === 'superadmin') return '/superadmin';
+  if (role === 'admin') return '/admin';
+  return '/dashboard';
 }

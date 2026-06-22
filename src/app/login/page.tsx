@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import toast from 'react-hot-toast'
+import { homeRouteForRole } from '@/lib/permissions'
+import type { Role } from '@/lib/tenant'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -36,8 +38,9 @@ export default function LoginPage() {
       }
 
       toast.success('Bienvenido/a, ' + username + '!')
-      // El admin (administrativo) arranca en Administración; el resto en Dashboard.
-      router.push(data.role === 'admin' ? '/admin' : '/dashboard')
+      // Cada rol aterriza en su inicio: superadmin→Plataforma, admin→Administración,
+      // equipo/lectura→Dashboard.
+      router.push(homeRouteForRole(data.role as Role))
       router.refresh()
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al iniciar sesión'
