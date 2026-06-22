@@ -78,10 +78,35 @@ function compressImage(file: File, maxWidth = 600): Promise<string> {
   });
 }
 
-function PhotoBeforeConfirm({ state, onStateChange, onSkip }: {
+function inventoryItemLabel(it: Record<string, unknown>): string {
+  const qty = it.quantity ? `${it.quantity}x ` : '';
+  const model = it.model ? String(it.model) : 'Producto';
+  const color = it.color ? ` ${String(it.color)}` : '';
+  const size = it.size && String(it.size) !== 'Única' ? ` T.${String(it.size)}` : '';
+  return `${qty}${model}${color}${size}`;
+}
+
+/** Items de inventario de una acción (add_inventory directo o dentro de multi_action). */
+function extractInventoryItems(
+  action: string | undefined,
+  data: unknown,
+  actions: SubAction[] | undefined,
+): Array<Record<string, unknown>> {
+  let raw: unknown = null;
+  if (action === 'add_inventory') raw = data;
+  else if (action === 'multi_action' && actions) {
+    raw = actions.find((a) => a.action === 'add_inventory')?.data ?? null;
+  }
+  if (!raw) return [];
+  const arr = Array.isArray(raw) ? raw : [raw];
+  return arr.filter(Boolean) as Array<Record<string, unknown>>;
+}
+
+/** Control de foto de UN item de inventario (tomar/galería/quitar). */
+function ItemPhotoControl({ label, state, onStateChange }: {
+  label: string;
   state: PhotoState;
   onStateChange: (s: PhotoState) => void;
-  onSkip: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
@@ -106,28 +131,34 @@ function PhotoBeforeConfirm({ state, onStateChange, onSkip }: {
   };
 
   return (
-    <div className="mx-2 md:mx-4 mb-1 p-3 bg-purple-50 border border-purple-200 rounded-xl animate-fadeIn shrink-0">
-      <p className="text-xs font-semibold text-purple-800 mb-2">¿Agregar foto del producto?</p>
+    <div className="rounded-xl border border-purple-200 bg-white p-2">
+      <p className="text-[11px] font-semibold text-purple-900 mb-1.5 truncate">{label}</p>
       {state.preview ? (
-        <div className="relative rounded-xl overflow-hidden mb-2">
-          <img src={state.preview} alt="Preview" className="w-full h-32 object-cover" />
+        <div className="relative rounded-lg overflow-hidden mb-1.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={state.preview} alt="Preview" className="w-full h-24 object-cover" />
           {state.uploading && (
             <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-              <Loader2 className="w-6 h-6 animate-spin text-white" />
+              <Loader2 className="w-5 h-5 animate-spin text-white" />
             </div>
           )}
           {state.imageUrl && (
-            <div className="absolute bottom-2 right-2 bg-green-500 text-white rounded-full p-1.5">
-              <Check className="w-3.5 h-3.5" />
-            </div>
+            <>
+              <div className="absolute bottom-1.5 right-1.5 bg-green-500 text-white rounded-full p-1">
+                <Check className="w-3 h-3" />
+              </div>
+              <button type="button" onClick={() => onStateChange({})} className="absolute top-1.5 right-1.5 bg-black/50 text-white rounded-full p-1" aria-label="Quitar foto">
+                <X className="w-3 h-3" />
+              </button>
+            </>
           )}
         </div>
       ) : (
-        <div className="flex gap-2 mb-2">
-          <button type="button" onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-purple-200 text-xs font-medium text-purple-600 hover:bg-purple-100 transition active:scale-95">
-            📸 Tomar foto
+        <div className="flex gap-2">
+          <button type="button" onClick={() => fileRef.current?.click()} className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-lg border-2 border-dashed border-purple-200 text-[11px] font-medium text-purple-600 hover:bg-purple-50 transition active:scale-95">
+            📸 Foto
           </button>
-          <button type="button" onClick={() => galleryRef.current?.click()} className="flex-1 flex items-center justify-center gap-2 py-4 rounded-xl border-2 border-dashed border-purple-200 text-xs font-medium text-purple-600 hover:bg-purple-100 transition active:scale-95">
+          <button type="button" onClick={() => galleryRef.current?.click()} className="flex-1 flex items-center justify-center gap-1 py-2.5 rounded-lg border-2 border-dashed border-purple-200 text-[11px] font-medium text-purple-600 hover:bg-purple-50 transition active:scale-95">
             🖼️ Galería
           </button>
         </div>
@@ -136,8 +167,32 @@ function PhotoBeforeConfirm({ state, onStateChange, onSkip }: {
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
       <input ref={galleryRef} type="file" accept="image/*" className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }} />
-      <button onClick={onSkip} className="w-full py-1.5 text-xs text-gray-400 hover:text-gray-600 transition">
-        {state.imageUrl ? 'Continuar →' : 'Sin foto, continuar →'}
+    </div>
+  );
+}
+
+/** Paso de foto POR PRODUCTO antes de confirmar add_inventory. */
+function InventoryPhotosStep({ items, photos, onChangePhoto, onDone }: {
+  items: Array<Record<string, unknown>>;
+  photos: PhotoState[];
+  onChangePhoto: (index: number, s: PhotoState) => void;
+  onDone: () => void;
+}) {
+  const anyUploading = photos.some((p) => p?.uploading);
+  const withPhoto = photos.filter((p) => p?.imageUrl).length;
+  const multi = items.length > 1;
+  return (
+    <div className="mx-2 md:mx-4 mb-1 p-3 bg-purple-50 border border-purple-200 rounded-2xl animate-fadeIn shrink-0 max-h-[42dvh] overflow-y-auto">
+      <p className="text-xs font-semibold text-purple-800 mb-2">
+        {multi ? `¿Agregar foto a cada producto? (${items.length}, opcional — uno por uno)` : '¿Agregar foto del producto? (opcional)'}
+      </p>
+      <div className="space-y-2">
+        {items.map((it, i) => (
+          <ItemPhotoControl key={i} label={inventoryItemLabel(it)} state={photos[i] || {}} onStateChange={(s) => onChangePhoto(i, s)} />
+        ))}
+      </div>
+      <button onClick={onDone} disabled={anyUploading} className="w-full mt-2 py-2 text-xs font-semibold text-purple-700 hover:text-purple-900 disabled:opacity-50 transition">
+        {anyUploading ? 'Subiendo…' : withPhoto > 0 ? `Continuar con ${withPhoto} foto(s) →` : 'Sin fotos, continuar →'}
       </button>
     </div>
   );
@@ -152,7 +207,7 @@ export default function AssistantPage() {
   const [isRecording, setIsRecording] = useState(false);
   const [pendingAction, setPendingAction] = useState<ChatMessage | null>(null);
   const [showGuide, setShowGuide] = useState<Record<string, unknown> | null>(null);
-  const [preConfirmPhoto, setPreConfirmPhoto] = useState<PhotoState | null>(null);
+  const [preConfirmPhotos, setPreConfirmPhotos] = useState<PhotoState[] | null>(null);
   const [photoStepDone, setPhotoStepDone] = useState(false);
   const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
   const [chatLoaded, setChatLoaded] = useState(false);
@@ -204,7 +259,7 @@ export default function AssistantPage() {
     const saved = saveWorkday(messages);
     setMessages([]);
     setPendingAction(null);
-    setPreConfirmPhoto(null);
+    setPreConfirmPhotos(null);
     setPhotoStepDone(false);
     localStorage.removeItem('meraki-chat');
     toast.success(saved ? `Guardado en el librito — ${saved.label}` : 'Chat limpiado');
@@ -213,7 +268,7 @@ export default function AssistantPage() {
   const restoreWorkday = (workday: Workday) => {
     setMessages(workday.messages);
     setPendingAction(null);
-    setPreConfirmPhoto(null);
+    setPreConfirmPhotos(null);
     setPhotoStepDone(false);
     setArchiveOpen(false);
     toast.success(`Chat restaurado — ${workday.label}`);
@@ -306,7 +361,7 @@ export default function AssistantPage() {
       // Mensaje nuevo (ni sí ni no) con una acción pendiente: la descartamos para
       // no dejar dos barras compitiendo; re-interpretamos lo que pidió ahora.
       setPendingAction(null);
-      setPreConfirmPhoto(null);
+      setPreConfirmPhotos(null);
       setPhotoStepDone(false);
     }
 
@@ -349,13 +404,14 @@ export default function AssistantPage() {
       setMessages(prev => [...prev, assistantMsg]);
 
       if (needsConf) {
-        // Check if action involves inventory → ask for photo first
-        const hasInventory = data.action === 'add_inventory' ||
-          (data.action === 'multi_action' && data.actions?.some((a: SubAction) => a.action === 'add_inventory'));
-        if (hasInventory) {
-          setPreConfirmPhoto({});
+        // Si la acción agrega inventario, ofrecemos foto POR PRODUCTO antes de
+        // confirmar: una tarjeta por item para decidir cuál lleva foto y cuál no.
+        const invItems = extractInventoryItems(data.action, data.data, data.actions);
+        if (invItems.length > 0) {
+          setPreConfirmPhotos(invItems.map(() => ({})));
           setPhotoStepDone(false);
         } else {
+          setPreConfirmPhotos(null);
           setPhotoStepDone(true);
         }
         setPendingAction(assistantMsg);
@@ -509,23 +565,26 @@ export default function AssistantPage() {
         const faltan = sinUbicacion.map(it => String(it.model || 'producto')).join(', ');
         return `Para guardar en inventario necesito la canasta/ubicación de: ${faltan}. ¿En qué canasta lo guardaste?`;
       }
-      const imgUrl = preConfirmPhoto?.imageUrl || '';
-      const payloads = items.map(item => {
+      // Cada item lleva SU propia foto (decidida una por una en el paso previo).
+      const photos = preConfirmPhotos || [];
+      const payloads = items.map((item, index) => {
         // El costo unitario SÍ se persiste en `reference` (antes se pedía y se
         // descartaba). La talla se normaliza al vocabulario de la UI ('Única'
         // para sin-talla) para que el filtro/búsqueda la encuentre.
         const itemCost = parseCopAmount(item.cost as string | number) ?? 0;
+        const itemImg = photos[index]?.imageUrl || '';
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const p: any = { model: item.model || '', category: resolveTenantCategory(item.category, config.categories), product_id: item.product_id || '', color: item.color || '', size: normalizeInventorySize(item.size), quantity: normalizeQuantity(item.quantity), basket_location: String(item.basket_location).trim(), type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: itemCost, image_url: imgUrl };
+        const p: any = { model: item.model || '', category: resolveTenantCategory(item.category, config.categories), product_id: item.product_id || '', color: item.color || '', size: normalizeInventorySize(item.size), quantity: normalizeQuantity(item.quantity), basket_location: String(item.basket_location).trim(), type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: itemCost, image_url: itemImg };
         if (hasOwner) p.owner = owner;
         return p;
       });
       const { error } = await supabase.from('inventory').insert(payloads);
       if (error) throw error;
-      setPreConfirmPhoto(null);
+      setPreConfirmPhotos(null);
       const totalU = payloads.reduce((s: number, p: Record<string, unknown>) => s + (Number(p.quantity) || 0), 0);
       const withCost = payloads.some((p: Record<string, unknown>) => Number(p.reference) > 0);
-      return `${items.length} item(s) (${totalU} u.) agregados al inventario${withCost ? ' con costo' : ''}.${imgUrl ? ' Con foto.' : ''}`;
+      const nFotos = payloads.filter((p: Record<string, unknown>) => p.image_url).length;
+      return `${items.length} item(s) (${totalU} u.) agregados al inventario${withCost ? ' con costo' : ''}${nFotos > 0 ? ` · ${nFotos} con foto` : ''}.`;
     }
     if (action === 'mark_defective') {
       const defData = data as Record<string, unknown>;
@@ -940,7 +999,7 @@ export default function AssistantPage() {
       // Siempre cerramos el flujo de confirmación, haya éxito o error, para no
       // dejar la barra "¿Confirmar?" colgada.
       setPendingAction(null);
-      setPreConfirmPhoto(null);
+      setPreConfirmPhotos(null);
       setPhotoStepDone(false);
       setIsLoading(false);
       scrollToBottom();
@@ -949,7 +1008,7 @@ export default function AssistantPage() {
 
   const rejectAction = () => {
     setPendingAction(null);
-    setPreConfirmPhoto(null);
+    setPreConfirmPhotos(null);
     setPhotoStepDone(false);
     setMessages(prev => [...prev, {
       role: 'assistant',
@@ -1331,12 +1390,17 @@ export default function AssistantPage() {
         <div ref={chatEndRef} />
       </div>
 
-      {/* Photo prompt BEFORE confirmation (for inventory actions) */}
-      {pendingAction && !photoStepDone && preConfirmPhoto !== null && (
-        <PhotoBeforeConfirm
-          state={preConfirmPhoto}
-          onStateChange={setPreConfirmPhoto}
-          onSkip={() => setPhotoStepDone(true)}
+      {/* Photo step BEFORE confirmation — UNA foto por producto (opcional) */}
+      {pendingAction && !photoStepDone && preConfirmPhotos !== null && (
+        <InventoryPhotosStep
+          items={extractInventoryItems(pendingAction.action, pendingAction.data, pendingAction.actions)}
+          photos={preConfirmPhotos}
+          onChangePhoto={(i, s) => setPreConfirmPhotos((prev) => {
+            const next = [...(prev || [])];
+            next[i] = s;
+            return next;
+          })}
+          onDone={() => setPhotoStepDone(true)}
         />
       )}
 

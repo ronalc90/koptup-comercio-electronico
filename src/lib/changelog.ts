@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.044',
+    date: '2026-06-22',
+    highlights: [
+      'Al agregar VARIOS productos al inventario, ahora le pones foto a CADA UNO por separado (o saltas el que no quieras): el paso de foto muestra una tarjeta por producto con su nombre, color y talla.',
+      'Antes pedía una sola foto y se la ponía a todos los productos. Ahora cada item guarda su propia foto (o ninguna).',
+    ],
+  },
+  {
     version: '1.043',
     date: '2026-06-22',
     highlights: [
