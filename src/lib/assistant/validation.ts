@@ -74,6 +74,26 @@ export function normalizeQuantity(raw: unknown): number {
   return Math.floor(n);
 }
 
+/**
+ * Normaliza la talla a un vocabulario CONSISTENTE con el selector de la UI
+ * (inventory/page.tsx SIZES: XS/S/M/L/XL/XXL, 35-42, 'Única'). Así un item creado
+ * por el chat se puede filtrar/buscar igual que uno creado a mano.
+ * - Sin talla / vacío / sinónimos de unitalla → 'Única'.
+ * - Tallas alfabéticas (s, m, l, xl…) → MAYÚSCULAS.
+ * - Números u otros formatos del negocio → tal cual (NO se convierten a rangos).
+ */
+export function normalizeInventorySize(raw: unknown): string {
+  if (typeof raw !== 'string') return 'Única';
+  const t = raw.trim();
+  if (!t) return 'Única';
+  const key = stripAccentsLower(t);
+  if (['u', 'unica', 'unitalla', 'talla unica', 'sin talla', 'na', 'n/a', 'ninguna'].includes(key)) {
+    return 'Única';
+  }
+  if (/^[a-z]{1,3}$/.test(key)) return t.toUpperCase(); // S, M, L, XL, XXL
+  return t; // números (38) o formato propio del negocio, sin tocar
+}
+
 /** Cantidad de stock válida para ajuste: entero >= 0 (permite 0). null si inválida. */
 export function normalizeStockQuantity(raw: unknown): number | null {
   const n = Number(raw);

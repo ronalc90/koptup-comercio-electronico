@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.043',
+    date: '2026-06-22',
+    highlights: [
+      'Arreglada la captura de inventario con varios colores/tallas: cada combinación queda con su cantidad EXACTA. Si no dices cuántas de cada una, el asistente pregunta en vez de repartir al azar.',
+      'Captura en varios mensajes: el asistente ahora recuerda la canasta y el costo cuando te pregunta la talla/color en el siguiente mensaje (antes a veces se perdían).',
+      'El costo que dices al agregar inventario ahora SÍ se guarda con el producto (antes se pedía y se descartaba).',
+      'Productos sin talla o de "talla única" quedan como "Única" (igual que el filtro de inventario). Ya no convierte tallas a rangos ni insiste con la talla en productos que no la manejan.',
+      'Cantidades en palabras: "una docena" = 12, "un par" = 2, "media docena" = 6. Si dices algo vago ("varios", "unas pocas"), te pregunta cuántas exactamente.',
+      'Color, talla, observaciones y foto son opcionales; solo canasta y costo son obligatorios.',
+    ],
+  },
+  {
     version: '1.042',
     date: '2026-06-20',
     highlights: [

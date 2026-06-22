@@ -30,6 +30,7 @@ import {
   resolveTenantCategory,
   normalizeQuantity,
   normalizeStockQuantity,
+  normalizeInventorySize,
   isValidDateString,
 } from '@/lib/assistant/validation';
 import { resolveSingleMatch } from '@/lib/assistant/matching';
@@ -509,12 +510,22 @@ export default function AssistantPage() {
         return `Para guardar en inventario necesito la canasta/ubicación de: ${faltan}. ¿En qué canasta lo guardaste?`;
       }
       const imgUrl = preConfirmPhoto?.imageUrl || '';
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const payloads = items.map(item => { const p: any = { model: item.model || '', category: resolveTenantCategory(item.category, config.categories), product_id: item.product_id || '', color: item.color || '', size: item.size || '', quantity: normalizeQuantity(item.quantity), basket_location: String(item.basket_location).trim(), type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: 0, image_url: imgUrl }; if (hasOwner) p.owner = owner; return p; });
+      const payloads = items.map(item => {
+        // El costo unitario SÍ se persiste en `reference` (antes se pedía y se
+        // descartaba). La talla se normaliza al vocabulario de la UI ('Única'
+        // para sin-talla) para que el filtro/búsqueda la encuentre.
+        const itemCost = parseCopAmount(item.cost as string | number) ?? 0;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const p: any = { model: item.model || '', category: resolveTenantCategory(item.category, config.categories), product_id: item.product_id || '', color: item.color || '', size: normalizeInventorySize(item.size), quantity: normalizeQuantity(item.quantity), basket_location: String(item.basket_location).trim(), type: item.type || '', observations: item.observations || '', status: 'Bueno', verified: false, reference: itemCost, image_url: imgUrl };
+        if (hasOwner) p.owner = owner;
+        return p;
+      });
       const { error } = await supabase.from('inventory').insert(payloads);
       if (error) throw error;
       setPreConfirmPhoto(null);
-      return `${items.length} item(s) agregados al inventario.${imgUrl ? ' Con foto.' : ''}`;
+      const totalU = payloads.reduce((s: number, p: Record<string, unknown>) => s + (Number(p.quantity) || 0), 0);
+      const withCost = payloads.some((p: Record<string, unknown>) => Number(p.reference) > 0);
+      return `${items.length} item(s) (${totalU} u.) agregados al inventario${withCost ? ' con costo' : ''}.${imgUrl ? ' Con foto.' : ''}`;
     }
     if (action === 'mark_defective') {
       const defData = data as Record<string, unknown>;

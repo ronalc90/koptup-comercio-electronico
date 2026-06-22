@@ -7,6 +7,7 @@ import {
   isNonNegativeAmount,
   normalizeQuantity,
   normalizeStockQuantity,
+  normalizeInventorySize,
   isValidDateString,
   resolveDateRange,
 } from './validation';
@@ -95,6 +96,28 @@ describe('normalizeStockQuantity', () => {
     expect(normalizeStockQuantity(-1)).toBeNull();
     expect(normalizeStockQuantity('x')).toBeNull();
     expect(normalizeStockQuantity(undefined)).toBeNull();
+  });
+});
+
+describe('normalizeInventorySize', () => {
+  it('sin talla / vacío / sinónimos → "Única"', () => {
+    expect(normalizeInventorySize('')).toBe('Única');
+    expect(normalizeInventorySize('   ')).toBe('Única');
+    expect(normalizeInventorySize(undefined)).toBe('Única');
+    expect(normalizeInventorySize('talla única')).toBe('Única');
+    expect(normalizeInventorySize('unitalla')).toBe('Única');
+    expect(normalizeInventorySize('sin talla')).toBe('Única');
+    expect(normalizeInventorySize('U')).toBe('Única');
+    expect(normalizeInventorySize('N/A')).toBe('Única');
+  });
+  it('tallas alfabéticas → MAYÚSCULAS', () => {
+    expect(normalizeInventorySize('m')).toBe('M');
+    expect(normalizeInventorySize('xl')).toBe('XL');
+    expect(normalizeInventorySize('Xs')).toBe('XS');
+  });
+  it('números se conservan tal cual (sin convertir a rango)', () => {
+    expect(normalizeInventorySize('38')).toBe('38');
+    expect(normalizeInventorySize(' 40 ')).toBe('40');
   });
 });
 
