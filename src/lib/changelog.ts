@@ -12,6 +12,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.041',
+    date: '2026-06-20',
+    highlights: [
+      'El asistente ahora hace MUCHO más por chat o voz, no solo pedidos e inventario.',
+      'Catálogo: crear productos nuevos y editarlos (nombre, categoría, costo, activar/desactivar). Antes solo se podía cambiar el costo.',
+      'Inventario: corregir la cantidad exacta de un producto ("corrige el stock de X a 8") y moverlo de canasta ("pasa las X de la C03 a la C10").',
+      'Gastos: ver el desglose por categoría ("¿en qué gasté este mes?"), buscar por rango de fechas y corregir un gasto ya registrado.',
+      'Alertas: pedirle la lista de alertas abiertas y marcarlas como resueltas desde el chat.',
+      'Volver a mostrar/imprimir la guía de despacho de cualquier pedido ("dame la guía del pedido #4061801"), no solo al crearlo.',
+      'Todo con confirmación antes de guardar y, si hay varios productos/pedidos/gastos parecidos, te pregunta cuál para no equivocarse.',
+    ],
+  },
+  {
     version: '1.040',
     date: '2026-06-20',
     highlights: [

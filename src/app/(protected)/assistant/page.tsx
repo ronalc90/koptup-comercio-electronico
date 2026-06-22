@@ -23,12 +23,14 @@ import {
   type Workday,
 } from '@/lib/workdayArchive';
 import { detectConfirmIntent } from '@/lib/assistant/confirmIntent';
-import { MODIFYING_ACTIONS, EDITABLE_ORDER_FIELDS } from '@/lib/assistant/constants';
+import { MODIFYING_ACTIONS, EDITABLE_ORDER_FIELDS, EDITABLE_EXPENSE_FIELDS } from '@/lib/assistant/constants';
 import {
   normalizeOrderStatus,
   normalizeExpenseCategory,
   resolveTenantCategory,
   normalizeQuantity,
+  normalizeStockQuantity,
+  isValidDateString,
 } from '@/lib/assistant/validation';
 import { resolveSingleMatch } from '@/lib/assistant/matching';
 import { buildAssistantExamples, type ExampleGroup } from '@/lib/assistant/examples';
@@ -357,6 +359,11 @@ export default function AssistantPage() {
         } catch {
           toast.error('Error al generar el reporte');
         }
+      }
+
+      // Reimprimir guía: el route resolvió el pedido; mostramos la guía (read-only).
+      if (data.action === 'reprint_order_guide' && data.data && data.data.order_code) {
+        setShowGuide(data.data as Record<string, unknown>);
       }
     } catch (err: unknown) {
       const raw = err instanceof Error ? err.message : '';
@@ -688,6 +695,163 @@ export default function AssistantPage() {
       if (error) throw new Error('No se pudo actualizar el pedido: ' + error.message);
       return `Pedido #${ed.order_code} de ${ed.client_name} actualizado (${Object.keys(safe).join(', ')}).`;
     }
+    if (action === 'create_product') {
+      const pd = data as Record<string, unknown>;
+      const code = String(pd.code || '').trim().toUpperCase().slice(0, 10);
+      const name = String(pd.name || '').trim();
+      const cost = parseCopAmount(pd.cost as string | number);
+      if (!code) return 'Necesito el código del producto (ej: CAS001) para crearlo. ¿Cuál es?';
+      if (!name) return 'Necesito el nombre del producto. ¿Cuál es?';
+      if (cost === null || cost < 0) return `No entendí el costo ("${pd.cost}"). Dame un número válido en COP.`;
+      const category = resolveTenantCategory(pd.category, config.categories);
+      const active = typeof pd.active === 'boolean' ? pd.active : true;
+      let dq = supabase.from('products').select('id').eq('code', code);
+      if (hasOwner) dq = dq.eq('owner', owner);
+      const { data: dup } = await dq.limit(1);
+      if (dup?.length) return `Ya existe un producto con el código "${code}". Usa otro código o edítalo.`;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const payload: any = { code, name, cost, category, active, image_url: null };
+      if (hasOwner) payload.owner = owner;
+      const { error } = await supabase.from('products').insert(payload);
+      if (error) {
+        const raw = error.message || '';
+        if (raw.includes('PLAN_LIMIT')) return 'Alcanzaste el límite de productos de tu plan. Sube de plan para agregar más.';
+        if ((error as { code?: string }).code === '23505') return `Ya existe un producto con el código "${code}".`;
+        throw new Error('No se pudo crear el producto: ' + raw);
+      }
+      return `Producto creado: ${code} — ${name} (${category}) a ${formatCurrency(cost)}.`;
+    }
+    if (action === 'edit_product') {
+      const pd = data as Record<string, unknown>;
+      const updatesRaw = (pd.updates || {}) as Record<string, unknown>;
+      let pq = supabase.from('products').select('*');
+      if (hasOwner) pq = pq.eq('owner', owner);
+      const code = String(pd.code || '').trim();
+      const nameMatch = String(pd.name_match || '').trim().toLowerCase();
+      if (code) pq = pq.eq('code', code.toUpperCase());
+      else if (nameMatch) pq = pq.ilike('name', `%${nameMatch}%`);
+      else return 'Dime el código o el nombre del producto a editar.';
+      const { data: prods } = await pq.limit(5);
+      const res = resolveSingleMatch(prods);
+      if (res.kind === 'none') return 'No encontré ese producto. Dame el código o el nombre exacto.';
+      if (res.kind === 'ambiguous') {
+        const list = res.candidates.map((p: Record<string, unknown>) => `• ${String(p.name)} (${String(p.code)})`).join('\n');
+        return `Hay varios productos que coinciden, no edité ninguno. ¿Cuál?\n${list}`;
+      }
+      const product = res.item;
+      const safe: Record<string, unknown> = {};
+      if (typeof updatesRaw.name === 'string' && updatesRaw.name.trim()) safe.name = updatesRaw.name.trim();
+      if (updatesRaw.category !== undefined) safe.category = resolveTenantCategory(updatesRaw.category, config.categories);
+      if (updatesRaw.cost !== undefined) {
+        const c = parseCopAmount(updatesRaw.cost as string | number);
+        if (c === null || c < 0) return `Costo inválido ("${updatesRaw.cost}").`;
+        safe.cost = c;
+      }
+      if (typeof updatesRaw.active === 'boolean') safe.active = updatesRaw.active;
+      if (Object.keys(safe).length === 0) return 'No identifiqué qué cambiar del producto (nombre, categoría, costo o activar/desactivar).';
+      const { error } = await supabase.from('products').update(safe).eq('id', product.id);
+      if (error) throw new Error('No se pudo actualizar el producto: ' + error.message);
+      let tail = '';
+      if (safe.cost !== undefined && product.code) {
+        let iq = supabase.from('inventory').select('id');
+        if (hasOwner) iq = iq.eq('owner', owner);
+        iq = iq.eq('product_id', product.code);
+        const { data: inv } = await iq;
+        if (inv?.length) {
+          await supabase.from('inventory').update({ reference: safe.cost }).in('id', inv.map((i: Record<string, unknown>) => i.id));
+          tail = ` (${inv.length} item(s) de inventario sincronizados)`;
+        }
+      }
+      return `Producto "${product.name}" actualizado (${Object.keys(safe).join(', ')}).${tail}`;
+    }
+    if (action === 'adjust_inventory') {
+      const ad = data as Record<string, unknown>;
+      const qty = normalizeStockQuantity(ad.quantity);
+      if (qty === null) return 'Dime la cantidad exacta que queda (un número 0 o mayor).';
+      const model = String(ad.model || '').toLowerCase();
+      let iq = supabase.from('inventory').select('*').eq('status', 'Bueno');
+      if (hasOwner) iq = iq.eq('owner', owner);
+      if (model) iq = iq.ilike('model', `%${model}%`);
+      if (ad.color) iq = iq.ilike('color', `%${String(ad.color)}%`);
+      if (ad.size) iq = iq.ilike('size', `%${String(ad.size)}%`);
+      if (ad.basket_location) iq = iq.ilike('basket_location', `%${String(ad.basket_location)}%`);
+      const { data: items } = await iq.limit(5);
+      const res = resolveSingleMatch(items);
+      if (res.kind === 'none') return 'No encontré ese producto en inventario.';
+      if (res.kind === 'ambiguous') {
+        const list = res.candidates.map((i: Record<string, unknown>) => `• ${String(i.model || '')} ${String(i.color || '')} ${String(i.size || '')} (${String(i.basket_location || 's/canasta')}) — ${String(i.quantity)} u.`).join('\n');
+        return `Hay varios items que coinciden, no ajusté ninguno. ¿Cuál?\n${list}`;
+      }
+      const item = res.item;
+      const { error } = await supabase.from('inventory').update({ quantity: qty }).eq('id', item.id);
+      if (error) throw new Error('No se pudo ajustar el stock: ' + error.message);
+      return `Stock de ${item.model}${item.color ? ` ${item.color}` : ''} ajustado a ${qty} (antes ${item.quantity}).`;
+    }
+    if (action === 'move_inventory') {
+      const md = data as Record<string, unknown>;
+      const to = String(md.to_location || '').trim();
+      if (!to) return '¿A qué canasta o ubicación lo muevo?';
+      const model = String(md.model || '').toLowerCase();
+      let iq = supabase.from('inventory').select('*').eq('status', 'Bueno');
+      if (hasOwner) iq = iq.eq('owner', owner);
+      if (model) iq = iq.ilike('model', `%${model}%`);
+      if (md.color) iq = iq.ilike('color', `%${String(md.color)}%`);
+      if (md.size) iq = iq.ilike('size', `%${String(md.size)}%`);
+      if (md.from_location) iq = iq.ilike('basket_location', `%${String(md.from_location)}%`);
+      const { data: items } = await iq.limit(5);
+      const res = resolveSingleMatch(items);
+      if (res.kind === 'none') return 'No encontré ese producto en inventario.';
+      if (res.kind === 'ambiguous') {
+        const list = res.candidates.map((i: Record<string, unknown>) => `• ${String(i.model || '')} ${String(i.color || '')} ${String(i.size || '')} (${String(i.basket_location || 's/canasta')})`).join('\n');
+        return `Hay varios items que coinciden, no moví ninguno. ¿Cuál?\n${list}`;
+      }
+      const item = res.item;
+      const { error } = await supabase.from('inventory').update({ basket_location: to }).eq('id', item.id);
+      if (error) throw new Error('No se pudo mover el item: ' + error.message);
+      return `${item.model}${item.color ? ` ${item.color}` : ''} movido de ${item.basket_location || 's/canasta'} a ${to}.`;
+    }
+    if (action === 'edit_expense') {
+      const ed = data as Record<string, unknown>;
+      const id = ed.expense_id;
+      const updates = (ed.updates || {}) as Record<string, unknown>;
+      const safe: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(updates)) {
+        if (!(EDITABLE_EXPENSE_FIELDS as readonly string[]).includes(k)) continue;
+        if (k === 'amount') {
+          const a = parseCopAmount(v as string | number);
+          if (a === null || a <= 0) return `Monto inválido ("${v}").`;
+          safe.amount = a;
+        } else if (k === 'category') {
+          safe.category = normalizeExpenseCategory(v);
+        } else if (k === 'expense_date') {
+          if (!isValidDateString(v)) return `Fecha inválida ("${v}"). Usa el formato AAAA-MM-DD.`;
+          safe.expense_date = v;
+        } else if (k === 'description') {
+          const s = String(v || '').trim();
+          if (s) safe.description = s;
+        }
+      }
+      if (!id || Object.keys(safe).length === 0) return 'No había cambios válidos para el gasto.';
+      const { error } = await supabase.from('expenses').update(safe).eq('id', Number(id));
+      if (error) throw new Error('No se pudo actualizar el gasto: ' + error.message);
+      return `Gasto "${ed.description}" actualizado (${Object.keys(safe).join(', ')}).`;
+    }
+    if (action === 'resolve_alert') {
+      const rd = data as Record<string, unknown>;
+      const id = rd.alert_id;
+      if (!id) return 'No identifiqué la alerta a resolver.';
+      // Las alertas son deny-anon: se resuelven por el endpoint server-side.
+      const res = await fetch('/api/alerts', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: Number(id) }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        throw new Error((d as { error?: string }).error || 'No se pudo resolver la alerta');
+      }
+      return `Alerta "${rd.title || ''}" marcada como resuelta.`;
+    }
     return 'Acción no reconocida.';
   };
 
@@ -829,6 +993,15 @@ export default function AssistantPage() {
       case 'multi_action': return <Sparkles className="w-4 h-4 text-purple-500" />;
       case 'monthly_summary': return <FileText className="w-4 h-4 text-indigo-500" />;
       case 'search_expenses': return <Receipt className="w-4 h-4 text-pink-500" />;
+      case 'create_product': return <Package className="w-4 h-4 text-teal-500" />;
+      case 'edit_product': return <Package className="w-4 h-4 text-indigo-500" />;
+      case 'adjust_inventory': return <Package className="w-4 h-4 text-amber-500" />;
+      case 'move_inventory': return <MapPin className="w-4 h-4 text-teal-500" />;
+      case 'edit_expense': return <Receipt className="w-4 h-4 text-pink-500" />;
+      case 'expense_totals_by_category': return <FileText className="w-4 h-4 text-pink-500" />;
+      case 'search_alerts': return <AlertTriangle className="w-4 h-4 text-amber-500" />;
+      case 'resolve_alert': return <CheckCircle className="w-4 h-4 text-green-500" />;
+      case 'reprint_order_guide': return <FileText className="w-4 h-4 text-blue-500" />;
       default: return null;
     }
   };
@@ -851,6 +1024,15 @@ export default function AssistantPage() {
       case 'multi_action': return 'Varias acciones';
       case 'monthly_summary': return 'Resumen del mes';
       case 'search_expenses': return 'Buscar gastos';
+      case 'create_product': return 'Crear producto';
+      case 'edit_product': return 'Editar producto';
+      case 'adjust_inventory': return 'Ajustar stock';
+      case 'move_inventory': return 'Mover inventario';
+      case 'edit_expense': return 'Editar gasto';
+      case 'expense_totals_by_category': return 'Gastos por categoría';
+      case 'search_alerts': return 'Alertas';
+      case 'resolve_alert': return 'Resolver alerta';
+      case 'reprint_order_guide': return 'Guía de despacho';
       default: return '';
     }
   };

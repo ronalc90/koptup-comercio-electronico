@@ -104,6 +104,55 @@ const SECTIONS: Section[] = [
       '"Ganancias de marzo"',
     ],
   },
+  {
+    icon: <Package className="w-4 h-4" />,
+    title: 'Catálogo: crear y editar productos',
+    color: 'bg-teal-50 text-teal-700 border-teal-100',
+    examples: [
+      '"Crea el producto código C001, [nombre], $50.000"',
+      '"Cambia el nombre del producto C001 a ..."',
+      '"Sube el costo del C001 a 60 mil"',
+      '"Desactiva el producto C001"',
+    ],
+  },
+  {
+    icon: <Package className="w-4 h-4" />,
+    title: 'Ajustar y mover inventario',
+    color: 'bg-amber-50 text-amber-700 border-amber-100',
+    examples: [
+      '"Corrige el stock de [producto] a 8"',
+      '"Quedan 0 de [producto] en la C03"',
+      '"Pasa las [producto] de la C03 a la C10"',
+    ],
+  },
+  {
+    icon: <Receipt className="w-4 h-4" />,
+    title: 'Gastos: desglose, rango y editar',
+    color: 'bg-pink-50 text-pink-700 border-pink-100',
+    examples: [
+      '"¿En qué gasté este mes?"',
+      '"Gastos entre el 1 y el 15 de junio"',
+      '"El arriendo eran 850 mil, no 800"',
+    ],
+  },
+  {
+    icon: <AlertTriangle className="w-4 h-4" />,
+    title: 'Alertas del negocio',
+    color: 'bg-amber-50 text-amber-700 border-amber-100',
+    examples: [
+      '"¿Qué alertas tengo?"',
+      '"Resuelve la alerta de stock bajo"',
+    ],
+  },
+  {
+    icon: <FileText className="w-4 h-4" />,
+    title: 'Guía de despacho',
+    color: 'bg-blue-50 text-blue-700 border-blue-100',
+    examples: [
+      '"Dame la guía del pedido #4061801"',
+      '"Imprime la guía de Carlos"',
+    ],
+  },
 ];
 
 interface AssistantHelpModalProps {

@@ -58,6 +58,13 @@ export const MODIFYING_ACTIONS = [
   'register_expense',
   'update_cost',
   'edit_order',
+  // v1.041 — el chat ahora hace TODO lo que la app permite:
+  'create_product',
+  'edit_product',
+  'adjust_inventory',
+  'move_inventory',
+  'edit_expense',
+  'resolve_alert',
   'multi_action',
 ] as const;
 
@@ -73,3 +80,14 @@ export const EDITABLE_ORDER_FIELDS = [
   'product_ref',
   'city',
 ] as const;
+
+/** Campos editables vía edit_expense (whitelist). NO incluye owner/order_id. */
+export const EDITABLE_EXPENSE_FIELDS = [
+  'description',
+  'amount',
+  'category',
+  'expense_date',
+] as const;
+
+/** Campos editables vía edit_product (whitelist). El code (clave) NO se edita por chat. */
+export const EDITABLE_PRODUCT_FIELDS = ['name', 'category', 'cost', 'active'] as const;

@@ -4,7 +4,8 @@ import { getRequestScopedClient } from '@/lib/tenantServer';
 import { loadTenantConfig } from '@/lib/tenantConfigServer';
 import type { TenantConfig } from '@/lib/tenants.config';
 import { resolveSingleMatch } from '@/lib/assistant/matching';
-import { ACTIVE_REVENUE_STATUSES, EDITABLE_ORDER_FIELDS } from '@/lib/assistant/constants';
+import { ACTIVE_REVENUE_STATUSES, EDITABLE_ORDER_FIELDS, EDITABLE_EXPENSE_FIELDS } from '@/lib/assistant/constants';
+import { normalizeExpenseCategory, resolveDateRange } from '@/lib/assistant/validation';
 
 /**
  * Sanea un término antes de interpolarlo dentro de un filtro PostgREST `.or(...)`.
@@ -55,6 +56,11 @@ Eres un multi-agente que puede:
 9. **REGISTRAR COSTO**: Cuando dice "me llegó mercancía a $X", "tal producto me costó $15.000 cada uno", "el costo de tal es $12.000"
 10. **CAMBIAR ESTADO DE PEDIDO**: Cuando dice "coloca el pedido de Carlos como entregado", "marca el pedido #4041301 como cancelado", "el pedido de María ya se entregó"
 11. **REGISTRAR GASTO**: Cuando dice "gasté $50.000 en envíos", "pagué $30.000 de arriendo", "compré bolsas por $10.000"
+12. **CREAR PRODUCTO** en el catálogo / **EDITAR PRODUCTO** (nombre, categoría, costo, activar/desactivar)
+13. **AJUSTAR STOCK** (corregir la cantidad exacta de un item) / **MOVER** un item de canasta
+14. **EDITAR un GASTO** ya registrado / **DESGLOSE de gastos por categoría** / buscar gastos por rango de fechas
+15. **ALERTAS**: listar las alertas abiertas del negocio y marcarlas como resueltas
+16. **REIMPRIMIR GUÍA**: volver a mostrar la guía de despacho de un pedido existente
 
 Analiza el contexto y decide qué acción(es) tomar. Puedes ejecutar MÚLTIPLES ACCIONES simultáneamente.
 
@@ -363,14 +369,118 @@ Para RESUMEN MENSUAL (cuando pregunta ventas del mes, ganancias, cuánto llevo):
   "message": "voy a calcular..."
 }
 
-Para BUSCAR GASTOS:
+Para BUSCAR GASTOS (acepta día exacto O rango desde/hasta):
 {
   "action": "search_expenses",
   "search": {
     "category": "string o null",
-    "date": "YYYY-MM-DD o null"
+    "date": "YYYY-MM-DD o null (día exacto; tiene prioridad sobre el rango)",
+    "date_from": "YYYY-MM-DD o null",
+    "date_to": "YYYY-MM-DD o null"
   },
   "message": "voy a buscar..."
+}
+
+Para DESGLOSE DE GASTOS POR CATEGORÍA ("¿en qué gasté?", "desglose de gastos de mayo"):
+{
+  "action": "expense_totals_by_category",
+  "data": {
+    "month": "número 1-12 o null (default mes actual)",
+    "year": "número o null",
+    "date_from": "YYYY-MM-DD o null",
+    "date_to": "YYYY-MM-DD o null"
+  },
+  "message": "voy a calcular..."
+}
+
+Para EDITAR un gasto ya registrado ("el arriendo eran 850 mil", "cámbiale la categoría a servicios al gasto de la luz"):
+{
+  "action": "edit_expense",
+  "data": {
+    "expense_id": number o null,
+    "description": "texto para ubicar el gasto si no hay id, o null",
+    "amount": number o null (para ubicarlo),
+    "expense_date": "YYYY-MM-DD o null (para ubicarlo)",
+    "updates": { "description": "...", "amount": number, "category": "...", "expense_date": "YYYY-MM-DD" }
+  },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+
+Para CREAR un PRODUCTO en el catálogo ("crea el producto X código Y a $Z", "da de alta tal repuesto"):
+{
+  "action": "create_product",
+  "data": {
+    "code": "string (código corto del producto, ej: CAS001)",
+    "name": "string",
+    "cost": number (costo en COP),
+    "category": "una de las categorías válidas: ${categories}",
+    "active": true
+  },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+IMPORTANTE create_product: el código es OBLIGATORIO. Si el usuario no lo da, PREGÚNTALO con action="chat" antes de crear (no lo inventes).
+
+Para EDITAR un PRODUCTO existente (nombre, categoría, costo o activar/desactivar):
+{
+  "action": "edit_product",
+  "data": {
+    "code": "string o null (código exacto del producto)",
+    "name_match": "string o null (para ubicarlo por nombre si no hay código)",
+    "updates": { "name": "...", "category": "...", "cost": number, "active": true/false }
+  },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+
+Para AJUSTAR/CORREGIR el stock de un item de inventario ("corrige el stock de X a 5", "quedan 8 de tal"):
+{
+  "action": "adjust_inventory",
+  "data": {
+    "model": "string",
+    "color": "string o null",
+    "size": "string o null",
+    "basket_location": "string o null (para desambiguar)",
+    "quantity": number (cantidad EXACTA que queda; >= 0)
+  },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+
+Para MOVER un item de inventario de canasta/ubicación ("pasa las X de la C03 a la C10"):
+{
+  "action": "move_inventory",
+  "data": {
+    "model": "string",
+    "color": "string o null",
+    "size": "string o null",
+    "from_location": "string o null (canasta actual, para desambiguar)",
+    "to_location": "string (canasta/ubicación destino)"
+  },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+
+Para LISTAR ALERTAS abiertas del negocio ("¿qué alertas tengo?", "avisos pendientes"):
+{
+  "action": "search_alerts",
+  "message": "voy a revisar las alertas..."
+}
+
+Para RESOLVER/MARCAR una alerta como atendida ("resuelve la alerta de stock bajo", "marca como vista la alerta X"):
+{
+  "action": "resolve_alert",
+  "data": { "alert_id": number o null, "title": "texto para ubicar la alerta si no hay id" },
+  "message": "resumen amigable",
+  "needs_confirmation": true
+}
+
+Para VOLVER A MOSTRAR la guía de despacho de un pedido ("dame la guía del pedido #4061801", "imprime la guía de Carlos"):
+{
+  "action": "reprint_order_guide",
+  "data": { "order_code": "string o null", "client_name": "string o null" },
+  "message": "aquí está la guía"
 }
 
 Reglas:
@@ -631,9 +741,13 @@ export async function POST(request: NextRequest) {
       const s = parsed.search || {};
       const today = new Date().toISOString().slice(0, 10);
       let query = supabase.from('expenses').select('*');
-      if (s.category) query = query.eq('category', s.category);
+      // Categoría normalizada al enum (antes el .eq crudo no matcheaba por acento/caso).
+      if (s.category) query = query.eq('category', normalizeExpenseCategory(s.category));
+      const range = resolveDateRange(s.date_from, s.date_to, today);
       if (s.date) {
-        query = query.eq('expense_date', s.date);
+        query = query.eq('expense_date', s.date); // día exacto tiene prioridad
+      } else if (range) {
+        query = query.gte('expense_date', range.from).lte('expense_date', range.to);
       } else {
         // Default: this month
         const from = today.slice(0, 8) + '01';
@@ -701,6 +815,157 @@ export async function POST(request: NextRequest) {
         parsed.data = { order_id: order.id, order_code: order.order_code, client_name: order.client_name, updates: safeUpdates };
         parsed.needs_confirmation = true;
         parsed.message = `Voy a actualizar el pedido #${order.order_code} de ${order.client_name} (${changedFields}). ¿Confirmás?`;
+      }
+    }
+
+    // Desglose de gastos por categoría (read).
+    if (parsed.action === 'expense_totals_by_category') {
+      const d = parsed.data || {};
+      const now = new Date();
+      const today = now.toISOString().slice(0, 10);
+      const range = resolveDateRange(d.date_from, d.date_to, today);
+      let from: string, to: string;
+      if (range) {
+        from = range.from; to = range.to;
+      } else {
+        const m = Number(d.month) || (now.getMonth() + 1);
+        const y = Number(d.year) || now.getFullYear();
+        from = `${y}-${String(m).padStart(2, '0')}-01`;
+        const lastDay = new Date(y, m, 0).getDate();
+        to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      }
+      const { data: rows, error } = await supabase.from('expenses').select('category, amount')
+        .gte('expense_date', from).lte('expense_date', to);
+      if (error) {
+        parsed.message = 'No pude calcular los gastos en este momento. Inténtalo de nuevo.';
+        parsed.results = [];
+      } else {
+        const totals: Record<string, number> = {};
+        let grand = 0;
+        for (const e of (rows || []) as Array<Record<string, unknown>>) {
+          const c = String(e.category || 'otro');
+          const a = Number(e.amount) || 0;
+          totals[c] = (totals[c] || 0) + a;
+          grand += a;
+        }
+        const arr = Object.entries(totals).map(([category, total]) => ({ category, total })).sort((a, b) => b.total - a.total);
+        if (!arr.length) {
+          parsed.message = `No hay gastos registrados entre ${from} y ${to}.`;
+          parsed.results = [];
+        } else {
+          const lines = arr.map((x) => `• ${x.category}: $${x.total.toLocaleString('es-CO')}`).join('\n');
+          parsed.message = `Gastos del ${from} al ${to} por categoría:\n${lines}\n\nTotal: $${grand.toLocaleString('es-CO')}`;
+          parsed.results = []; // el desglose va en el mensaje (no como botones)
+        }
+      }
+    }
+
+    // Editar gasto: RESUELVE y PROPONE (el cliente aplica el UPDATE por id tras confirmar).
+    if (parsed.action === 'edit_expense') {
+      const d = parsed.data || {};
+      let query = supabase.from('expenses').select('*');
+      if (d.expense_id) query = query.eq('id', Number(d.expense_id));
+      else {
+        if (d.description) query = query.ilike('description', `%${d.description}%`);
+        if (d.amount) query = query.eq('amount', Number(d.amount));
+        if (d.expense_date) query = query.eq('expense_date', String(d.expense_date));
+      }
+      const { data: found, error } = await query.order('created_at', { ascending: false }).limit(5);
+      const updatesRaw = (d.updates || {}) as Record<string, unknown>;
+      const safe: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(updatesRaw)) {
+        if ((EDITABLE_EXPENSE_FIELDS as readonly string[]).includes(k)) safe[k] = v;
+      }
+      const resolution = error ? { kind: 'none' as const } : resolveSingleMatch(found);
+      parsed.confirmed = false;
+      if (Object.keys(safe).length === 0) {
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = 'No identifiqué qué cambiar del gasto. Ej: "el arriendo eran 850 mil".';
+      } else if (resolution.kind === 'none') {
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = error ? 'No pude buscar el gasto. Inténtalo de nuevo.' : 'No encontré ese gasto. Dime la descripción o el monto.';
+      } else if (resolution.kind === 'ambiguous') {
+        const list = resolution.candidates.map((e) => `• ${e.description} — $${Number(e.amount || 0).toLocaleString('es-CO')} (${e.expense_date})`).join('\n');
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = `Hay varios gastos que coinciden, no edité ninguno. ¿Cuál?\n${list}`;
+      } else {
+        const exp = resolution.item;
+        parsed.data = { expense_id: exp.id, description: exp.description, updates: safe };
+        parsed.needs_confirmation = true;
+        parsed.message = `Voy a actualizar el gasto "${exp.description}" (${Object.keys(safe).join(', ')}). ¿Confirmás?`;
+      }
+    }
+
+    // Listar alertas abiertas del propio negocio (read). El cliente scoped service
+    // ya filtra por tenant_id (guard) y el service role evita la RLS deny-anon.
+    if (parsed.action === 'search_alerts') {
+      const { data: rows, error } = await supabase.from('alerts')
+        .select('id, kind, severity, title, message, created_at')
+        .is('resolved_at', null)
+        .order('created_at', { ascending: false })
+        .limit(SEARCH_LIMIT);
+      if (error) {
+        parsed.message = 'No pude consultar las alertas en este momento. Inténtalo de nuevo.';
+        parsed.results = [];
+      } else if (!rows?.length) {
+        parsed.message = 'No tienes alertas abiertas. Todo en orden 👌';
+        parsed.results = [];
+      } else {
+        const lines = rows.map((a: Record<string, unknown>) => `• ${a.title}${a.message ? ` — ${a.message}` : ''}`).join('\n');
+        parsed.message = `Tienes ${rows.length} alerta(s) abierta(s)${moreHint(rows.length)}:\n${lines}`;
+        parsed.results = []; // la lista va en el mensaje (no como botones)
+      }
+    }
+
+    // Resolver alerta: RESUELVE y PROPONE; el cliente confirma vía PATCH /api/alerts.
+    if (parsed.action === 'resolve_alert') {
+      const d = parsed.data || {};
+      let query = supabase.from('alerts').select('id, title, message').is('resolved_at', null);
+      if (d.alert_id) query = query.eq('id', Number(d.alert_id));
+      else if (d.title) query = query.ilike('title', `%${d.title}%`);
+      const { data: found, error } = await query.order('created_at', { ascending: false }).limit(5);
+      const resolution = error ? { kind: 'none' as const } : resolveSingleMatch(found);
+      parsed.confirmed = false;
+      if (resolution.kind === 'none') {
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = error ? 'No pude consultar las alertas. Inténtalo de nuevo.' : 'No encontré una alerta abierta que coincida.';
+      } else if (resolution.kind === 'ambiguous') {
+        const list = resolution.candidates.map((a) => `• ${a.title}`).join('\n');
+        parsed.action = 'chat'; parsed.needs_confirmation = false;
+        parsed.message = `Hay varias alertas que coinciden, ¿cuál marco como resuelta?\n${list}`;
+      } else {
+        const al = resolution.item;
+        parsed.data = { alert_id: al.id, title: al.title };
+        parsed.needs_confirmation = true;
+        parsed.message = `Voy a marcar como resuelta la alerta "${al.title}". ¿Confirmás?`;
+      }
+    }
+
+    // Reimprimir la guía de un pedido existente (read): devuelve los campos que
+    // consume la GuideCard; el cliente la muestra con setShowGuide.
+    if (parsed.action === 'reprint_order_guide') {
+      const d = parsed.data || {};
+      let query = supabase.from('orders').select('*');
+      if (d.order_code) query = query.eq('order_code', String(d.order_code));
+      else if (d.client_name) query = query.ilike('client_name', `%${d.client_name}%`);
+      const { data: found, error } = await query.order('created_at', { ascending: false }).limit(5);
+      const resolution = error ? { kind: 'none' as const } : resolveSingleMatch(found);
+      if (resolution.kind === 'none') {
+        parsed.action = 'chat';
+        parsed.message = error ? 'No pude buscar el pedido. Inténtalo de nuevo.' : 'No encontré ese pedido. Dame el código o el nombre del cliente.';
+      } else if (resolution.kind === 'ambiguous') {
+        const list = resolution.candidates.map((o) => `• #${o.order_code} — ${o.client_name} (${o.delivery_status})`).join('\n');
+        parsed.action = 'chat';
+        parsed.message = `Hay varios pedidos que coinciden, ¿cuál? Dame el código:\n${list}`;
+      } else {
+        const o = resolution.item;
+        parsed.data = {
+          order_code: o.order_code, client_name: o.client_name, phone: o.phone, address: o.address,
+          complement: o.complement, product_ref: o.product_ref, detail: o.detail,
+          value_to_collect: o.value_to_collect, comment: o.comment,
+          payment_timing: o.payment_timing, prepaid_amount: o.prepaid_amount,
+        };
+        parsed.message = `Aquí está la guía del pedido #${o.order_code} de ${o.client_name}.`;
       }
     }
 

@@ -6,6 +6,9 @@ import {
   resolveTenantCategory,
   isNonNegativeAmount,
   normalizeQuantity,
+  normalizeStockQuantity,
+  isValidDateString,
+  resolveDateRange,
 } from './validation';
 
 describe('normalizeOrderStatus', () => {
@@ -80,5 +83,43 @@ describe('normalizeQuantity', () => {
     expect(normalizeQuantity(-5)).toBe(1);
     expect(normalizeQuantity(undefined)).toBe(1);
     expect(normalizeQuantity('abc')).toBe(1);
+  });
+});
+
+describe('normalizeStockQuantity', () => {
+  it('entero >= 0 (permite 0), null si inválido', () => {
+    expect(normalizeStockQuantity(0)).toBe(0);
+    expect(normalizeStockQuantity(5)).toBe(5);
+    expect(normalizeStockQuantity('8')).toBe(8);
+    expect(normalizeStockQuantity(3.9)).toBe(3);
+    expect(normalizeStockQuantity(-1)).toBeNull();
+    expect(normalizeStockQuantity('x')).toBeNull();
+    expect(normalizeStockQuantity(undefined)).toBeNull();
+  });
+});
+
+describe('isValidDateString', () => {
+  it('acepta fechas reales YYYY-MM-DD y rechaza el resto', () => {
+    expect(isValidDateString('2026-06-20')).toBe(true);
+    expect(isValidDateString('2026-02-30')).toBe(false); // no existe
+    expect(isValidDateString('2026-6-1')).toBe(false);
+    expect(isValidDateString('20-06-2026')).toBe(false);
+    expect(isValidDateString('')).toBe(false);
+    expect(isValidDateString(20260620)).toBe(false);
+  });
+});
+
+describe('resolveDateRange', () => {
+  const today = '2026-06-20';
+  it('null si no hay fechas válidas', () => {
+    expect(resolveDateRange(null, null, today)).toBeNull();
+    expect(resolveDateRange('basura', undefined, today)).toBeNull();
+  });
+  it('usa today como extremo faltante', () => {
+    expect(resolveDateRange('2026-06-01', null, today)).toEqual({ from: '2026-06-01', to: today });
+    expect(resolveDateRange(null, '2026-06-15', today)).toEqual({ from: '2026-06-15', to: today });
+  });
+  it('intercambia si from > to', () => {
+    expect(resolveDateRange('2026-06-30', '2026-06-01', today)).toEqual({ from: '2026-06-01', to: '2026-06-30' });
   });
 });

@@ -73,3 +73,36 @@ export function normalizeQuantity(raw: unknown): number {
   if (!Number.isFinite(n) || n < 1) return 1;
   return Math.floor(n);
 }
+
+/** Cantidad de stock válida para ajuste: entero >= 0 (permite 0). null si inválida. */
+export function normalizeStockQuantity(raw: unknown): number | null {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.floor(n);
+}
+
+/** Valida una fecha en formato YYYY-MM-DD (y que sea una fecha real). */
+export function isValidDateString(raw: unknown): raw is string {
+  if (typeof raw !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) return false;
+  const d = new Date(raw + 'T00:00:00');
+  return !Number.isNaN(d.getTime()) && raw === d.toISOString().slice(0, 10);
+}
+
+/**
+ * Resuelve un rango de fechas [from, to] para búsquedas. Si solo viene un
+ * extremo, usa `today` como el otro. Si from > to, los intercambia. Devuelve
+ * null si ninguna fecha válida (el caller cae a su default).
+ */
+export function resolveDateRange(
+  rawFrom: unknown,
+  rawTo: unknown,
+  today: string,
+): { from: string; to: string } | null {
+  const from = isValidDateString(rawFrom) ? rawFrom : null;
+  const to = isValidDateString(rawTo) ? rawTo : null;
+  if (!from && !to) return null;
+  let a = from ?? today;
+  let b = to ?? today;
+  if (a > b) [a, b] = [b, a];
+  return { from: a, to: b };
+}
