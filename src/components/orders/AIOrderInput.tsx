@@ -46,19 +46,27 @@ export default function AIOrderInput({ onOrderConfirmed }: AIOrderInputProps) {
 
       const data = await res.json();
 
-      if (!res.ok) {
+      // Errores/degradación discriminables (ej. IA no disponible): si el servidor
+      // mandó un mensaje conversacional, lo mostramos como respuesta del asistente
+      // en vez de lanzar, para no romper el flujo ni perder el contexto.
+      if (!res.ok && !data?.message) {
         throw new Error(data.error || 'Error al procesar');
       }
+
+      const status: 'complete' | 'needs_clarification' | 'not_order' | undefined = data.status;
 
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: data.message || 'Pedido procesado',
-        parsedOrder: data.parsed ? data.order : data.partial,
+        parsedOrder: status === 'complete' ? data.order : data.partial,
       };
 
       setMessages(prev => [...prev, assistantMsg]);
 
-      if (data.parsed && data.order) {
+      // Solo abrimos la tarjeta de confirmación cuando el pedido está COMPLETO y
+      // validado. Si falta info, las preguntas ya van en data.message y el usuario
+      // responde en el siguiente turno (el contexto se mantiene).
+      if (status === 'complete' && data.order) {
         setPendingOrder(data.order);
       }
     } catch (error: unknown) {
@@ -100,7 +108,9 @@ export default function AIOrderInput({ onOrderConfirmed }: AIOrderInputProps) {
     const recognition = new SpeechRecognitionAPI();
     recognition.lang = 'es-CO';
     recognition.interimResults = true;
-    recognition.continuous = false;
+    // continuous: no cortar a media frase en dictados largos; el envío ocurre
+    // cuando el usuario detiene la grabación (useEffect de auto-envío).
+    recognition.continuous = true;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
@@ -222,6 +232,7 @@ export default function AIOrderInput({ onOrderConfirmed }: AIOrderInputProps) {
           <div className="grid grid-cols-2 gap-2 text-xs text-green-700 mb-3">
             <p><span className="font-medium">Cliente:</span> {pendingOrder.client_name}</p>
             <p><span className="font-medium">Tel:</span> {pendingOrder.phone}</p>
+            <p className="col-span-2"><span className="font-medium">Dir:</span> {pendingOrder.address}{pendingOrder.complement ? `, ${pendingOrder.complement}` : ''}</p>
             <p><span className="font-medium">Valor:</span> {formatCurrency(pendingOrder.value_to_collect)}</p>
             <p><span className="font-medium">Producto:</span> {pendingOrder.detail}</p>
           </div>

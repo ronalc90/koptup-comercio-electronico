@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.051',
+    date: '2026-06-26',
+    highlights: [
+      'Pedido por IA mucho más inteligente: cuando algo queda ambiguo (faltó el color de una pantufla, no dijiste la talla, hay 3 unidades pero solo 2 colores, etc.) el asistente PREGUNTA exactamente lo que falta en vez de inventar o dejarlo en blanco. Respondes y el pedido se completa en la misma conversación.',
+      'Valida contra tu inventario real: si pides una talla o color que no existe (o una combinación que no tienes en stock), te avisa y te muestra las opciones disponibles antes de guardar.',
+      'Distingue "dos pantuflas y un bolso" (dos productos) de "dos pantuflas rojas" (uno con cantidad 2), e ignora el ruido de WhatsApp (saludos, emojis, "porfa") y los teléfonos alternativos.',
+      'Si la IA no está disponible ya no muestra un error feo: te invita a usar el formulario manual. Y los pedidos largos o respuestas a medias ya no rompen el chat.',
+    ],
+  },
+  {
     version: '1.050',
     date: '2026-06-26',
     highlights: [
