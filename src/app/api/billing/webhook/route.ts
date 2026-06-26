@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getStripe } from '@/lib/stripe';
-import { planForPriceId } from '@/lib/stripe';
+import { getStripe, planForPriceId } from '@/lib/stripe';
 import { getServiceClient } from '@/lib/supabase';
 import { addMonths, billingEffectForEvent } from '@/lib/billing';
 import { isPlan, planPrice, type Plan } from '@/lib/plans';
@@ -77,16 +76,27 @@ export async function POST(request: NextRequest) {
       const base = t?.license_until && (t.license_until as string) > today ? (t.license_until as string) : today;
       const newUntil = addMonths(base, 1);
       update.license_until = newUntil;
-      await db.from('tenants').update(update).eq('id', tenantId);
+
+      // IDEMPOTENCIA: registramos el cargo con el id del evento (índice único)
+      // ANTES de extender la licencia. Si Stripe reenvía el mismo evento, el
+      // insert choca (23505) y salimos sin volver a cobrar ni extender.
       if (plan) {
-        await db.from('charges').insert({
+        const { error: cErr } = await db.from('charges').insert({
           tenant_id: tenantId,
           amount: planPrice(plan),
           concept: `Stripe: plan ${plan} (1 mes)`,
           period_start: base,
           period_end: newUntil,
+          stripe_event_id: event.id,
         });
+        if (cErr) {
+          if ((cErr as { code?: string }).code === '23505') {
+            return NextResponse.json({ received: true, duplicate: true }); // evento ya procesado
+          }
+          throw new Error(cErr.message || 'No se pudo registrar el cargo');
+        }
       }
+      await db.from('tenants').update(update).eq('id', tenantId);
     } else {
       await db.from('tenants').update(update).eq('id', tenantId);
     }

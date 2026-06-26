@@ -12,6 +12,13 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.050',
+    date: '2026-06-26',
+    highlights: [
+      'Pagos más seguros: el cobro con Stripe ahora es a prueba de reintentos. Si Stripe reenvía el mismo aviso de pago (cosa que puede pasar), ya NO se cobra ni se renueva la licencia dos veces.',
+    ],
+  },
+  {
     version: '1.049',
     date: '2026-06-26',
     highlights: [
