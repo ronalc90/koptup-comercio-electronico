@@ -51,6 +51,36 @@ export function totalPaid(charges: ReadonlyArray<{ amount: number }>): number {
 }
 
 /**
+ * Efecto sobre la licencia de un evento de Stripe (puro y testeable). El webhook
+ * traduce el tipo de evento a qué hacer con la licencia del negocio:
+ *  - pagos OK → extender 1 mes y dejar la licencia ACTIVA.
+ *  - fallo/cancelación → SUSPENDER (no se borran datos; solo se bloquea según el plan).
+ *  - cualquier otro evento → no hacer nada (ack).
+ */
+export interface StripeBillingEffect {
+  extendLicense: boolean;
+  billingStatus: 'active' | 'suspended' | null;
+}
+export function billingEffectForEvent(eventType: string): StripeBillingEffect {
+  switch (eventType) {
+    // El pago de una factura (primera y renovaciones) extiende 1 mes y cobra.
+    case 'invoice.paid':
+    case 'invoice.payment_succeeded':
+      return { extendLicense: true, billingStatus: 'active' };
+    // El checkout solo ACTIVA el plan; NO extiende ni cobra (de eso se encarga
+    // invoice.paid, que también dispara en la primera suscripción) → evita el
+    // doble cobro/extensión en el alta.
+    case 'checkout.session.completed':
+      return { extendLicense: false, billingStatus: 'active' };
+    case 'invoice.payment_failed':
+    case 'customer.subscription.deleted':
+      return { extendLicense: false, billingStatus: 'suspended' };
+    default:
+      return { extendLicense: false, billingStatus: null };
+  }
+}
+
+/**
  * Avanza una fecha 'YYYY-MM-DD' N meses (para extender la licencia), fijando el
  * día al último válido del mes destino (ej. 31-ene + 1 mes = 28/29-feb, no
  * desborda a marzo).

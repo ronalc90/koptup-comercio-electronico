@@ -40,6 +40,8 @@ const STATUS_STYLE: Record<LicenseStatus, string> = {
   suspended: 'bg-amber-50 text-amber-700',
 };
 
+interface SaUser { id: number; email: string; username: string | null; role: string; active: boolean }
+
 export default function SuperadminPage() {
   const { role } = useTenant();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
@@ -56,6 +58,13 @@ export default function SuperadminPage() {
   const [editingCfg, setEditingCfg] = useState<TenantRow | null>(null);
   const [cfgForm, setCfgForm] = useState({ categories: '', tagline: '', phone: '', primaryColor: '', aiDomain: '' });
   const [cfgBusy, setCfgBusy] = useState(false);
+
+  // Gestión de usuarios de un negocio (el superadmin administra cualquier tenant).
+  const [usersFor, setUsersFor] = useState<TenantRow | null>(null);
+  const [tenantUsers, setTenantUsers] = useState<SaUser[]>([]);
+  const [uForm, setUForm] = useState({ email: '', username: '', password: '', role: 'member' });
+  const [uBusy, setUBusy] = useState(false);
+  const [uLoading, setULoading] = useState(false);
 
   const load = useCallback(async () => {
     const [m, b] = await Promise.all([
@@ -200,6 +209,47 @@ export default function SuperadminPage() {
     }
   }
 
+  async function openUsers(t: TenantRow) {
+    setUsersFor(t);
+    setTenantUsers([]);
+    setUForm({ email: '', username: '', password: '', role: 'member' });
+    setULoading(true);
+    const res = await fetch(`/api/superadmin/users?tenantId=${t.id}`, { cache: 'no-store' });
+    const j = await res.json().catch(() => ({}));
+    setTenantUsers(res.ok ? (j.users ?? []) : []);
+    setULoading(false);
+  }
+
+  async function addTenantUser() {
+    if (!usersFor) return;
+    if (!uForm.email || !uForm.password) { toast.error('Email y contraseña requeridos'); return; }
+    setUBusy(true);
+    try {
+      const res = await fetch('/api/superadmin/users', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tenantId: usersFor.id, ...uForm }),
+      });
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j.error || 'No se pudo crear');
+      toast.success('Usuario creado');
+      await openUsers(usersFor);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Error');
+    } finally {
+      setUBusy(false);
+    }
+  }
+
+  async function updateTenantUser(id: number, patch: { role?: string; active?: boolean }) {
+    if (!usersFor) return;
+    const res = await fetch('/api/superadmin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, tenantId: usersFor.id, ...patch }),
+    });
+    if (res.ok) { toast.success('Actualizado'); await openUsers(usersFor); }
+    else toast.error('No se pudo actualizar');
+  }
+
   if (role !== 'superadmin') {
     return <p className="text-sm text-gray-500">Esta sección es solo para el superadministrador de la plataforma.</p>;
   }
@@ -322,6 +372,11 @@ export default function SuperadminPage() {
                   style={{ background: 'color-mix(in srgb, var(--brand-primary, #7c3aed) 12%, white)', color: 'var(--brand-primary, #7c3aed)' }}>
                   Cobrar
                 </button>
+                <button onClick={() => openUsers(t)}
+                  className="rounded-lg px-2 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  title="Gestionar usuarios de este negocio">
+                  Usuarios
+                </button>
                 <button onClick={() => toggleActive(t)}
                   className={`rounded-lg px-2 py-1 text-xs font-semibold ${t.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {t.active ? 'Activo' : 'Inactivo'}
@@ -424,6 +479,78 @@ export default function SuperadminPage() {
                 className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60"
                 style={{ background: 'var(--brand-primary, #7c3aed)' }}>
                 {cfgBusy ? 'Guardando…' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de usuarios del negocio (superadmin gestiona el equipo de cualquier tenant) */}
+      {usersFor && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Usuarios de ${usersFor.name}`}
+          onClick={(e) => { if (e.target === e.currentTarget) setUsersFor(null); }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl max-h-[88dvh] overflow-y-auto">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Usuarios · {usersFor.name}</h2>
+            <p className="text-xs text-gray-400 mb-4">Crea y gestiona el equipo de este negocio.</p>
+
+            <div className="grid gap-2 sm:grid-cols-2 mb-2">
+              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="email" value={uForm.email}
+                onChange={(e) => setUForm({ ...uForm, email: e.target.value })} />
+              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="usuario" value={uForm.username}
+                onChange={(e) => setUForm({ ...uForm, username: e.target.value })} />
+              <input className="rounded-xl border px-3 py-2 text-sm" placeholder="contraseña" type="password" value={uForm.password}
+                onChange={(e) => setUForm({ ...uForm, password: e.target.value })} />
+              <select className="rounded-xl border px-3 py-2 text-sm" value={uForm.role}
+                onChange={(e) => setUForm({ ...uForm, role: e.target.value })}>
+                {['admin', 'member', 'viewer'].map((r) => <option key={r} value={r}>{r}</option>)}
+              </select>
+            </div>
+            <button onClick={addTenantUser} disabled={uBusy}
+              className="mb-4 rounded-xl px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+              style={{ background: 'var(--brand-primary, #7c3aed)' }}>
+              {uBusy ? 'Creando…' : 'Crear usuario'}
+            </button>
+
+            {uLoading ? (
+              <p className="text-sm text-gray-400">Cargando…</p>
+            ) : (
+              <ul className="divide-y divide-gray-100">
+                {tenantUsers.map((u) => (
+                  <li key={u.id} className="flex items-center gap-2 py-2 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>
+                      <p className="text-xs text-gray-400 truncate">{u.email}</p>
+                    </div>
+                    {u.role === 'superadmin' ? (
+                      <span className="rounded-lg bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700">Superadmin</span>
+                    ) : (
+                      <>
+                        <select className="rounded-lg border px-2 py-1 text-xs"
+                          value={['admin', 'member', 'viewer'].includes(u.role) ? u.role : 'member'}
+                          onChange={(e) => updateTenantUser(u.id, { role: e.target.value })}>
+                          {['admin', 'member', 'viewer'].map((r) => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                        <button onClick={() => updateTenantUser(u.id, { active: !u.active })}
+                          className={`rounded-lg px-2 py-1 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {u.active ? 'Activo' : 'Inactivo'}
+                        </button>
+                      </>
+                    )}
+                  </li>
+                ))}
+                {tenantUsers.length === 0 && <li className="text-xs text-gray-400 py-2">Sin usuarios.</li>}
+              </ul>
+            )}
+
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setUsersFor(null)}
+                className="rounded-xl px-4 py-2 text-sm font-semibold text-gray-600 bg-gray-100">
+                Cerrar
               </button>
             </div>
           </div>

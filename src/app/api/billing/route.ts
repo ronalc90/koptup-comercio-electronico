@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { getPlan, productLimit, planPrice } from '@/lib/plans';
 import { licenseState, totalPaid } from '@/lib/billing';
+import { stripeConfigured, priceIdForPlan } from '@/lib/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,5 +46,9 @@ export async function GET() {
     licenseUntil: t?.license_until ?? null,
     totalPaid: totalPaid(charges ?? []),
     charges: charges ?? [],
+    // Pagos con Stripe: si están configurados, la UI muestra el botón de pago.
+    // `purchasablePlans` son los planes de pago que tienen precio en Stripe.
+    paymentsEnabled: stripeConfigured(),
+    purchasablePlans: (['pro', 'enterprise'] as const).filter((p) => priceIdForPlan(p)),
   });
 }

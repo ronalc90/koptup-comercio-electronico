@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.048',
+    date: '2026-06-26',
+    highlights: [
+      'Pagos en línea con Stripe (suscripción mensual de licencias): quedó toda la integración lista (checkout, renovación automática y botón "Pagar" en Mi licencia). Se activa al conectar tu cuenta de Stripe (guía en docs/STRIPE_SETUP.md); mientras no la conectes, nada cambia.',
+      'El Superadministrador ahora puede gestionar los usuarios de CUALQUIER negocio desde "Plataforma" (crear, cambiar rol, activar/desactivar), útil para negocios que aún no tienen su propio admin.',
+    ],
+  },
+  {
     version: '1.047',
     date: '2026-06-26',
     highlights: [

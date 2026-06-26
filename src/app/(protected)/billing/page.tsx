@@ -1,8 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CreditCard, Package, CalendarClock, Receipt } from 'lucide-react';
-import { formatCOP } from '@/lib/plans';
+import toast from 'react-hot-toast';
+import { CreditCard, Package, CalendarClock, Receipt, Sparkles } from 'lucide-react';
+import { formatCOP, PLANS, type Plan } from '@/lib/plans';
 import { LICENSE_LABELS, type LicenseStatus } from '@/lib/billing';
 
 interface Charge {
@@ -14,6 +15,7 @@ interface Billing {
   productLimit: number | null; productCount: number;
   license: { status: LicenseStatus; daysLeft: number | null };
   licenseUntil: string | null; totalPaid: number; charges: Charge[];
+  paymentsEnabled?: boolean; purchasablePlans?: string[];
 }
 
 const STATUS_STYLE: Record<LicenseStatus, string> = {
@@ -27,6 +29,7 @@ export default function BillingPage() {
   const [b, setB] = useState<Billing | null>(null);
   const [denied, setDenied] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [paying, setPaying] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -38,6 +41,29 @@ export default function BillingPage() {
     })();
     return () => { active = false; };
   }, []);
+
+  // Mensaje al volver de Stripe (success/cancel).
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.get('paid') === '1') toast.success('¡Pago recibido! Tu licencia se actualiza en unos segundos.');
+    else if (q.get('cancel') === '1') toast('Pago cancelado.', { icon: 'ℹ️' });
+  }, []);
+
+  async function startCheckout(plan: string) {
+    setPaying(plan);
+    try {
+      const res = await fetch('/api/billing/checkout', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ plan }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.url) { window.location.href = json.url; return; }
+      toast.error(json.error || 'No se pudo iniciar el pago');
+    } catch {
+      toast.error('Error al iniciar el pago');
+    } finally {
+      setPaying(null);
+    }
+  }
 
   if (loading) return <p className="text-sm text-gray-400">Cargando…</p>;
   if (denied) return <p className="text-sm text-gray-500">La facturación es solo para administradores.</p>;
@@ -94,6 +120,33 @@ export default function BillingPage() {
           </>
         )}
       </div>
+
+      {/* Mejorar plan / pagar (solo si Stripe está configurado) */}
+      {b.paymentsEnabled && (b.purchasablePlans?.length ?? 0) > 0 && (
+        <div className="rounded-2xl border border-purple-100 bg-purple-50/40 p-4 shadow-sm">
+          <p className="text-xs text-purple-700 uppercase tracking-wide flex items-center gap-1 mb-2">
+            <Sparkles className="w-3.5 h-3.5" /> Plan y pago
+          </p>
+          <p className="text-sm text-gray-600 mb-3">Suscríbete o cambia de plan. El cobro es mensual automático; puedes cancelar cuando quieras.</p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {b.purchasablePlans!.map((p) => {
+              const def = PLANS[p as Plan];
+              const isCurrent = p === b.plan;
+              return (
+                <button
+                  key={p}
+                  onClick={() => startCheckout(p)}
+                  disabled={paying !== null || isCurrent}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-purple-200 bg-white px-3 py-3 text-sm font-semibold text-purple-700 transition hover:bg-purple-50 active:scale-[0.98] disabled:opacity-50"
+                >
+                  <span>{def.label}</span>
+                  <span className="text-gray-600">{isCurrent ? 'Plan actual' : paying === p ? 'Abriendo…' : `${formatCOP(def.priceMonthly)}/mes`}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Pagos */}
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
