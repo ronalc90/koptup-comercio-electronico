@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.047',
+    date: '2026-06-26',
+    highlights: [
+      'Refuerzo de seguridad: se cerró un acceso indebido a los gastos. Ahora los gastos quedan aislados por negocio (solo los ve tu propio negocio), igual que pedidos, inventario y productos.',
+      'Limpieza de datos: se eliminaron 31 pedidos vacíos que habían quedado de una importación de Excel mal hecha (eran la fila de encabezado repetida, sin datos reales) y se activó el candado que impide códigos de pedido duplicados.',
+    ],
+  },
+  {
     version: '1.046',
     date: '2026-06-22',
     highlights: [
