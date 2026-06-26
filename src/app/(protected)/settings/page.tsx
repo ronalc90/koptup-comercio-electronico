@@ -533,7 +533,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-8">
+    <div className="min-h-screen bg-gray-50 mobile-nav-padding">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
         <div className="mx-auto max-w-xl flex items-center justify-between gap-3">
@@ -859,7 +859,7 @@ export default function SettingsPage() {
               <p className="mb-2 text-xs text-gray-500">
                 Elige un preajuste o arma tu propio tamaño para que todo quepa en la cinta térmica.
               </p>
-              <div className="grid grid-cols-4 gap-1 rounded-xl bg-gray-100 p-1">
+              <div className="grid grid-cols-2 gap-1 rounded-xl bg-gray-100 p-1 sm:grid-cols-4">
                 {(['small', 'medium', 'large', 'custom'] as PrintFontSize[]).map((size) => (
                   <button
                     key={size}
@@ -1093,7 +1093,7 @@ export default function SettingsPage() {
           onClick={() => setChangelogOpen(false)}
         >
           <div
-            className="w-full max-w-lg max-h-[85vh] overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
+            className="flex w-full max-w-lg max-h-[90dvh] flex-col overflow-hidden rounded-t-2xl bg-white shadow-2xl sm:rounded-2xl"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-3 border-b border-gray-100 bg-purple-50 px-5 py-4">
@@ -1114,7 +1114,7 @@ export default function SettingsPage() {
               </button>
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto px-5 py-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <ol className="space-y-5">
                 {CHANGELOG.map((entry, idx) => (
                   <li key={entry.version} className="relative pl-5">
@@ -1162,7 +1162,7 @@ export default function SettingsPage() {
       {/* Modal: confirmar borrado total */}
       {wipeOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
             <div className="flex items-center gap-3 border-b border-gray-100 bg-red-50 px-5 py-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500 text-white">
                 <AlertTriangle className="h-5 w-5" />

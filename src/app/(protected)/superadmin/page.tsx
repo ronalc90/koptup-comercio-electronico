@@ -256,7 +256,7 @@ export default function SuperadminPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Building2 className="w-6 h-6" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
           <h1 className="text-2xl font-bold text-gray-900">Plataforma</h1>
@@ -359,26 +359,26 @@ export default function SuperadminPage() {
                   )}
                 </div>
                 <select value={t.plan} onChange={(e) => changePlan(t.id, e.target.value)}
-                  className="rounded-lg border px-2 py-1 text-xs" title="Plan">
+                  className="rounded-lg border px-2.5 py-1.5 text-xs" title="Plan">
                   {PLANS_ORDER.map((p) => <option key={p} value={p}>{getPlan(p).label}</option>)}
                 </select>
                 <button onClick={() => openEditConfig(t)}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-gray-100 text-gray-600 hover:bg-gray-200"
                   title="Editar categorías, marca e IA del negocio">
                   Config
                 </button>
                 <button onClick={() => recordPayment(t)}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold bg-purple-50 text-purple-700"
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-purple-50 text-purple-700"
                   style={{ background: 'color-mix(in srgb, var(--brand-primary, #7c3aed) 12%, white)', color: 'var(--brand-primary, #7c3aed)' }}>
                   Cobrar
                 </button>
                 <button onClick={() => openUsers(t)}
-                  className="rounded-lg px-2 py-1 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
+                  className="rounded-lg px-2.5 py-1.5 text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100"
                   title="Gestionar usuarios de este negocio">
                   Usuarios
                 </button>
                 <button onClick={() => toggleActive(t)}
-                  className={`rounded-lg px-2 py-1 text-xs font-semibold ${t.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                  className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${t.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                   {t.active ? 'Activo' : 'Inactivo'}
                 </button>
               </li>
@@ -397,7 +397,7 @@ export default function SuperadminPage() {
           aria-label={`Registrar pago de ${paying.name}`}
           onClick={(e) => { if (e.target === e.currentTarget) setPaying(null); }}
         >
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-sm max-h-[90dvh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Cobrar a {paying.name}</h2>
             <p className="text-xs text-gray-400 mb-4">
               Plan {getPlan(paying.plan).label} · sugerido {formatCOP(planPrice(paying.plan))}/mes
@@ -443,7 +443,7 @@ export default function SuperadminPage() {
           aria-label={`Configurar ${editingCfg.name}`}
           onClick={(e) => { if (e.target === e.currentTarget) setEditingCfg(null); }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl">
             <h2 className="text-lg font-bold text-gray-900 mb-1">Configurar {editingCfg.name}</h2>
             <p className="text-xs text-gray-400 mb-4">Categorías, marca e IA propias del negocio. Aplica sin re-login.</p>
 
@@ -527,16 +527,16 @@ export default function SuperadminPage() {
                       <p className="text-xs text-gray-400 truncate">{u.email}</p>
                     </div>
                     {u.role === 'superadmin' ? (
-                      <span className="rounded-lg bg-purple-50 px-2 py-1 text-xs font-semibold text-purple-700">Superadmin</span>
+                      <span className="rounded-lg bg-purple-50 px-2.5 py-1.5 text-xs font-semibold text-purple-700">Superadmin</span>
                     ) : (
                       <>
-                        <select className="rounded-lg border px-2 py-1 text-xs"
+                        <select className="rounded-lg border px-2.5 py-1.5 text-xs"
                           value={['admin', 'member', 'viewer'].includes(u.role) ? u.role : 'member'}
                           onChange={(e) => updateTenantUser(u.id, { role: e.target.value })}>
                           {['admin', 'member', 'viewer'].map((r) => <option key={r} value={r}>{r}</option>)}
                         </select>
                         <button onClick={() => updateTenantUser(u.id, { active: !u.active })}
-                          className={`rounded-lg px-2 py-1 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                           {u.active ? 'Activo' : 'Inactivo'}
                         </button>
                       </>

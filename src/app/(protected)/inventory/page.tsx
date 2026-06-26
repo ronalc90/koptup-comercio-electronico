@@ -94,8 +94,8 @@ function InventoryModal({ item, onClose, onSave, saving, categories }: ModalProp
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-4 p-6 overflow-y-auto flex-1 min-h-0">
-          <div className="col-span-2 grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-3 p-4 overflow-y-auto flex-1 min-h-0 sm:grid-cols-2 sm:gap-4 sm:p-6">
+          <div className="col-span-full grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <div>
               <label className="mb-1 block text-xs font-medium text-gray-600">Canasta</label>
               <input
@@ -387,7 +387,7 @@ export default function InventoryPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-32 md:pb-20">
+    <div className="min-h-screen bg-gray-50 pb-40 md:pb-20">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
         <div className="mx-auto max-w-6xl">
@@ -627,8 +627,8 @@ export default function InventoryPage() {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-bold text-gray-900">{item.model}</span>
-                        <span className="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">{item.product_id}</span>
+                        <span className="font-bold text-gray-900 truncate max-w-full">{item.model}</span>
+                        <span className="font-mono text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded shrink-0">{item.product_id}</span>
                         <span
                           className={cn(
                             'inline-flex rounded-full px-2 py-0.5 text-xs font-medium',
@@ -678,7 +678,7 @@ export default function InventoryPage() {
 
       {/* Summary bar */}
       <div className="fixed inset-x-0 z-40 bg-white border-t border-gray-100 px-4 py-2 shadow-lg md:bottom-0" style={{ bottom: 'calc(6.5rem + env(safe-area-inset-bottom, 0px))' }}>
-        <div className="mx-auto max-w-6xl flex items-center justify-between text-sm">
+        <div className="mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-xs sm:text-sm">
           <div className="flex items-center gap-2 text-gray-600">
             <Layers className="h-4 w-4" style={{ color: '#7c3aed' }} />
             <span><strong className="text-gray-900">{filtered.length}</strong> referencias</span>

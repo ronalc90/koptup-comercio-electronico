@@ -274,7 +274,7 @@ export default function DashboardPage() {
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={prevMonth}
-                className="rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 transition-colors"
+                className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
                 aria-label="Mes anterior"
               >
                 <ChevronLeft className="h-4 w-4 text-gray-600" />
@@ -284,7 +284,7 @@ export default function DashboardPage() {
               </span>
               <button
                 onClick={nextMonth}
-                className="rounded-lg border border-gray-200 p-1.5 hover:bg-gray-50 transition-colors"
+                className="flex min-h-[40px] min-w-[40px] items-center justify-center rounded-lg border border-gray-200 hover:bg-gray-50 transition-colors"
                 aria-label="Mes siguiente"
               >
                 <ChevronRight className="h-4 w-4 text-gray-600" />
@@ -295,7 +295,7 @@ export default function DashboardPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setHelpOpen(true)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-colors"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-colors"
               title="¿Qué hace esta pantalla?"
               aria-label="Ayuda de Inicio"
             >
@@ -314,7 +314,7 @@ export default function DashboardPage() {
                   toast.error('Error al exportar')
                 }
               }}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-colors"
+              className="flex items-center justify-center gap-1.5 rounded-xl border border-gray-200 px-3 py-2.5 text-sm font-semibold text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700 transition-colors"
             >
               <Download className="h-4 w-4" />
               <span>Exportar</span>
@@ -398,7 +398,7 @@ export default function DashboardPage() {
               </div>
               <div className="rounded-2xl bg-amber-50 border-2 border-amber-200 p-3">
                 <p className="text-[10px] font-semibold text-amber-600 uppercase">🚚 Pendiente de liquidación</p>
-                <p className="text-xl font-bold text-amber-700 mt-0.5">{formatCurrency(pendingSettlement)}</p>
+                <p className="text-xl font-bold text-amber-700 mt-0.5 truncate">{formatCurrency(pendingSettlement)}</p>
                 <p className="text-[10px] text-amber-600">{delivered.length} pedido(s) entregados</p>
               </div>
               <div className="rounded-2xl bg-emerald-50 border border-emerald-100 p-3">

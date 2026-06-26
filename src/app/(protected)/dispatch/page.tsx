@@ -407,7 +407,7 @@ export default function DispatchPage() {
   const totalValue = selectedOrders.reduce((sum, o) => sum + o.value_to_collect, 0)
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-24">
+    <div className="min-h-screen bg-gray-50 pb-32 md:pb-24">
       {/* Header */}
       <div className="sticky top-0 z-10 bg-white border-b border-gray-100 px-4 py-4 shadow-sm">
         <div className="mx-auto max-w-3xl">

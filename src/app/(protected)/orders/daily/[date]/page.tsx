@@ -513,7 +513,7 @@ export default function DailyOrdersPage({
               {kpis.deliveredCourier + kpis.deliveredPickup + kpis.deliveredOther}
             </span>
           </div>
-          <div className="flex gap-2 text-[10px] text-gray-500">
+          <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-gray-500">
             <span>Mensajería: {kpis.deliveredCourier}</span>
             <span>Recogida: {kpis.deliveredPickup}</span>
             <span>Otro: {kpis.deliveredOther}</span>

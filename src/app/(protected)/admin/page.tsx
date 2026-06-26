@@ -167,17 +167,17 @@ export default function AdminPage() {
         <h2 className="font-bold text-gray-900 text-sm mb-3">Usuarios ({users.length})</h2>
         <ul className="divide-y divide-gray-100">
           {users.map((u) => (
-            <li key={u.id} className="flex items-center gap-3 py-2 text-sm">
-              <div className="flex-1 min-w-0">
+            <li key={u.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+              <div className="flex-1 min-w-0 basis-full sm:basis-auto">
                 <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>
                 <p className="text-xs text-gray-400 truncate">{u.email}</p>
               </div>
-              <select className="rounded-lg border px-2 py-1 text-xs" value={u.role}
+              <select className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs" value={u.role}
                 onChange={(e) => updateUser(u.id, { role: e.target.value })}>
                 {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
               </select>
               <button onClick={() => updateUser(u.id, { active: !u.active })}
-                className={`rounded-lg px-2 py-1 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                 {u.active ? 'Activo' : 'Inactivo'}
               </button>
             </li>
@@ -196,8 +196,8 @@ export default function AdminPage() {
           {audit.map((a) => (
             <li key={a.id} className="py-1.5 text-sm">
               <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold text-gray-800">{AUDIT_LABELS[a.action] ?? a.action}</span>
-                <span className="text-xs text-gray-400">{a.created_at?.slice(0, 16).replace('T', ' ')}</span>
+                <span className="font-semibold text-gray-800 min-w-0 truncate">{AUDIT_LABELS[a.action] ?? a.action}</span>
+                <span className="text-xs text-gray-400 shrink-0 whitespace-nowrap">{a.created_at?.slice(0, 16).replace('T', ' ')}</span>
               </div>
               <p className="text-xs text-gray-500 truncate">
                 por {a.actor_name || '—'}{a.actor_role ? ` (${a.actor_role})` : ''}

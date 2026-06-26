@@ -57,7 +57,7 @@ function Modal({ open, title, onClose, children }: ModalProps) {
         onClick={onClose}
         aria-hidden
       />
-      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl">
+      <div className="relative w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <h2 className="text-base font-bold text-gray-800">{title}</h2>
           <button
@@ -535,7 +535,7 @@ export default function ProductsPage({
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm md:block">
+          <div className="hidden overflow-x-auto rounded-2xl border border-gray-100 bg-white shadow-sm md:block">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50 text-left">

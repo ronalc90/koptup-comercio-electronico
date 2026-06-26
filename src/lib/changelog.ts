@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.049',
+    date: '2026-06-26',
+    highlights: [
+      'Revisión completa del diseño en celular y tablet: todo se ve y se usa bien en pantallas pequeñas.',
+      'Configuración ya no queda tapada por la barra de abajo; y los formularios/ventanas (cobro, configurar negocio, borrar datos, historial de versiones) ahora hacen scroll y no se cortan.',
+      'Inventario: el formulario de un producto se acomoda en una sola columna en el celular, los nombres largos no rompen la tarjeta, y la barra de totales ya no tapa el último producto.',
+      'Despacho: la barra de Ruta/Guías ya no tapa el último pedido de la lista.',
+      'Botones más fáciles de tocar (cambio de mes, acciones de usuarios) y textos largos (correos, montos) que ya no se desbordan. El catálogo en tablet se desplaza en vez de romper la página.',
+    ],
+  },
+  {
     version: '1.048',
     date: '2026-06-26',
     highlights: [
