@@ -16,7 +16,7 @@ auto-cae** para no tumbar la app; hay que poner un buen valor.
    ```bash
    openssl rand -hex 32
    ```
-2. Vercel → proyecto **meraki-app** → Settings → Environment Variables →
+2. Vercel → proyecto **koptup-comercio-electronico** → Settings → Environment Variables →
    añadir/editar `AUTH_SECRET` (scope **Production**) con ese valor.
 3. (Opcional, recomendado tras el paso 2) añadir `AUTH_STRICT_SECRET=1` para que,
    si algún día el secreto vuelve a quedar mal, el deploy **falle rápido** en

@@ -218,8 +218,8 @@ Procedimientos operativos en [`docs/RUNBOOK_HARDENING.md`](docs/RUNBOOK_HARDENIN
 ### 1. Clonar e instalar
 
 ```bash
-git clone https://github.com/ronalc90/Meraki.git
-cd Meraki/meraki-app
+git clone https://github.com/ronalc90/koptup-comercio-electronico.git
+cd koptup-comercio-electronico/meraki-app
 npm install
 ```
 

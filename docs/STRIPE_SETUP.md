@@ -23,7 +23,7 @@ En **Developers → API keys**:
 
 ## 4. Configurar el webhook
 En **Developers → Webhooks → Add endpoint**:
-- URL: `https://meraki-app.vercel.app/api/billing/webhook`
+- URL: `https://koptup-comercio-electronico.vercel.app/api/billing/webhook`
 - Eventos: `invoice.paid`, `invoice.payment_failed`, `checkout.session.completed`, `customer.subscription.deleted`
 - Copia el **Signing secret** → `whsec_...`
 
