@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   // Título de plataforma (raíz, sin contexto de tenant). El nombre real del
   // negocio se muestra dentro de la app vía la config del tenant.
-  title: "Meraki — Gestión de pedidos",
+  title: "koptup Comercio Electrónico — Gestión de pedidos",
   description: "Gestión de pedidos, inventario y despachos",
   manifest: "/manifest.json",
   icons: { apple: "/icons/icon-192.png" },

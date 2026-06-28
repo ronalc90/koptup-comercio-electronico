@@ -1,7 +1,7 @@
 {
-  "name": "Tu Tienda Meraki",
-  "short_name": "Meraki",
-  "description": "Gestión de pedidos, inventario y despachos",
+  "name": "koptup Comercio Electrónico",
+  "short_name": "koptup",
+  "description": "Plataforma multi-negocio de gestión de pedidos, inventario y despachos",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#f8fafc",

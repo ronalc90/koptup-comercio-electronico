@@ -1039,7 +1039,7 @@ export default function SettingsPage() {
           <div className="mt-4 space-y-2 rounded-xl border border-purple-100 bg-purple-50/40 p-3">
             <p className="text-xs font-semibold text-gray-700">¿Necesitas ayuda o tienes ideas?</p>
             <a
-              href="https://wa.me/573024794842?text=Hola%20Ronald%2C%20te%20escribo%20por%20la%20app%20Meraki"
+              href="https://wa.me/573024794842?text=Hola%20Ronald%2C%20te%20escribo%20por%20koptup%20Comercio%20Electr%C3%B3nico"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-gray-700 shadow-sm transition-colors hover:bg-emerald-50 hover:text-emerald-700"
@@ -1102,7 +1102,7 @@ export default function SettingsPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <h3 className="font-bold text-gray-900">Historial de versiones</h3>
-                <p className="text-xs text-gray-500">Qué trajo cada entrega de Meraki</p>
+                <p className="text-xs text-gray-500">Qué trajo cada entrega de koptup</p>
               </div>
               <button
                 type="button"

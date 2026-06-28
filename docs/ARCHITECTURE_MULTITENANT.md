@@ -1,8 +1,8 @@
 # Arquitectura multi-tenant (Fase 1)
 
-Esta nota explica **cómo** Meraki pasó de ser una app de un solo negocio a una
-plataforma capaz de atender varios (multi-tenant), **sin romper** la app en
-producción.
+Esta nota explica **cómo** la plataforma koptup Comercio Electrónico pasó de ser
+una app de un solo negocio (Meraki) a una capaz de atender varios (multi-tenant),
+**sin romper** la app en producción.
 
 ## Idea central
 

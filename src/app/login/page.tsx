@@ -98,7 +98,7 @@ export default function LoginPage() {
               </span>
             </div>
             <h1 className="text-2xl font-bold text-white tracking-tight">
-              Meraki
+              koptup Comercio Electrónico
             </h1>
             <p className="mt-1 text-sm" style={{ color: 'rgba(255,255,255,0.75)' }}>
               Gestión de pedidos y catálogo

@@ -297,7 +297,7 @@ export async function GET(request: NextRequest) {
   const scoped = await getRequestScopedClient()
   if (!scoped) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const supabase = scoped.client
-  // Marca por tenant: el nombre real del negocio (no la marca de Meraki).
+  // Marca por tenant: el nombre real del negocio (no la marca de la plataforma).
   const tenantConfig = await loadTenantConfig(scoped.ctx.tenantId, scoped.ctx.tenantSlug)
   const businessName = tenantConfig.name
   const fileSlug = slugifyName(businessName)

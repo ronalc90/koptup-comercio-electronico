@@ -12,6 +12,15 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.052',
+    date: '2026-06-28',
+    highlights: [
+      'La plataforma ahora se llama "koptup Comercio Electrónico". Tu negocio (Meraki) sigue siendo el mismo: solo cambió el nombre de la plataforma que lo hace funcionar, no tu marca ni tus datos.',
+      'Verás el nombre nuevo en la pantalla de inicio de sesión, en el título de la pestaña del navegador y en el ícono que instalas en el celular.',
+      'Documentación del proyecto puesta al día al 100%: el README ahora describe todo lo que hace la plataforma (multi-negocio, roles, pedidos por IA, inventario, despacho, finanzas, agentes y pagos).',
+    ],
+  },
+  {
     version: '1.051',
     date: '2026-06-26',
     highlights: [
