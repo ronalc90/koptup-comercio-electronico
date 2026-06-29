@@ -12,7 +12,12 @@ export type AuditAction =
   | 'tenant_status_changed'
   | 'tenant_config_changed'
   | 'user_created'
-  | 'user_updated';
+  | 'user_updated'
+  | 'registration_requested'
+  | 'registration_approved'
+  | 'registration_rejected'
+  | 'registration_reenabled'
+  | 'registration_purged';
 
 export interface AuditActor {
   userId: number | null;
@@ -56,4 +61,9 @@ export const AUDIT_LABELS: Record<AuditAction, string> = {
   tenant_config_changed: 'Configuración del negocio cambiada',
   user_created: 'Usuario creado',
   user_updated: 'Usuario actualizado',
+  registration_requested: 'Registro solicitado',
+  registration_approved: 'Registro aprobado',
+  registration_rejected: 'Registro rechazado',
+  registration_reenabled: 'Registro re-habilitado',
+  registration_purged: 'Registro rechazado eliminado',
 };
