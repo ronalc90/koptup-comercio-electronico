@@ -41,6 +41,14 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_status VARCHAR(60);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS tracking_updated_at TIMESTAMPTZ;
 CREATE INDEX IF NOT EXISTS idx_orders_tracking ON orders(tenant_id, tracking_number);
 
+-- 3b) Precio de venta del producto (para el catálogo público) -----------------
+-- `cost` es el COSTO; el catálogo necesita un PRECIO de venta sugerido. Nullable
+-- (= "Consultar precio"); no negativo.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC(12,2);
+DO $$ BEGIN
+  ALTER TABLE products ADD CONSTRAINT chk_products_price_nonneg CHECK (price IS NULL OR price >= 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- 4) Config de transportadora por tenant --------------------------------------
 -- jsonb: { carrier: 'interrapidisimo'|'sandbox'|null, enabled: bool,
 --          credentials: '<blob cifrado por la app>' }. Las credenciales NUNCA se

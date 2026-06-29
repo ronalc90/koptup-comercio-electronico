@@ -166,3 +166,15 @@ export async function isTenantShippingConfigSupported(): Promise<boolean> {
     return false;
   } catch { return false; }
 }
+
+let _productPriceSupported: boolean | null = null;
+/** Detecta si `products.price` (migración 018) existe. Cachea solo el `true`. */
+export async function isProductPriceSupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  if (_productPriceSupported === true) return true;
+  try {
+    const { error } = await supabase.from('products').select('price').limit(1);
+    if (!error) { _productPriceSupported = true; return true; }
+    return false;
+  } catch { return false; }
+}

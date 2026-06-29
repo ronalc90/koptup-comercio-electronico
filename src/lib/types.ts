@@ -3,6 +3,8 @@ export interface Product {
   code: string;
   name: string;
   cost: number;
+  /** Precio de venta sugerido para el catálogo público (migración 018). Null = "Consultar". */
+  price?: number | null;
   category: string;
   active: boolean;
   image_url?: string;

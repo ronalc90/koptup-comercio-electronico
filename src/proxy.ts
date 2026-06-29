@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_NAME, LEGACY_COOKIE_NAME } from '@/lib/sessionCookie';
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/logout', '/api/auth/register', '/api/ai/suggest-business'];
-const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/inventory', '/products', '/dispatch', '/settings', '/assistant', '/agents', '/admin', '/superadmin', '/billing', '/api/ai', '/api/agents', '/api/automations', '/api/admin', '/api/superadmin', '/api/billing', '/api/alerts', '/api/settings', '/api/export', '/api/import', '/api/upload-image', '/api/account'];
+const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/inventory', '/products', '/dispatch', '/settings', '/assistant', '/agents', '/admin', '/superadmin', '/billing', '/api/ai', '/api/agents', '/api/automations', '/api/admin', '/api/superadmin', '/api/billing', '/api/alerts', '/api/settings', '/api/export', '/api/import', '/api/upload-image', '/api/account', '/api/orders'];
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
