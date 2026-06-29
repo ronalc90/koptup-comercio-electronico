@@ -15,6 +15,7 @@ import {
   ShieldCheck,
   Building2,
   CreditCard,
+  Boxes,
 } from 'lucide-react';
 import { useState, type ElementType } from 'react';
 import { useTenant } from '@/lib/TenantContext';
@@ -30,6 +31,7 @@ const MODULE_ICONS: Record<ModuleKey, ElementType> = {
   inventario: Package,
   productos: Tag,
   despachos: Truck,
+  proveedores: Boxes,
   agentes: Bot,
   config: Settings,
 };
@@ -50,6 +52,9 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   // por rol: el `admin` es administrativo y NO ve los módulos de negocio.
   const navItems = tenantNav(config.navModules, config.moduleLabels)
     .filter((m) => canAccessModule(role, m.key))
+    // Proveedores es opt-in: solo aparece si el tenant lo lista explícitamente en
+    // navModules (no se filtra a los tenants existentes con navModules undefined).
+    .filter((m) => m.key !== 'proveedores' || !!config.navModules?.includes('proveedores'))
     .map((m) => ({
       href: m.route,
       label: m.label,

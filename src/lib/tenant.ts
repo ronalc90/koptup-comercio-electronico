@@ -11,7 +11,7 @@
 // solo se acceden por el service client CRUDO con filtro explícito de tenant_id
 // (el guard no aplica a ese cliente), así que añadirlas no altera nada actual,
 // pero protege si alguna vez se consultan vía el cliente acotado/navegador.
-export const TENANT_TABLES = ['products', 'orders', 'inventory', 'settings', 'expenses', 'alerts', 'charges'] as const;
+export const TENANT_TABLES = ['products', 'orders', 'inventory', 'settings', 'expenses', 'alerts', 'charges', 'suppliers'] as const;
 export type TenantTable = (typeof TENANT_TABLES)[number];
 
 const TENANT_TABLE_SET: ReadonlySet<string> = new Set(TENANT_TABLES);

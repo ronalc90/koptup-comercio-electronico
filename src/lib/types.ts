@@ -6,6 +6,23 @@ export interface Product {
   category: string;
   active: boolean;
   image_url?: string;
+  /** Proveedor del producto (módulo proveedores, migración 016). Null = sin asignar. */
+  supplier_id?: number | null;
+  created_at: string;
+}
+
+/** Proveedor de un negocio (módulo proveedores, migración 016). */
+export interface Supplier {
+  id: number;
+  name: string;
+  contact?: string | null;
+  phone?: string | null;
+  /** Plazo de pago en días desde el corte. */
+  plazo_dias: number;
+  /** Día del mes en que cierra el corte (1..31). */
+  dia_corte: number;
+  active: boolean;
+  notes?: string | null;
   created_at: string;
 }
 
@@ -92,6 +109,8 @@ export interface Order {
   product_ref: string;
   detail: string;
   comment: string;
+  /** Proveedor congelado al vender (módulo proveedores, migración 016). Null = sin asignar. */
+  supplier_id?: number | null;
   value_to_collect: number;
   /**
    * Efectivo recaudado por el mensajero/courier que aún NO se liquidó al

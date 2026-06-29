@@ -21,6 +21,7 @@ export const BUSINESS_MODULES: ModuleKey[] = [
   'inventario',
   'productos',
   'despachos',
+  'proveedores',
   'agentes',
 ];
 const BUSINESS_MODULE_SET = new Set<ModuleKey>(BUSINESS_MODULES);
@@ -33,6 +34,7 @@ export const BUSINESS_ROUTES: string[] = [
   '/inventory',
   '/products',
   '/dispatch',
+  '/suppliers',
   '/agents',
 ];
 
