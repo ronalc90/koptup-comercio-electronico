@@ -83,3 +83,24 @@ módulos con pantalla y les pone su propio nombre (PrimeraMayo: "Catálogo",
 Fase 1 es el cimiento: sin aislamiento correcto, todo lo demás filtra datos entre
 negocios. Se priorizó hacerla **bien y sin romper producción** (retrocompatible,
 testeada, con gate) antes de construir encima.
+
+## Módulo Proveedores ✅ LISTO (migración 016)
+
+- [x] Tabla `suppliers` (tenant_id + RLS patrón 003, FK compuesta por tenant).
+- [x] `supplier_id` congelado en la línea del pedido (`orders`) y en `products`.
+- [x] Reportes puros y testeados: consumo, cuentas por pagar (semáforo), rotación.
+- [x] CRUD + pantallas mobile-first (`/suppliers`), opt-in por `navModules`.
+- [x] Tenant demo "Bodega Compralo Colombia" (seed idempotente).
+
+### Pendiente (follow-up de proveedores)
+
+- [ ] **Integrar hallazgos de proveedor en los agentes comercial/financiero.**
+  Hoy NO está integrado: requiere que el cargador de datos de agentes
+  (`src/lib/agents/data.ts`) cargue `suppliers` y que los analizadores emitan
+  findings (ej. "proveedor X vencido", "proveedor Y estancado"). Se dejó fuera
+  para no tocar el pipeline de agentes y sus tests en esta entrega; la lógica de
+  cálculo ya existe y es reutilizable (`src/lib/suppliers/calculations.ts`).
+- [ ] **Pagos a proveedores** (registrar abonos) para que "cuentas por pagar"
+  reste lo ya pagado; hoy lo adeudado = consumo del periodo (todo lo vendido).
+- [ ] Asignación de proveedor por VARIANTE de inventario (hoy es a nivel de
+  producto/catálogo y se congela en el pedido).
