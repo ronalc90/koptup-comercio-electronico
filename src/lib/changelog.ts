@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.055',
+    date: '2026-06-29',
+    highlights: [
+      'Logo del negocio más fácil y profesional: al crear o registrar un negocio puedes elegir un emoji de una galería o subir tu propio logo desde el computador. El logo se ve en la barra lateral y en las guías de despacho.',
+      'En el registro, un botón opcional "Sugerir con IA" propone el tipo de negocio y las categorías a partir de una breve descripción (si no hay IA disponible, eliges manualmente).',
+    ],
+  },
+  {
     version: '1.054',
     date: '2026-06-29',
     highlights: [
