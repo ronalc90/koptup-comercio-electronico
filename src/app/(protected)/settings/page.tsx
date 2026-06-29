@@ -79,6 +79,7 @@ import {
 } from '@/lib/preferences'
 import { useUser } from '@/lib/UserContext'
 import { useTenant } from '@/lib/TenantContext'
+import { PLATFORM_BRAND } from '@/lib/platform'
 import { isAdministrativeRole } from '@/lib/permissions'
 import { roleLabel } from '@/lib/tenant'
 import ExcelImport from '@/components/shared/ExcelImport'
@@ -243,6 +244,8 @@ export default function SettingsPage() {
   const router = useRouter()
   const owner = useUser()
   const { role, config } = useTenant()
+  // El superadmin opera la plataforma: muestra la marca koptup, no la del tenant.
+  const brandName = role === 'superadmin' ? PLATFORM_BRAND.fullName : config.name
 
   /* ─────── Contraseña ─────── */
   const [currentPwd, setCurrentPwd] = useState('')
@@ -539,7 +542,7 @@ export default function SettingsPage() {
         <div className="mx-auto max-w-xl flex items-center justify-between gap-3">
           <div className="min-w-0">
             <h1 className="text-xl font-bold text-gray-900">Configuración</h1>
-            <p className="text-xs text-gray-500">{config.name}</p>
+            <p className="text-xs text-gray-500">{brandName}</p>
           </div>
           <button
             onClick={() => setHelpOpen(true)}
@@ -567,7 +570,7 @@ export default function SettingsPage() {
             <div>
               <p className="text-lg font-bold text-gray-900 capitalize">{owner || 'Usuario'}</p>
               <p className="text-sm text-gray-500">{roleLabel(role)}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{config.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5">{brandName}</p>
             </div>
           </div>
         </Section>

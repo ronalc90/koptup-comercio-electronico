@@ -23,6 +23,7 @@ import { useUser } from '@/lib/UserContext';
 import { tenantNav, type ModuleKey } from '@/lib/modules';
 import { roleLabel } from '@/lib/tenant';
 import { canAccessModule } from '@/lib/permissions';
+import { PLATFORM_BRAND } from '@/lib/platform';
 
 const MODULE_ICONS: Record<ModuleKey, ElementType> = {
   dashboard: LayoutDashboard,
@@ -47,6 +48,12 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
   const { config, role } = useTenant();
   const username = useUser();
   const [loggingOut, setLoggingOut] = useState(false);
+
+  // El superadmin opera la PLATAFORMA, no un negocio: ve la marca koptup, no la
+  // del tenant al que está atada su cuenta.
+  const brand = role === 'superadmin'
+    ? { logo: PLATFORM_BRAND.logo, name: PLATFORM_BRAND.fullName }
+    : { logo: config.logo, name: config.name };
 
   // Navegación construida desde el registro de módulos según el tenant, filtrada
   // por rol: el `admin` es administrativo y NO ve los módulos de negocio.
@@ -103,12 +110,12 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
       {/* Brand header */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100 min-h-[68px]">
         <span className="text-2xl flex-shrink-0" aria-hidden="true">
-          {config.logo}
+          {brand.logo}
         </span>
         {!collapsed && (
           <div className="overflow-hidden">
             <h1 className="font-bold text-gray-900 text-sm leading-tight truncate">
-              {config.name}
+              {brand.name}
             </h1>
           </div>
         )}
