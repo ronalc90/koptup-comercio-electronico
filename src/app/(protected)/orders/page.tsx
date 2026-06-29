@@ -109,13 +109,13 @@ export default function OrdersPage({
   const [viewMode, setViewMode] = useState<'calendar' | 'list'>('calendar')
   useEffect(() => {
     const stored = typeof window !== 'undefined'
-      ? window.localStorage.getItem('meraki.orders.viewMode')
+      ? (window.localStorage.getItem('koptup.orders.viewMode') ?? window.localStorage.getItem('meraki.orders.viewMode'))
       : null
     if (stored === 'list' || stored === 'calendar') setViewMode(stored)
   }, [])
   function changeViewMode(v: 'calendar' | 'list') {
     setViewMode(v)
-    try { window.localStorage.setItem('meraki.orders.viewMode', v) } catch { /* ignore */ }
+    try { window.localStorage.setItem('koptup.orders.viewMode', v) } catch { /* ignore */ }
   }
 
   // Filtros de la vista lista (KPIs se recalculan en vivo con estos)

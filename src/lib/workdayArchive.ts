@@ -4,7 +4,8 @@
  * Persistencia en localStorage (mismo alcance que el chat activo).
  */
 
-const STORAGE_KEY = 'meraki-workdays';
+const STORAGE_KEY = 'koptup-workdays';
+const LEGACY_STORAGE_KEY = 'meraki-workdays'; // se lee como respaldo (pre-rebrand)
 const MAX_ARCHIVES = 60;
 
 export interface ArchivedMessage {
@@ -63,7 +64,7 @@ function buildSummary(msgs: ArchivedMessage[]): string {
 export function listWorkdays(): Workday[] {
   if (typeof window === 'undefined') return [];
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];

@@ -10,7 +10,7 @@ import {
   DEFAULT_TENANT_SLUG,
   isRole,
 } from './tenant';
-import { COOKIE_NAME } from './sessionCookie';
+import { COOKIE_NAME, LEGACY_COOKIE_NAME } from './sessionCookie';
 
 /**
  * Resuelve el secreto de firma de sesiones (HS256).
@@ -28,7 +28,7 @@ import { COOKIE_NAME } from './sessionCookie';
  */
 const MIN_SECRET_LENGTH = 32;
 // Valor de desarrollo explícito, distinto del antiguo secreto por defecto débil.
-const DEV_SECRET = 'meraki-dev-only-secret-no-usar-en-produccion';
+const DEV_SECRET = 'koptup-dev-only-secret-no-usar-en-produccion';
 
 function resolveAuthSecret(): string {
   const provided = process.env.AUTH_SECRET?.trim();
@@ -123,7 +123,7 @@ export async function verifySession(token: string): Promise<TenantContext | null
 
 export async function getSession(): Promise<TenantContext | null> {
   const cookieStore = await cookies();
-  const token = cookieStore.get(COOKIE_NAME)?.value;
+  const token = cookieStore.get(COOKIE_NAME)?.value ?? cookieStore.get(LEGACY_COOKIE_NAME)?.value;
   if (!token) return null;
   const ctx = await verifySession(token);
   if (!ctx) return null;

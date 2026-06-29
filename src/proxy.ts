@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { COOKIE_NAME } from '@/lib/sessionCookie';
+import { COOKIE_NAME, LEGACY_COOKIE_NAME } from '@/lib/sessionCookie';
 
 const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/logout', '/api/auth/register', '/api/ai/suggest-business'];
 const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/inventory', '/products', '/dispatch', '/settings', '/assistant', '/agents', '/admin', '/superadmin', '/billing', '/api/ai', '/api/agents', '/api/automations', '/api/admin', '/api/superadmin', '/api/billing', '/api/alerts', '/api/settings', '/api/export', '/api/import', '/api/upload-image', '/api/account'];
@@ -14,7 +14,7 @@ export function proxy(request: NextRequest) {
   const isProtected = pathname === '/' || PROTECTED_PREFIXES.some(p => pathname.startsWith(p));
 
   if (isProtected) {
-    const token = request.cookies.get(COOKIE_NAME)?.value;
+    const token = request.cookies.get(COOKIE_NAME)?.value ?? request.cookies.get(LEGACY_COOKIE_NAME)?.value;
 
     if (!token) {
       if (pathname.startsWith('/api/')) {

@@ -26,7 +26,7 @@ function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
  * Aplica en <html> las preferencias visuales (tema, tamaño de letra UI,
  * densidad, animaciones reducidas) leídas de localStorage para el owner.
  *
- * Se re-ejecuta al recibir el evento "meraki:prefs-changed" para que
+ * Se re-ejecuta al recibir el evento "koptup:prefs-changed" para que
  * cualquier cambio en /settings se refleje al instante en toda la app.
  */
 export default function PrefsApplier() {
@@ -64,10 +64,10 @@ export default function PrefsApplier() {
     };
     mql?.addEventListener?.('change', onSystemChange);
 
-    window.addEventListener('meraki:prefs-changed', apply);
+    window.addEventListener('koptup:prefs-changed', apply);
     return () => {
       mql?.removeEventListener?.('change', onSystemChange);
-      window.removeEventListener('meraki:prefs-changed', apply);
+      window.removeEventListener('koptup:prefs-changed', apply);
     };
   }, [owner]);
 

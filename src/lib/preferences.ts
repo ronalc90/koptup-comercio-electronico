@@ -36,15 +36,28 @@ function isBrowser(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
+function scopeOf(owner: string | null | undefined): string {
+  return (owner ?? 'default').trim() || 'default';
+}
 function keyFor(owner: string | null | undefined, name: string): string {
-  const scope = (owner ?? 'default').trim() || 'default';
-  return `meraki.pref.${scope}.${name}`;
+  return `koptup.pref.${scopeOf(owner)}.${name}`;
+}
+/** Clave histórica (prefijo meraki.*) que se lee como respaldo y se migra al nuevo. */
+function legacyKeyFor(owner: string | null | undefined, name: string): string {
+  return `meraki.pref.${scopeOf(owner)}.${name}`;
 }
 
 function getString(owner: string | null | undefined, name: string): string | null {
   if (!isBrowser()) return null;
   try {
-    return window.localStorage.getItem(keyFor(owner, name));
+    const v = window.localStorage.getItem(keyFor(owner, name));
+    if (v !== null) return v;
+    // Respaldo: preferencia guardada antes del rebrand → se migra al prefijo nuevo.
+    const legacy = window.localStorage.getItem(legacyKeyFor(owner, name));
+    if (legacy !== null) {
+      try { window.localStorage.setItem(keyFor(owner, name), legacy); } catch { /* ignore */ }
+    }
+    return legacy;
   } catch { return null; }
 }
 
@@ -257,11 +270,12 @@ export function clearAllPreferences(owner: string | null | undefined): void {
   if (!isBrowser()) return;
   try {
     const scope = (owner ?? 'default').trim() || 'default';
-    const prefix = `meraki.pref.${scope}.`;
+    // Limpia el prefijo nuevo y el histórico (meraki.*) por si quedaron datos.
+    const prefixes = [`koptup.pref.${scope}.`, `meraki.pref.${scope}.`];
     const keys: string[] = [];
     for (let i = 0; i < window.localStorage.length; i++) {
       const k = window.localStorage.key(i);
-      if (k && k.startsWith(prefix)) keys.push(k);
+      if (k && prefixes.some((p) => k.startsWith(p))) keys.push(k);
     }
     keys.forEach((k) => window.localStorage.removeItem(k));
   } catch { /* ignore */ }

@@ -193,7 +193,7 @@ function ToggleRow({ label, description, checked, onChange }: ToggleRowProps) {
 
 function emitPrefsChanged() {
   if (typeof window !== 'undefined') {
-    window.dispatchEvent(new Event('meraki:prefs-changed'))
+    window.dispatchEvent(new Event('koptup:prefs-changed'))
   }
 }
 

@@ -222,7 +222,7 @@ export default function AssistantPage() {
   // Load chat history from localStorage on mount
   useEffect(() => {
     try {
-      const saved = localStorage.getItem('meraki-chat');
+      const saved = localStorage.getItem('koptup-chat') ?? localStorage.getItem('meraki-chat');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) setMessages(parsed);
@@ -234,7 +234,7 @@ export default function AssistantPage() {
   // Persist chat history when it changes (only after initial load)
   useEffect(() => {
     if (!chatLoaded) return;
-    try { localStorage.setItem('meraki-chat', JSON.stringify(messages.slice(-100))); } catch { /* ignore */ }
+    try { localStorage.setItem('koptup-chat', JSON.stringify(messages.slice(-100))); } catch { /* ignore */ }
   }, [messages, chatLoaded]);
 
   // Lock background scroll on mobile while the full-screen detail overlay is open.
@@ -248,6 +248,7 @@ export default function AssistantPage() {
   const clearChat = () => {
     setMessages([]);
     setPendingAction(null);
+    localStorage.removeItem('koptup-chat');
     localStorage.removeItem('meraki-chat');
     toast.success('Chat limpiado');
   };
@@ -262,6 +263,7 @@ export default function AssistantPage() {
     setPendingAction(null);
     setPreConfirmPhotos(null);
     setPhotoStepDone(false);
+    localStorage.removeItem('koptup-chat');
     localStorage.removeItem('meraki-chat');
     toast.success(saved ? `Guardado en el librito — ${saved.label}` : 'Chat limpiado');
   };
