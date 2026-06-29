@@ -138,12 +138,13 @@ export async function getSession(): Promise<TenantContext | null> {
       const db = getServiceClient();
       const { data, error } = await db
         .from('users')
-        .select('active, role')
+        .select('active, role, status')
         .eq('id', ctx.userId)
         .eq('tenant_id', ctx.tenantId)
         .maybeSingle();
       if (!error && data) {
         if (data.active === false) return null; // desactivado ⇒ sesión revocada
+        if (data.status && data.status !== 'approved') return null; // no aprobado ⇒ revocada
         if (isRole(data.role)) ctx.role = data.role as Role; // rol vigente
       }
     } catch {
@@ -171,6 +172,8 @@ interface UserRow {
   password_hash: string;
   role: string;
   active: boolean;
+  /** Estado de aprobación (migración 017). Pre-migración puede venir undefined. */
+  status?: string;
 }
 
 /** Busca un usuario por username o email (case-insensitive). null si no hay tabla. */
@@ -182,7 +185,7 @@ async function lookupUser(identifier: string): Promise<UserRow | null> {
   if (!safe) return null;
   try {
     const db = getServiceClient();
-    const cols = 'id, tenant_id, email, username, password_hash, role, active';
+    const cols = 'id, tenant_id, email, username, password_hash, role, active, status';
     // Dos consultas explícitas en vez de `.or` interpolado: más seguro y claro.
     const byEmail = await db.from('users').select(cols).ilike('email', safe).limit(1).maybeSingle();
     if (byEmail.data) return byEmail.data as UserRow;
@@ -224,8 +227,10 @@ export async function login(
   // 1) Fuente real: tabla users (post-migración).
   const row = await lookupUser(identifier);
   if (row) {
-    if (!row.active) {
-      await verifyPassword(password, TIMING_DUMMY_HASH); // iguala tiempo
+    // Bloquea inactivos y NO aprobados (pendientes/rechazados del auto-registro).
+    // status undefined ⇒ entorno pre-migración 017 ⇒ se trata como aprobado.
+    if (!row.active || (row.status && row.status !== 'approved')) {
+      await verifyPassword(password, TIMING_DUMMY_HASH); // iguala tiempo (anti-enumeración)
       return { success: false, error: LOGIN_FAIL };
     }
     const ok = await verifyPassword(password, row.password_hash);
