@@ -3,7 +3,7 @@ import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword, validatePassword } from '@/lib/auth';
 import { isRole, roleAtLeast } from '@/lib/tenant';
-import { recordAudit } from '@/lib/audit';
+import { recordAudit, type AuditAction } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,10 +19,13 @@ export async function GET() {
   const db = getServiceClient();
   const { data, error } = await db
     .from('users')
-    .select('id, email, username, role, active, created_at')
+    .select('id, email, username, role, active, status, rejected_at, created_at')
     .eq('tenant_id', auth.ctx.tenantId)
     .order('id');
-  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+  if (error) {
+    console.error('admin/users GET error:', error.message);
+    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+  }
   return NextResponse.json({ users: data ?? [] });
 }
 
@@ -107,14 +110,28 @@ export async function PATCH(request: NextRequest) {
   if (!Number.isInteger(id)) {
     return NextResponse.json({ error: 'id inválido' }, { status: 400 });
   }
-  const updates: { role?: string; active?: boolean } = {};
+  const updates: { role?: string; active?: boolean; status?: string; rejected_at?: string | null } = {};
+  let auditAction: AuditAction = 'user_updated';
+
+  // Ciclo de aprobación del auto-registro (modo B: empleados de este negocio).
+  if (body.action === 'approve') {
+    updates.status = 'approved'; updates.active = true; updates.rejected_at = null;
+    auditAction = 'registration_approved';
+  } else if (body.action === 'reject') {
+    updates.status = 'rejected'; updates.active = false; updates.rejected_at = new Date().toISOString();
+    auditAction = 'registration_rejected';
+  } else if (body.action === 'reenable') {
+    updates.status = 'pending'; updates.active = false; updates.rejected_at = null;
+    auditAction = 'registration_reenabled';
+  }
+
   if (isRole(body.role)) {
     if (!roleAtLeast(auth.ctx.role, body.role)) {
       return NextResponse.json({ error: 'No puedes asignar un rol superior al tuyo' }, { status: 403 });
     }
     updates.role = body.role;
   }
-  if (typeof body.active === 'boolean') updates.active = body.active;
+  if (typeof body.active === 'boolean' && !body.action) updates.active = body.active;
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }
@@ -129,14 +146,17 @@ export async function PATCH(request: NextRequest) {
     .eq('id', id)
     .eq('tenant_id', auth.ctx.tenantId)
     .select('id');
-  if (error) return NextResponse.json({ error: 'No se pudo actualizar el usuario' }, { status: 500 });
+  if (error) {
+    console.error('admin/users PATCH error:', error.message, { id, updates });
+    return NextResponse.json({ error: `No se pudo actualizar el usuario: ${error.message}` }, { status: 500 });
+  }
   if (!affected || affected.length === 0) {
     return NextResponse.json({ error: 'Usuario no encontrado en tu negocio' }, { status: 404 });
   }
   await recordAudit(db, {
     tenantId: auth.ctx.tenantId,
     actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
-    action: 'user_updated',
+    action: auditAction,
     entity: 'user',
     entityId: id,
     detail: updates,
