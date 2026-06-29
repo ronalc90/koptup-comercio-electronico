@@ -39,6 +39,7 @@ import { useTenant } from '@/lib/TenantContext'
 import { isOwnerSupported } from '@/lib/db'
 import AlertsBanner from '@/components/shared/AlertsBanner'
 import PageHelpModal from '@/components/shared/PageHelpModal'
+import SupplierConsumo from '@/components/dashboard/SupplierConsumo'
 import { DASHBOARD_HELP } from '@/lib/pageHelp'
 
 const MONTH_NAMES = [
@@ -565,6 +566,9 @@ export default function DashboardPage() {
                 )}
               </div>
             </div>
+
+            {/* Consumo de proveedores (Fase B) */}
+            <SupplierConsumo />
 
             {/* Recent orders */}
             <div className="rounded-2xl bg-white border border-gray-100 shadow-sm overflow-hidden">

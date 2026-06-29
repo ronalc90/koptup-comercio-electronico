@@ -15,12 +15,14 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import type { Order, DailyKPIs } from '@/lib/types'
 import { cn, formatCurrency, getDayOfWeek, sameVendor, vendorDisplayName } from '@/lib/utils'
+import { phaseLabel } from '@/lib/orders/phases'
 import { useUser } from '@/lib/UserContext'
 import { isOwnerSupported, courierPendingColumn } from '@/lib/db'
 import WhatsAppLink from '@/components/shared/WhatsAppLink'
+import OrderReceipt from '@/components/orders/OrderReceipt'
 import { DELIVERY_TYPE_OPTIONS as DELIVERY_TYPE_DEFS, getCourierPending } from '@/lib/types'
 
-const DELIVERY_STATUS_OPTIONS = ['Confirmado', 'Enviado', 'Entregado', 'Pagado', 'Devolucion', 'Cancelado'] as const
+const DELIVERY_STATUS_OPTIONS = ['Confirmado', 'EnAlistamiento', 'Alistado', 'Enviado', 'Entregado', 'Pagado', 'Devolucion', 'Cancelado'] as const
 
 /**
  * Deriva las opciones de vendedor a partir de los datos reales: los valores
@@ -112,6 +114,8 @@ function computeKPIs(orders: Order[], currentUser: string): DailyKPIs {
 
 const STATUS_COLORS: Record<string, string> = {
   Confirmado: 'bg-blue-100 text-blue-700',
+  EnAlistamiento: 'bg-indigo-100 text-indigo-700',
+  Alistado: 'bg-cyan-100 text-cyan-700',
   Enviado: 'bg-purple-100 text-purple-700',
   Entregado: 'bg-amber-100 text-amber-700',
   Pagado: 'bg-emerald-100 text-emerald-700',
@@ -123,6 +127,7 @@ interface OrderRowBaseProps {
   order: Order
   onUpdate: (id: number, changes: Partial<Order>) => Promise<void>
   vendorOptions: string[]
+  onReceipt: (order: Order) => void
 }
 
 function useOrderRowState(order: Order, onUpdate: OrderRowBaseProps['onUpdate']) {
@@ -146,7 +151,7 @@ function vendorOptionsWith(order: Order, vendorOptions: string[]): string[] {
   return [...vendorOptions, current]
 }
 
-function OrderTableRow({ order, onUpdate, vendorOptions }: OrderRowBaseProps) {
+function OrderTableRow({ order, onUpdate, vendorOptions, onReceipt }: OrderRowBaseProps) {
   const { saving, handleChange } = useOrderRowState(order, onUpdate)
   const options = vendorOptionsWith(order, vendorOptions)
 
@@ -180,7 +185,7 @@ function OrderTableRow({ order, onUpdate, vendorOptions }: OrderRowBaseProps) {
         >
           {DELIVERY_STATUS_OPTIONS.map((s) => (
             <option key={s} value={s}>
-              {s}
+              {phaseLabel(s)}
             </option>
           ))}
         </select>
@@ -215,12 +220,23 @@ function OrderTableRow({ order, onUpdate, vendorOptions }: OrderRowBaseProps) {
             </option>
           ))}
         </select>
+        <button
+          onClick={() => onReceipt(order)}
+          className="mt-1 block w-full rounded-lg border border-purple-200 bg-purple-50 px-2 py-1 text-[11px] font-semibold text-purple-700 hover:bg-purple-100"
+        >
+          Recibo
+        </button>
+        {order.tracking_number && (
+          <p className="mt-1 text-[10px] text-gray-400 truncate" title={`${order.carrier ?? ''} ${order.tracking_status ?? ''}`}>
+            Guía {order.tracking_number}
+          </p>
+        )}
       </td>
     </tr>
   )
 }
 
-function OrderMobileCard({ order, onUpdate, vendorOptions }: OrderRowBaseProps) {
+function OrderMobileCard({ order, onUpdate, vendorOptions, onReceipt }: OrderRowBaseProps) {
   const [expanded, setExpanded] = useState(false)
   const { saving, handleChange } = useOrderRowState(order, onUpdate)
   const options = vendorOptionsWith(order, vendorOptions)
@@ -289,7 +305,7 @@ function OrderMobileCard({ order, onUpdate, vendorOptions }: OrderRowBaseProps) 
               >
                 {DELIVERY_STATUS_OPTIONS.map((s) => (
                   <option key={s} value={s}>
-                    {s}
+                    {phaseLabel(s)}
                   </option>
                 ))}
               </select>
@@ -377,6 +393,21 @@ function OrderMobileCard({ order, onUpdate, vendorOptions }: OrderRowBaseProps) 
             </div>
           )}
 
+          {order.tracking_number && (
+            <p className="text-[10px] text-gray-400">
+              Guía: <span className="font-mono text-gray-600">{order.tracking_number}</span>
+              {order.carrier ? ` · ${order.carrier}` : ''}
+              {order.tracking_status ? ` · ${order.tracking_status}` : ''}
+            </p>
+          )}
+
+          <button
+            onClick={() => onReceipt(order)}
+            className="w-full rounded-lg border border-purple-200 bg-purple-50 py-2 text-xs font-semibold text-purple-700 hover:bg-purple-100"
+          >
+            Imprimir recibo
+          </button>
+
           {saving && (
             <p className="text-xs text-purple-500 text-center">Guardando...</p>
           )}
@@ -398,6 +429,7 @@ export default function DailyOrdersPage({
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [supabaseOk, setSupabaseOk] = useState(true)
+  const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -425,6 +457,21 @@ export default function DailyOrdersPage({
 
   async function handleUpdateOrder(id: number, changes: Partial<Order>) {
     try {
+      // DESPACHO: al pasar a 'Enviado' enrutamos por la API, que crea la guía de
+      // transportadora y guarda el tracking (lógica server-side, credenciales).
+      if (changes.delivery_status === 'Enviado') {
+        const res = await fetch('/api/orders/phase', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, status: 'Enviado' }),
+        })
+        const data = await res.json().catch(() => null)
+        if (!res.ok) throw new Error(data?.error || 'No se pudo despachar')
+        const o = data?.order ?? {}
+        setOrders((prev) => prev.map((x) => (x.id === id ? { ...x, delivery_status: 'Enviado', carrier: o.carrier, tracking_number: o.tracking_number, tracking_status: o.tracking_status, guide_number: o.guide_number ?? x.guide_number, dispatch_date: o.dispatch_date ?? x.dispatch_date } : x)))
+        toast.success(o.tracking_number ? `Despachado · guía ${o.tracking_number}` : 'Despachado')
+        if (data?.shippingError) toast(`Guía pendiente: ${data.shippingError}`, { icon: '⚠️' })
+        return
+      }
       // Si la migración SQL aún no corrió, redirigimos el campo nuevo al
       // legacy para evitar fallar el update.
       const courierColumn = await courierPendingColumn()
@@ -581,7 +628,7 @@ export default function DailyOrdersPage({
               </thead>
               <tbody>
                 {orders.map((order) => (
-                  <OrderTableRow key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} />
+                  <OrderTableRow key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} onReceipt={setReceiptOrder} />
                 ))}
               </tbody>
             </table>
@@ -590,10 +637,14 @@ export default function DailyOrdersPage({
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 md:hidden">
             {orders.map((order) => (
-              <OrderMobileCard key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} />
+              <OrderMobileCard key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} onReceipt={setReceiptOrder} />
             ))}
           </div>
         </>
+      )}
+
+      {receiptOrder && (
+        <OrderReceipt order={receiptOrder} onClose={() => setReceiptOrder(null)} />
       )}
     </div>
   )
