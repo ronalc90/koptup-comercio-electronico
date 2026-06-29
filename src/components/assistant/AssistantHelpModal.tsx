@@ -2,6 +2,7 @@
 
 import { X, Sparkles, ShoppingBag, Package, Search, CheckCircle, RotateCcw, AlertTriangle, DollarSign, Receipt, FileText, MessageSquare } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
+import { useModalA11y } from '@/components/shared/useModalA11y';
 
 interface Section {
   icon: React.ReactNode;
@@ -180,6 +181,7 @@ export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps)
   const cat = config.categories[0] ?? 'productos';
   const prod = singularize(cat);
   const SECTIONS = buildSections(prod, cat);
+  useModalA11y(onClose);
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/50 p-0 md:p-4"
@@ -188,6 +190,8 @@ export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps)
       <div
         className="w-full max-w-2xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 shrink-0">

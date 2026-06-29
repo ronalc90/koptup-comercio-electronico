@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   User,
@@ -86,6 +86,7 @@ import ExcelImport from '@/components/shared/ExcelImport'
 import { GuideCard } from '@/components/dispatch/DispatchGuide'
 import { playSuccess, playTick, playError } from '@/lib/sound'
 import PageHelpModal from '@/components/shared/PageHelpModal'
+import { useModalA11y } from '@/components/shared/useModalA11y'
 import { SETTINGS_HELP } from '@/lib/pageHelp'
 
 interface SectionProps {
@@ -502,6 +503,9 @@ export default function SettingsPage() {
   const [wipeOpen, setWipeOpen] = useState(false)
   const [wipeText, setWipeText] = useState('')
   const [wiping, setWiping] = useState(false)
+  const closeWipe = useCallback(() => { setWipeOpen(false); setWipeText('') }, [])
+  // a11y del modal de borrado (acción más destructiva): Escape + bloqueo de scroll.
+  useModalA11y(closeWipe, { active: wipeOpen })
 
   /* ─────── Changelog ─────── */
   const [changelogOpen, setChangelogOpen] = useState(false)
@@ -1167,8 +1171,13 @@ export default function SettingsPage() {
 
       {/* Modal: confirmar borrado total */}
       {wipeOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeWipe}>
+          <div
+            className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl bg-white shadow-2xl"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center gap-3 border-b border-gray-100 bg-red-50 px-5 py-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500 text-white">
                 <AlertTriangle className="h-5 w-5" />
@@ -1201,10 +1210,7 @@ export default function SettingsPage() {
             <div className="flex gap-2 border-t border-gray-100 px-5 py-4">
               <button
                 type="button"
-                onClick={() => {
-                  setWipeOpen(false)
-                  setWipeText('')
-                }}
+                onClick={closeWipe}
                 disabled={wiping}
                 className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-60"
               >

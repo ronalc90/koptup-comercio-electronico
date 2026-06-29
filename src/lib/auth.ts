@@ -10,6 +10,7 @@ import {
   DEFAULT_TENANT_SLUG,
   isRole,
 } from './tenant';
+import { COOKIE_NAME } from './sessionCookie';
 
 /**
  * Resuelve el secreto de firma de sesiones (HS256).
@@ -48,7 +49,6 @@ function resolveAuthSecret(): string {
 }
 
 const SECRET = new TextEncoder().encode(resolveAuthSecret());
-const COOKIE_NAME = 'meraki-session';
 
 // Política mínima de contraseñas (Security high / QA P2): al menos 8 caracteres
 // y un dígito. Regla simple, compartida por todas las superficies que crean o

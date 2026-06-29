@@ -7,6 +7,7 @@ import {
   deleteWorkday,
   type Workday,
 } from '@/lib/workdayArchive';
+import { useModalA11y } from '@/components/shared/useModalA11y';
 
 interface WorkdayArchiveModalProps {
   hasActiveChat: boolean;
@@ -19,6 +20,7 @@ export default function WorkdayArchiveModal({ hasActiveChat, onClose, onSaveAndC
   const [workdays, setWorkdays] = useState<Workday[]>(() => listWorkdays());
   const [showHelp, setShowHelp] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
+  useModalA11y(onClose);
 
   const handleDelete = (id: string) => {
     deleteWorkday(id);
@@ -34,6 +36,8 @@ export default function WorkdayArchiveModal({ hasActiveChat, onClose, onSaveAndC
       <div
         className="w-full max-w-xl bg-white rounded-t-2xl md:rounded-2xl shadow-2xl max-h-[92dvh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
       >
         {/* Header */}
         <div className="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 shrink-0">

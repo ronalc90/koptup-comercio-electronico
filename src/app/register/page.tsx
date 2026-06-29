@@ -5,6 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { CheckCircle2, Loader2 } from 'lucide-react';
 import { INDUSTRY_PRESETS, INDUSTRY_KEYS } from '@/lib/registration';
+import LogoPicker from '@/components/shared/LogoPicker';
 
 /**
  * Registro público (sin sesión). Dos modos:
@@ -20,6 +21,7 @@ export default function RegisterPage() {
 
   // Negocio (modo A)
   const [businessName, setBusinessName] = useState('');
+  const [logo, setLogo] = useState('🏪');
   const [industry, setIndustry] = useState('otro');
   const [categories, setCategories] = useState('');
   const [phone, setPhone] = useState('');
@@ -48,7 +50,7 @@ export default function RegisterPage() {
     const body = invite
       ? { inviteCode: invite, name, email, password, acceptedTerms: terms }
       : {
-          businessName, industry,
+          businessName, industry, logo,
           categories: categories.split(',').map((c) => c.trim()).filter(Boolean),
           phone, contactEmail, adminName, adminEmail, adminPassword: password, acceptedTerms: terms,
         };
@@ -108,6 +110,10 @@ export default function RegisterPage() {
               </>
             ) : (
               <>
+                <div>
+                  <span className="text-xs font-medium text-gray-600">Logo del negocio</span>
+                  <div className="mt-1"><LogoPicker value={logo} onChange={setLogo} allowUpload={false} /></div>
+                </div>
                 <Field label="Nombre del negocio" value={businessName} onChange={setBusinessName} placeholder="Mi Tienda" />
                 <label className="block">
                   <span className="text-xs font-medium text-gray-600">Tipo de negocio</span>

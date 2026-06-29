@@ -95,6 +95,10 @@ export async function POST(request: NextRequest) {
   if (pwdErr) return NextResponse.json({ error: pwdErr }, { status: 400 });
 
   const industry = String(body.industry);
+  // Logo: en registro público solo se aceptan emojis (no subida de archivos).
+  const logo = typeof body.logo === 'string' && body.logo.trim() && body.logo.trim().length <= 8 && !/^https?:\/\//.test(body.logo)
+    ? body.logo.trim()
+    : '🏪';
   const categories = sanitizeCategories(body.categories);
   const config = {
     categories: categories.length ? categories : defaultCategoriesForIndustry(industry),
@@ -108,7 +112,7 @@ export async function POST(request: NextRequest) {
       name: String(body.businessName).trim(),
       slug: slugify(String(body.businessName)),
       industry,
-      logo: '🏪',
+      logo,
       plan: 'free',
       billing_status: 'trial',
       active: false,

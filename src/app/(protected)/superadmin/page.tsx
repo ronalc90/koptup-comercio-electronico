@@ -6,6 +6,7 @@ import { Building2, Plus, DollarSign, Bot } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
 import { PLANS_ORDER, getPlan, productLimit, planPrice, formatCOP } from '@/lib/plans';
 import { licenseState, LICENSE_LABELS, addMonths, type LicenseStatus } from '@/lib/billing';
+import LogoPicker, { isLogoUrl } from '@/components/shared/LogoPicker';
 
 interface TenantConfigShape {
   categories?: string[];
@@ -360,8 +361,9 @@ export default function SuperadminPage() {
             onChange={(e) => setForm({ ...form, slug: e.target.value })} />
           <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Industria (ej. motos)" value={form.industry}
             onChange={(e) => setForm({ ...form, industry: e.target.value })} />
-          <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Logo (emoji)" value={form.logo}
-            onChange={(e) => setForm({ ...form, logo: e.target.value })} />
+          <div className="sm:col-span-2">
+            <LogoPicker value={form.logo || '🏪'} onChange={(v) => setForm({ ...form, logo: v })} />
+          </div>
           <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Email del admin" value={form.adminEmail}
             onChange={(e) => setForm({ ...form, adminEmail: e.target.value })} />
           <input className="rounded-xl border px-3 py-2 text-sm" placeholder="Contraseña del admin" type="password" value={form.adminPassword}
@@ -412,7 +414,10 @@ export default function SuperadminPage() {
             const lic = licenseState(t.billing_status, t.license_until, today);
             return (
               <li key={t.id} className="flex items-center gap-3 py-2.5 text-sm flex-wrap">
-                <span className="text-xl">{t.logo}</span>
+                {isLogoUrl(t.logo)
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={t.logo} alt="" className="h-6 w-6 rounded object-cover" />
+                  : <span className="text-xl">{t.logo}</span>}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <p className="font-semibold text-gray-900 truncate">{t.name}</p>

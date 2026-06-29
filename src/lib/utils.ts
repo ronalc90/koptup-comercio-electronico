@@ -62,13 +62,6 @@ export function formatDate(date: string | Date): string {
   }).format(new Date(date));
 }
 
-export function formatShortDate(date: string | Date): string {
-  return new Intl.DateTimeFormat('es-CO', {
-    month: 'short',
-    day: 'numeric',
-  }).format(new Date(date));
-}
-
 export function generateOrderCode(date: Date, sequence: number): string {
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');

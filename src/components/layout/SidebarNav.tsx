@@ -2,40 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import {
-  LayoutDashboard,
-  ShoppingBag,
-  Plus,
-  Package,
-  Tag,
-  Truck,
-  Settings,
-  LogOut,
-  Bot,
-  ShieldCheck,
-  Building2,
-  CreditCard,
-  Boxes,
-} from 'lucide-react';
-import { useState, type ElementType } from 'react';
+import { LogOut } from 'lucide-react';
+import { useState } from 'react';
 import { useTenant } from '@/lib/TenantContext';
 import { useUser } from '@/lib/UserContext';
-import { tenantNav, type ModuleKey } from '@/lib/modules';
 import { roleLabel } from '@/lib/tenant';
-import { canAccessModule } from '@/lib/permissions';
+import { buildNavItems } from '@/lib/nav';
 import { PLATFORM_BRAND } from '@/lib/platform';
-
-const MODULE_ICONS: Record<ModuleKey, ElementType> = {
-  dashboard: LayoutDashboard,
-  pedidos: ShoppingBag,
-  asistente: Plus,
-  inventario: Package,
-  productos: Tag,
-  despachos: Truck,
-  proveedores: Boxes,
-  agentes: Bot,
-  config: Settings,
-};
+import { isLogoUrl } from '@/components/shared/LogoPicker';
 
 interface SidebarNavProps {
   collapsed: boolean;
@@ -55,32 +29,8 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
     ? { logo: PLATFORM_BRAND.logo, name: PLATFORM_BRAND.fullName }
     : { logo: config.logo, name: config.name };
 
-  // Navegación construida desde el registro de módulos según el tenant, filtrada
-  // por rol: el `admin` es administrativo y NO ve los módulos de negocio.
-  const navItems = tenantNav(config.navModules, config.moduleLabels)
-    .filter((m) => canAccessModule(role, m.key))
-    // Proveedores es opt-in: solo aparece si el tenant lo lista explícitamente en
-    // navModules (no se filtra a los tenants existentes con navModules undefined).
-    .filter((m) => m.key !== 'proveedores' || !!config.navModules?.includes('proveedores'))
-    .map((m) => ({
-      href: m.route,
-      label: m.label,
-      icon: MODULE_ICONS[m.key] as typeof Bot,
-      isAccent: m.accent,
-    }));
-  // Administración de usuarios: admin y superadmin.
-  if (role === 'admin' || role === 'superadmin') {
-    navItems.push({ href: '/admin', label: 'Administración', icon: ShieldCheck, isAccent: false });
-  }
-  // "Mi licencia" es del negocio: solo el admin del negocio. El superadmin NO
-  // tiene licencia propia (gestiona la de TODOS los negocios desde Plataforma).
-  if (role === 'admin') {
-    navItems.push({ href: '/billing', label: 'Mi licencia', icon: CreditCard, isAccent: false });
-  }
-  // La gestión de la plataforma (todos los negocios) solo al superadmin.
-  if (role === 'superadmin') {
-    navItems.push({ href: '/superadmin', label: 'Plataforma', icon: Building2, isAccent: false });
-  }
+  // Navegación construida desde la fuente compartida (idéntica a la barra móvil).
+  const navItems = buildNavItems(role, config.navModules, config.moduleLabels);
 
   async function handleLogout() {
     setLoggingOut(true);
@@ -109,9 +59,14 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
     >
       {/* Brand header */}
       <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100 min-h-[68px]">
-        <span className="text-2xl flex-shrink-0" aria-hidden="true">
-          {brand.logo}
-        </span>
+        {isLogoUrl(brand.logo) ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={brand.logo} alt="" className="h-7 w-7 flex-shrink-0 rounded-lg object-cover" />
+        ) : (
+          <span className="text-2xl flex-shrink-0" aria-hidden="true">
+            {brand.logo}
+          </span>
+        )}
         {!collapsed && (
           <div className="overflow-hidden">
             <h1 className="font-bold text-gray-900 text-sm leading-tight truncate">
@@ -138,10 +93,10 @@ export default function SidebarNav({ collapsed, onToggle }: SidebarNavProps) {
 
       {/* Navigation items */}
       <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-        {navItems.map(({ href, label, icon: Icon, isAccent }) => {
+        {navItems.map(({ href, label, icon: Icon, accent }) => {
           const active = isActive(href);
 
-          if (isAccent) {
+          if (accent) {
             return (
               <Link
                 key={href}

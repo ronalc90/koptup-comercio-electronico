@@ -7,7 +7,8 @@ import toast from 'react-hot-toast'
 import { supabase } from '@/lib/supabase'
 import type { Product, ParsedOrder, PaymentTiming } from '@/lib/types'
 import { PAYMENT_TIMING_OPTIONS } from '@/lib/types'
-import { generateOrderCode, vendorDisplayName } from '@/lib/utils'
+import { vendorDisplayName } from '@/lib/utils'
+import { createOrderWithCode } from '@/lib/orders/createOrderWithCode'
 import AIOrderInput from '@/components/orders/AIOrderInput'
 import AIInventoryInput from '@/components/inventory/AIInventoryInput'
 import DispatchGuide from '@/components/dispatch/DispatchGuide'
@@ -254,15 +255,7 @@ export default function NewOrderPage({
       )
       const product_cost = selectedProduct?.cost ?? 0
 
-      // Count existing orders for the date to generate a sequence number
-      const { count } = await supabase
-        .from('orders')
-        .select('*', { count: 'exact', head: true })
-        .eq('order_date', form.order_date)
-
-      const sequence = (count ?? 0) + 1
       const orderDate = new Date(form.order_date + 'T00:00:00')
-      const order_code = generateOrderCode(orderDate, sequence)
 
       const hasOwner = await isOwnerSupported()
       const hasPaymentTiming = await isPaymentTimingSupported()
@@ -273,7 +266,6 @@ export default function NewOrderPage({
       const prepaidAmount = normalizePrepaidAmount(form, valueToCollect)
 
       const payload: Record<string, unknown> = {
-        order_code,
         client_name: form.client_name.trim(),
         phone: form.phone.trim(),
         city: form.city.trim() || DEFAULT_CITY,
@@ -304,8 +296,8 @@ export default function NewOrderPage({
       if (hasOwner) payload.owner = owner
       if (hasPaymentTiming) payload.payment_timing = form.payment_timing || 'ContraEntrega'
 
-      const { error } = await supabase.from('orders').insert(payload)
-      if (error) throw error
+      // Inserta con order_code + reintento ante colisión (helper compartido).
+      const order_code = await createOrderWithCode(supabase, payload, orderDate, form.order_date)
 
       // Sincronización con inventario: descuenta si existe (nunca negativo)
       // o crea un registro en cero con el costo de referencia para contabilidad.
@@ -402,21 +394,12 @@ export default function NewOrderPage({
               );
               const product_cost = selectedProduct?.cost ?? 0;
 
-              // Count existing orders for today to generate sequence
-              const { count } = await supabase
-                .from('orders')
-                .select('*', { count: 'exact', head: true })
-                .eq('order_date', orderDate);
-
-              const sequence = (count ?? 0) + 1;
               const orderDateObj = new Date(orderDate + 'T00:00:00');
-              const order_code = generateOrderCode(orderDateObj, sequence);
 
               const hasOwner = await isOwnerSupported();
               const courierColumnAi = await courierPendingColumn();
               const hasSupplierAi = await isSupplierSupported();
               const payload: Record<string, unknown> = {
-                order_code,
                 client_name: parsed.client_name?.trim() ?? '',
                 phone: parsed.phone?.trim() ?? '',
                 city: parsed.city?.trim() ?? '',
@@ -445,8 +428,8 @@ export default function NewOrderPage({
               };
               if (hasOwner) payload.owner = owner;
 
-              const { error } = await supabase.from('orders').insert(payload);
-              if (error) throw error;
+              // Inserta con order_code + reintento ante colisión (helper compartido).
+              const order_code = await createOrderWithCode(supabase, payload, orderDateObj, orderDate);
 
               toast.success('Pedido guardado. Guía lista para imprimir.');
               setDispatchOrder({

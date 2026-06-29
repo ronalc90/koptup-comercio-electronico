@@ -7,7 +7,8 @@ import { supabase } from '@/lib/supabase';
 import { useUser } from '@/lib/UserContext';
 import { useTenant } from '@/lib/TenantContext';
 import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn, isOrderQuantitySupported } from '@/lib/db';
-import { formatCurrency, generateOrderCode, parseCopAmount, vendorDisplayName } from '@/lib/utils';
+import { formatCurrency, parseCopAmount, vendorDisplayName } from '@/lib/utils';
+import { createOrderWithCode } from '@/lib/orders/createOrderWithCode';
 import { syncInventoryOnOrderSave } from '@/lib/inventorySync';
 import type { PaymentTiming } from '@/lib/types';
 import DispatchGuide from '@/components/dispatch/DispatchGuide';
@@ -505,24 +506,9 @@ export default function AssistantPage() {
       if (hasTiming) basePayload.payment_timing = paymentTiming;
       if (await isOrderQuantitySupported()) basePayload.quantity = orderQty;
 
-      // order_code = fecha + secuencial del día. El secuencial sale de un conteo
-      // leído justo antes de insertar; si dos pedidos se crean a la vez podrían
-      // colisionar. Reintentamos con el siguiente secuencial ante violación de
-      // unicidad (índice uq_orders_tenant_code, migración 013). Sin el índice no
-      // hay violación y el primer intento basta (comportamiento previo).
-      let orderCode = '';
-      let insertErr: { code?: string; message?: string } | null = null;
-      for (let attempt = 0; attempt < 6; attempt++) {
-        const { data: existing } = await supabase.from('orders').select('id').gte('order_date', dateStr).lte('order_date', dateStr);
-        const seq = (existing?.length || 0) + 1 + attempt;
-        orderCode = generateOrderCode(today, seq);
-        basePayload.order_code = orderCode;
-        const { error } = await supabase.from('orders').insert(basePayload);
-        if (!error) { insertErr = null; break; }
-        insertErr = error;
-        if (error.code !== '23505') break; // no es colisión de unicidad → no reintentar
-      }
-      if (insertErr) throw new Error(insertErr.message || 'No se pudo guardar el pedido');
+      // order_code = fecha + secuencial del día, con reintento ante colisión de
+      // unicidad. Lógica compartida con los formularios de pedido nuevo.
+      const orderCode = await createOrderWithCode(supabase, basePayload, today, dateStr);
 
       // Sync inventario: descuenta (nunca negativo) o crea en cero con costo de referencia
       const detailStr = String(orderData.detail || '');

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { CreditCard, Package, CalendarClock, Receipt, Sparkles } from 'lucide-react';
-import { formatCOP, PLANS, type Plan } from '@/lib/plans';
+import { formatCOP, productUsage, PLANS, type Plan } from '@/lib/plans';
 import { LICENSE_LABELS, type LicenseStatus } from '@/lib/billing';
 
 interface Charge {
@@ -34,10 +34,15 @@ export default function BillingPage() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const res = await fetch('/api/billing', { cache: 'no-store' });
-      if (res.status === 403) { if (active) { setDenied(true); setLoading(false); } return; }
-      const json = await res.json().catch(() => null);
-      if (active) { setB(json && !json.error ? json : null); setLoading(false); }
+      try {
+        const res = await fetch('/api/billing', { cache: 'no-store' });
+        if (res.status === 403) { if (active) { setDenied(true); setLoading(false); } return; }
+        const json = await res.json().catch(() => null);
+        if (active) { setB(json && !json.error ? json : null); setLoading(false); }
+      } catch {
+        // Red caída u otro fallo: no dejar la UI colgada en "Cargando…".
+        if (active) { setB(null); setLoading(false); }
+      }
     })();
     return () => { active = false; };
   }, []);
@@ -69,8 +74,10 @@ export default function BillingPage() {
   if (denied) return <p className="text-sm text-gray-500">La facturación es solo para administradores.</p>;
   if (!b) return <p className="text-sm text-red-500">No se pudo cargar la facturación.</p>;
 
-  const pct = b.productLimit ? Math.min(100, Math.round((b.productCount / b.productLimit) * 100)) : 0;
-  const near = b.productLimit !== null && b.productCount / b.productLimit >= 0.8;
+  // Fuente única del cálculo de cupo (evita divergencias y NaN con límite 0).
+  const usage = productUsage(b.productCount, b.productLimit);
+  const pct = usage.percent;
+  const near = usage.nearLimit;
 
   return (
     <div className="max-w-3xl mx-auto space-y-5">

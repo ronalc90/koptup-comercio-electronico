@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { login } from '@/lib/auth';
 import { rateLimit, clearRateLimit } from '@/lib/rateLimit';
+import { COOKIE_NAME } from '@/lib/sessionCookie';
 
 // Anti fuerza bruta: 12 intentos por IP cada 10 min. Best-effort (en memoria por
 // instancia). Un login exitoso resetea el contador. Se limita por IP y NO por
@@ -48,7 +49,7 @@ export async function POST(request: NextRequest) {
     || request.nextUrl.protocol === 'https:';
 
   const response = NextResponse.json({ success: true, username, role: result.context?.role ?? 'member' });
-  response.cookies.set('meraki-session', result.token!, {
+  response.cookies.set(COOKIE_NAME, result.token!, {
     httpOnly: true,
     secure: isSecure,
     sameSite: 'lax',

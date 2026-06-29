@@ -18,6 +18,7 @@ import {
 } from '@/lib/preferences';
 import { useUser } from '@/lib/UserContext';
 import { useTenant } from '@/lib/TenantContext';
+import { isLogoUrl } from '@/components/shared/LogoPicker';
 
 type FontSize = PrintFontSize;
 
@@ -226,13 +227,18 @@ export function GuideCard({
       {/* Header */}
       <div className="bg-black flex items-center justify-center gap-2 px-3 py-2 guide-card-header">
         {showLogo && (
-          <span
-            aria-hidden="true"
-            className="leading-none"
-            style={{ fontSize: `${resolved.header * 1.6}pt` }}
-          >
-            {config.logo}
-          </span>
+          isLogoUrl(config.logo) ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={config.logo} alt="" className="object-contain" style={{ height: `${resolved.header * 1.6}pt` }} />
+          ) : (
+            <span
+              aria-hidden="true"
+              className="leading-none"
+              style={{ fontSize: `${resolved.header * 1.6}pt` }}
+            >
+              {config.logo}
+            </span>
+          )
         )}
         <div className="text-white text-center">
           <p className="font-bold leading-tight" style={{ fontSize: `${resolved.header}pt` }}>{config.name}</p>
