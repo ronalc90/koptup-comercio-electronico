@@ -5,6 +5,9 @@ let _courierPendingRenamed: boolean | null = null;
 let _tenantSupported: boolean | null = null;
 let _orderQuantitySupported: boolean | null = null;
 let _supplierSupported: boolean | null = null;
+let _inventorySupplierSupported: boolean | null = null;
+let _orderShippingSupported: boolean | null = null;
+let _tenantShippingConfigSupported: boolean | null = null;
 
 /**
  * Detecta si la migración multi-tenant (002) ya corrió comprobando la columna
@@ -119,4 +122,47 @@ export async function isSupplierSupported(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Detecta si la columna `inventory.supplier_id` (migración 018) existe. Mientras
+ * no, la captura de inventario no asocia proveedor y el call-site omite la
+ * columna. Cachea solo el `true`.
+ */
+export async function isInventorySupplierSupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  if (_inventorySupplierSupported === true) return true;
+  try {
+    const { error } = await supabase.from('inventory').select('supplier_id').limit(1);
+    if (!error) { _inventorySupplierSupported = true; return true; }
+    return false;
+  } catch { return false; }
+}
+
+/**
+ * Detecta si la migración 018 amplió `orders` con transportadora/tracking
+ * (`carrier`). El mismo 018 también amplió el CHECK de estados con las fases de
+ * alistamiento, así que esta detección habilita TANTO las fases nuevas como el
+ * tracking. Mientras devuelva false, el pipeline usa los 6 estados clásicos y no
+ * se escribe carrier/tracking. Cachea solo el `true`.
+ */
+export async function isOrderShippingSupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  if (_orderShippingSupported === true) return true;
+  try {
+    const { error } = await supabase.from('orders').select('carrier').limit(1);
+    if (!error) { _orderShippingSupported = true; return true; }
+    return false;
+  } catch { return false; }
+}
+
+/** Detecta si `tenants.shipping_config` (migración 018) existe. Cachea solo el `true`. */
+export async function isTenantShippingConfigSupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  if (_tenantShippingConfigSupported === true) return true;
+  try {
+    const { error } = await supabase.from('tenants').select('shipping_config').limit(1);
+    if (!error) { _tenantShippingConfigSupported = true; return true; }
+    return false;
+  } catch { return false; }
 }

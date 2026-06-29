@@ -6,9 +6,12 @@
  */
 
 /** Estados válidos del pipeline de un pedido. Debe coincidir con el CHECK
- * `chk_orders_status` de la BD (migración 009). */
+ * `chk_orders_status` de la BD (migración 009, ampliado en 018 con las fases de
+ * alistamiento 'EnAlistamiento' y 'Alistado'). */
 export const ORDER_STATUSES = [
   'Confirmado',
+  'EnAlistamiento',
+  'Alistado',
   'Enviado',
   'Entregado',
   'Pagado',
@@ -20,12 +23,14 @@ export type OrderStatus = (typeof ORDER_STATUSES)[number];
 
 /**
  * Estados que cuentan como venta "activa" para ingresos/utilidad. Excluye
- * Devolucion y Cancelado. Alineado con el cálculo del Dashboard
- * (activeOrders = Confirmado|Enviado|Entregado|Pagado) para que el resumen del
- * chat y el tablero NO se contradigan.
+ * Devolucion y Cancelado. Incluye las fases de alistamiento (la venta ya está
+ * confirmada y en curso). Alineado con el cálculo del Dashboard para que el
+ * resumen del chat y el tablero NO se contradigan.
  */
 export const ACTIVE_REVENUE_STATUSES: OrderStatus[] = [
   'Confirmado',
+  'EnAlistamiento',
+  'Alistado',
   'Enviado',
   'Entregado',
   'Pagado',

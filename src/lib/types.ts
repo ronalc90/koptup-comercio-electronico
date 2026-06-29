@@ -127,8 +127,13 @@ export interface Order {
   product_cost: number;
   delivery_type: DeliveryType;
   vendor: string;
-  delivery_status: 'Confirmado' | 'Enviado' | 'Entregado' | 'Pagado' | 'Devolucion' | 'Cancelado';
+  delivery_status: 'Confirmado' | 'EnAlistamiento' | 'Alistado' | 'Enviado' | 'Entregado' | 'Pagado' | 'Devolucion' | 'Cancelado';
   status_complement: string;
+  /** Transportadora y guía generadas al despachar (migración 018). Opcionales. */
+  carrier?: string | null;
+  tracking_number?: string | null;
+  tracking_status?: string | null;
+  tracking_updated_at?: string | null;
   is_exchange: boolean;
   order_date: string;
   dispatch_date: string | null;
@@ -155,6 +160,8 @@ export interface InventoryItem {
   observations: string;
   verified: boolean;
   image_url?: string;
+  /** Proveedor asignado al INGRESAR la mercancía (migración 018). Null = sin asignar. */
+  supplier_id?: number | null;
   created_at: string;
 }
 

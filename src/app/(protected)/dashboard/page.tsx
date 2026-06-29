@@ -47,12 +47,14 @@ const MONTH_NAMES = [
 ]
 
 const STATUS_STYLES: Record<Order['delivery_status'], { label: string; cls: string }> = {
-  Confirmado: { label: 'Confirmado', cls: 'bg-blue-100 text-blue-700' },
-  Enviado:    { label: 'Enviado',    cls: 'bg-purple-100 text-purple-700' },
-  Entregado:  { label: 'Entregado',  cls: 'bg-amber-100 text-amber-700' },
-  Pagado:     { label: 'Pagado',     cls: 'bg-emerald-100 text-emerald-700' },
-  Devolucion: { label: 'Devolución', cls: 'bg-orange-100 text-orange-700' },
-  Cancelado:  { label: 'Cancelado',  cls: 'bg-red-100 text-red-700' },
+  Confirmado:     { label: 'Confirmado',      cls: 'bg-blue-100 text-blue-700' },
+  EnAlistamiento: { label: 'En alistamiento', cls: 'bg-indigo-100 text-indigo-700' },
+  Alistado:       { label: 'Alistado',        cls: 'bg-cyan-100 text-cyan-700' },
+  Enviado:        { label: 'Despachado',      cls: 'bg-purple-100 text-purple-700' },
+  Entregado:      { label: 'Entregado',       cls: 'bg-amber-100 text-amber-700' },
+  Pagado:         { label: 'Pagado',          cls: 'bg-emerald-100 text-emerald-700' },
+  Devolucion:     { label: 'Devolución',      cls: 'bg-orange-100 text-orange-700' },
+  Cancelado:      { label: 'Cancelado',       cls: 'bg-red-100 text-red-700' },
 }
 
 interface KPICardProps {
