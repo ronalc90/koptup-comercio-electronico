@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, Sparkles } from 'lucide-react';
 import { INDUSTRY_PRESETS, INDUSTRY_KEYS } from '@/lib/registration';
 import LogoPicker from '@/components/shared/LogoPicker';
 
@@ -23,6 +23,8 @@ export default function RegisterPage() {
   const [businessName, setBusinessName] = useState('');
   const [logo, setLogo] = useState('🏪');
   const [industry, setIndustry] = useState('otro');
+  const [description, setDescription] = useState('');
+  const [suggesting, setSuggesting] = useState(false);
   const [categories, setCategories] = useState('');
   const [phone, setPhone] = useState('');
   const [contactEmail, setContactEmail] = useState('');
@@ -41,6 +43,26 @@ export default function RegisterPage() {
     setInvite(code && code.trim() ? code.trim() : null);
     setReady(true);
   }, []);
+
+  async function suggestWithAI() {
+    if (!description.trim()) { toast.error('Escribe una breve descripción de tu negocio'); return; }
+    setSuggesting(true);
+    try {
+      const res = await fetch('/api/ai/suggest-business', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ description }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!data.available) { toast('La IA no está disponible ahora; elige el tipo manualmente.', { icon: 'ℹ️' }); return; }
+      setIndustry(data.industry);
+      setCategories((data.categories || []).join(', '));
+      toast.success('Sugerencias aplicadas — puedes ajustarlas');
+    } catch (err) {
+      console.error('suggest error:', err);
+      toast.error('No se pudo sugerir; elige el tipo manualmente');
+    } finally {
+      setSuggesting(false);
+    }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -115,6 +137,21 @@ export default function RegisterPage() {
                   <div className="mt-1"><LogoPicker value={logo} onChange={setLogo} allowUpload={false} /></div>
                 </div>
                 <Field label="Nombre del negocio" value={businessName} onChange={setBusinessName} placeholder="Mi Tienda" />
+
+                <div className="rounded-xl border border-purple-100 bg-purple-50/40 p-3">
+                  <label className="block">
+                    <span className="text-xs font-medium text-gray-600">Describe tu negocio (opcional)</span>
+                    <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2}
+                      placeholder="Ej: vendo cascos y repuestos para moto"
+                      className="mt-1 w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none" />
+                  </label>
+                  <button type="button" onClick={suggestWithAI} disabled={suggesting}
+                    className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-purple-700 disabled:opacity-60">
+                    {suggesting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    {suggesting ? 'Sugiriendo…' : 'Sugerir tipo y categorías con IA'}
+                  </button>
+                </div>
+
                 <label className="block">
                   <span className="text-xs font-medium text-gray-600">Tipo de negocio</span>
                   <select value={industry} onChange={(e) => setIndustry(e.target.value)}
