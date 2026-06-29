@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.057',
+    date: '2026-06-29',
+    highlights: [
+      'El pago en línea de la licencia se muestra claramente como "En desarrollo" mientras se termina de configurar la pasarela; por ahora las licencias las gestiona el administrador de la plataforma.',
+      'Limpieza interna: se eliminó una herramienta de migración antigua que ya no se usaba.',
+    ],
+  },
+  {
     version: '1.056',
     date: '2026-06-29',
     highlights: [

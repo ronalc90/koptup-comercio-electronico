@@ -128,6 +128,20 @@ export default function BillingPage() {
         )}
       </div>
 
+      {/* Pago en línea aún no configurado (Stripe): se muestra "En desarrollo". */}
+      {!b.paymentsEnabled && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4 shadow-sm">
+          <p className="text-xs text-amber-700 uppercase tracking-wide flex items-center gap-1 mb-1">
+            <Sparkles className="w-3.5 h-3.5" /> Plan y pago
+            <span className="ml-1 rounded-full bg-amber-200 px-2 py-0.5 text-[10px] font-bold text-amber-800">En desarrollo</span>
+          </p>
+          <p className="text-sm text-gray-600">
+            El pago en línea de la licencia está en desarrollo y todavía no está disponible.
+            Por ahora la gestión de licencias la realiza el administrador de la plataforma.
+          </p>
+        </div>
+      )}
+
       {/* Mejorar plan / pagar (solo si Stripe está configurado) */}
       {b.paymentsEnabled && (b.purchasablePlans?.length ?? 0) > 0 && (
         <div className="rounded-2xl border border-purple-100 bg-purple-50/40 p-4 shadow-sm">
