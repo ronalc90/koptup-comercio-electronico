@@ -30,7 +30,9 @@ export async function PATCH(request: NextRequest) {
   // un admin se auto-subiría a enterprise sin pagar y saltaría el límite.
   const updates: { name?: string; logo?: string } = {};
   if (typeof body.name === 'string' && body.name.trim()) updates.name = body.name.trim();
-  if (typeof body.logo === 'string') updates.logo = body.logo;
+  // Logo: validar no-vacío y acotar longitud (es un emoji/string corto). Antes un
+  // "" dejaba el negocio sin logo y se aceptaba cualquier tamaño.
+  if (typeof body.logo === 'string' && body.logo.trim()) updates.logo = body.logo.trim().slice(0, 8);
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: 'Nada para actualizar' }, { status: 400 });
   }

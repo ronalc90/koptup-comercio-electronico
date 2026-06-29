@@ -12,6 +12,18 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.056',
+    date: '2026-06-29',
+    highlights: [
+      'El ajuste "Confirmar antes de borrar" ahora SÍ funciona en Productos e Inventario: si lo desactivas, eliminas sin el paso extra; si lo dejas activo (recomendado), sigue pidiendo confirmación.',
+      'El asistente ya no confunde productos que solo comparten la primera palabra (p. ej. "bota dama" vs "bota niño"): respeta plural/singular pero no resuelve el equivocado.',
+      'Las fotos que subes desde la galería se ajustan de tamaño antes de enviarse, así ya no fallan por ser muy pesadas.',
+      'Las ventanas (ayuda del asistente, guía de despacho, librito de días, foto con IA, borrar datos) ahora se cierran con la tecla Escape y no dejan moverse el fondo.',
+      'Proveedores: el botón "Todo" del cierre ya muestra el periodo completo de inmediato (antes podía recargar con el rango anterior).',
+      'Administración más segura: no se puede dejar un usuario superadmin degradado por accidente, se rechazan correos mal escritos al crear usuarios y el logo del negocio ya no queda vacío. Si una alerta no se puede marcar como resuelta, vuelve a aparecer con un aviso (antes desaparecía sin avisar).',
+    ],
+  },
+  {
     version: '1.055',
     date: '2026-06-29',
     highlights: [

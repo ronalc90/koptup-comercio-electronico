@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import toast from 'react-hot-toast';
 import { ImagePlus, Loader2 } from 'lucide-react';
+import { MAX_IMAGE_BYTES, MAX_IMAGE_MB, ALLOWED_IMAGE_ACCEPT } from '@/lib/imageUpload';
 
 /** ¿El logo es una imagen subida (URL) en vez de un emoji? */
 export function isLogoUrl(logo: string | null | undefined): boolean {
@@ -30,7 +31,7 @@ export default function LogoPicker({ value, onChange, allowUpload = true }: Logo
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { toast.error('Imagen muy grande (máx 5 MB)'); return; }
+    if (file.size > MAX_IMAGE_BYTES) { toast.error(`Imagen muy grande (máx ${MAX_IMAGE_MB} MB)`); return; }
     setUploading(true);
     try {
       const dataUri = await new Promise<string>((res, rej) => {
@@ -84,7 +85,7 @@ export default function LogoPicker({ value, onChange, allowUpload = true }: Logo
       </div>
       {allowUpload && (
         <>
-          <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleFile} />
+          <input ref={fileRef} type="file" accept={ALLOWED_IMAGE_ACCEPT} className="hidden" onChange={handleFile} />
           <button
             type="button"
             onClick={() => fileRef.current?.click()}

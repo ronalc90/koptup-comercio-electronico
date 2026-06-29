@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestScopedClient } from '@/lib/tenantServer';
+import { MAX_IMAGE_BYTES, MAX_IMAGE_MB, isAllowedImageType } from '@/lib/imageUpload';
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,8 +19,7 @@ export async function POST(request: NextRequest) {
     // Solo imágenes y de tipo permitido.
     const mimeMatch = image.match(/^data:(image\/\w+);base64,/);
     const mimeType = mimeMatch ? mimeMatch[1] : '';
-    const ALLOWED = ['image/jpeg', 'image/png', 'image/webp'];
-    if (!ALLOWED.includes(mimeType)) {
+    if (!isAllowedImageType(mimeType)) {
       return NextResponse.json({ error: 'Tipo de imagen no permitido (jpeg/png/webp)' }, { status: 415 });
     }
     const ext = mimeType.split('/')[1] || 'jpg';
@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
     // Convert base64 to buffer + límite de tamaño (5 MB).
     const base64Data = image.replace(/^data:image\/\w+;base64,/, '');
     const buffer = Buffer.from(base64Data, 'base64');
-    if (buffer.length > 5 * 1024 * 1024) {
-      return NextResponse.json({ error: 'Imagen muy grande (máx 5 MB)' }, { status: 413 });
+    if (buffer.length > MAX_IMAGE_BYTES) {
+      return NextResponse.json({ error: `Imagen muy grande (máx ${MAX_IMAGE_MB} MB)` }, { status: 413 });
     }
 
     // No confiar solo en el MIME declarado del data-URI: verificar los magic

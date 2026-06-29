@@ -289,10 +289,16 @@ export default function AdminPage() {
                 <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>
                 <p className="text-xs text-gray-400 truncate">{u.email}</p>
               </div>
-              <select className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs" value={u.role}
-                onChange={(e) => updateUser(u.id, { role: e.target.value })}>
-                {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-              </select>
+              {u.role === 'superadmin' ? (
+                // Un superadmin (rol de plataforma) no se edita desde aquí: se
+                // muestra como etiqueta para no degradarlo por accidente.
+                <span className="shrink-0 rounded-lg bg-purple-50 px-2.5 py-1.5 text-xs font-semibold text-purple-700">Superadmin</span>
+              ) : (
+                <select className="shrink-0 rounded-lg border px-2.5 py-1.5 text-xs" value={u.role}
+                  onChange={(e) => updateUser(u.id, { role: e.target.value })}>
+                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              )}
               <button onClick={() => updateUser(u.id, { active: !u.active })}
                 className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold ${u.active ? 'bg-green-50 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
                 {u.active ? 'Activo' : 'Inactivo'}
@@ -318,7 +324,7 @@ export default function AdminPage() {
               </div>
               <p className="text-xs text-gray-500 truncate">
                 por {a.actor_name || '—'}{a.actor_role ? ` (${a.actor_role})` : ''}
-                {a.detail ? ` · ${Object.entries(a.detail).map(([k, v]) => `${k}: ${v}`).join(', ')}` : ''}
+                {a.detail ? ` · ${Object.entries(a.detail).map(([k, v]) => `${k}: ${typeof v === 'object' && v !== null ? JSON.stringify(v) : v}`).join(', ')}` : ''}
               </p>
             </li>
           ))}

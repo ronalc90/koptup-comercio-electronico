@@ -2,10 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword, validatePassword } from '@/lib/auth';
-import { isRole, roleAtLeast } from '@/lib/tenant';
+import { roleAtLeast } from '@/lib/tenant';
 import { recordAudit, type AuditAction } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
+
+// Roles asignables desde la gestión de un tenant: NUNCA 'superadmin' (rol de
+// plataforma cross-tenant). Mismo criterio que /api/superadmin/users.
+const ASSIGNABLE_ROLES = ['admin', 'member', 'viewer'] as const;
+function isAssignable(r: unknown): r is (typeof ASSIGNABLE_ROLES)[number] {
+  return typeof r === 'string' && (ASSIGNABLE_ROLES as readonly string[]).includes(r);
+}
+// Validación de email consistente con /api/superadmin/users.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // NOTA: `users` NO es una tabla del guard multi-tenant, así que aquí filtramos
 // SIEMPRE explícitamente por `tenant_id` del admin. Nunca se devuelve
@@ -38,15 +47,18 @@ export async function POST(request: NextRequest) {
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
   const username = typeof body.username === 'string' ? body.username.trim() : '';
   const password = typeof body.password === 'string' ? body.password : '';
-  const role = isRole(body.role) ? body.role : 'member';
+  // Rol asignable (admin/member/viewer); 'superadmin' nunca se crea por esta vía.
+  const role = isAssignable(body.role) ? body.role : 'member';
 
-  // Nadie puede crear un usuario con un rol SUPERIOR al suyo (un admin no puede
-  // fabricar un superadmin y obtener acceso cross-tenant).
+  // Defensa en profundidad: tampoco un rol superior/igual indebido.
   if (!roleAtLeast(auth.ctx.role, role)) {
     return NextResponse.json({ error: 'No puedes asignar un rol superior al tuyo' }, { status: 403 });
   }
   if (!email || !password) {
     return NextResponse.json({ error: 'Email y contraseña son requeridos' }, { status: 400 });
+  }
+  if (!EMAIL_RE.test(email)) {
+    return NextResponse.json({ error: 'Email inválido' }, { status: 400 });
   }
   const passwordError = validatePassword(password);
   if (passwordError) {
@@ -125,9 +137,10 @@ export async function PATCH(request: NextRequest) {
     auditAction = 'registration_reenabled';
   }
 
-  if (isRole(body.role)) {
-    if (!roleAtLeast(auth.ctx.role, body.role)) {
-      return NextResponse.json({ error: 'No puedes asignar un rol superior al tuyo' }, { status: 403 });
+  if (body.role !== undefined) {
+    // Solo roles asignables (admin/member/viewer); no se promueve a superadmin.
+    if (!isAssignable(body.role) || !roleAtLeast(auth.ctx.role, body.role)) {
+      return NextResponse.json({ error: 'Rol no permitido' }, { status: 403 });
     }
     updates.role = body.role;
   }

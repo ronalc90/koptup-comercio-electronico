@@ -275,6 +275,7 @@ export default function SuperadminPage() {
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j.error || 'No se pudo crear');
       toast.success('Usuario creado');
+      setUForm({ email: '', username: '', password: '', role: 'member' }); // evita reenviar el mismo email
       await openUsers(usersFor);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Error');

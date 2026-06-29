@@ -87,6 +87,7 @@ import { GuideCard } from '@/components/dispatch/DispatchGuide'
 import { playSuccess, playTick, playError } from '@/lib/sound'
 import PageHelpModal from '@/components/shared/PageHelpModal'
 import { useModalA11y } from '@/components/shared/useModalA11y'
+import { DESTRUCTIVE_CONFIRM_PHRASE } from '@/lib/assistant/constants'
 import { SETTINGS_HELP } from '@/lib/pageHelp'
 
 interface SectionProps {
@@ -511,9 +512,9 @@ export default function SettingsPage() {
   const [changelogOpen, setChangelogOpen] = useState(false)
 
   async function handleWipeAccount() {
-    if (wipeText.trim() !== 'Acepto') {
+    if (wipeText.trim() !== DESTRUCTIVE_CONFIRM_PHRASE) {
       playError(owner)
-      toast.error('Debes escribir exactamente "Acepto" para confirmar')
+      toast.error(`Debes escribir exactamente "${DESTRUCTIVE_CONFIRM_PHRASE}" para confirmar`)
       return
     }
     setWiping(true)
@@ -1194,13 +1195,13 @@ export default function SettingsPage() {
                 y tus preferencias. La cuenta quedará como nueva.
               </p>
               <p className="text-sm text-gray-700">
-                Para confirmar, escribe exactamente <b>Acepto</b> en el campo de abajo:
+                Para confirmar, escribe exactamente <b>{DESTRUCTIVE_CONFIRM_PHRASE}</b> en el campo de abajo:
               </p>
               <input
                 type="text"
                 value={wipeText}
                 onChange={(e) => setWipeText(e.target.value)}
-                placeholder="Escribe: Acepto"
+                placeholder={`Escribe: ${DESTRUCTIVE_CONFIRM_PHRASE}`}
                 autoFocus
                 spellCheck={false}
                 className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:border-red-400 focus:outline-none focus:ring-2 focus:ring-red-200"
@@ -1219,7 +1220,7 @@ export default function SettingsPage() {
               <button
                 type="button"
                 onClick={handleWipeAccount}
-                disabled={wiping || wipeText.trim() !== 'Acepto'}
+                disabled={wiping || wipeText.trim() !== DESTRUCTIVE_CONFIRM_PHRASE}
                 className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:bg-red-300"
               >
                 {wiping

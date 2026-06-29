@@ -64,13 +64,18 @@ export default function SuppliersPage() {
     }
   }, []);
 
-  const loadReport = useCallback(async (which: Tab) => {
+  const loadReport = useCallback(async (which: Tab, override?: { from: string; to: string }) => {
     if (which === 'proveedores') return;
     setReportLoading(true);
     try {
+      // `override` permite pasar el rango explícito (p. ej. el botón "Todo" que
+      // lo limpia): así no se usa el `from/to` viejo del closure (condición de
+      // carrera que recargaba con el rango anterior).
+      const rFrom = override ? override.from : from;
+      const rTo = override ? override.to : to;
       const type = which === 'cierre' ? 'consumo' : which === 'pagar' ? 'payables' : 'rotacion';
       const qs = new URLSearchParams({ type });
-      if (which === 'cierre' && from && to) { qs.set('from', from); qs.set('to', to); }
+      if (which === 'cierre' && rFrom && rTo) { qs.set('from', rFrom); qs.set('to', rTo); }
       const res = await fetch(`/api/suppliers/reports?${qs.toString()}`, { cache: 'no-store' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error');
@@ -284,7 +289,7 @@ export default function SuppliersPage() {
             <button onClick={() => loadReport('cierre')}
               className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700">Aplicar</button>
             {(from || to) && (
-              <button onClick={() => { setFrom(''); setTo(''); setTimeout(() => loadReport('cierre'), 0); }}
+              <button onClick={() => { setFrom(''); setTo(''); loadReport('cierre', { from: '', to: '' }); }}
                 className="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50">Todo</button>
             )}
           </div>

@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getScopedServiceClient } from '@/lib/tenantServer';
-
-const CONFIRMATION_PHRASE = 'Acepto';
+import { DESTRUCTIVE_CONFIRM_PHRASE as CONFIRMATION_PHRASE } from '@/lib/assistant/constants';
 
 /**
  * Vacía todos los datos de negocio de la cuenta (pedidos, inventario,

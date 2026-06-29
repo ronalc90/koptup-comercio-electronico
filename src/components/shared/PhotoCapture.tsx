@@ -5,6 +5,36 @@ import { Camera, Upload, X, Loader2, RotateCcw, Maximize2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ImageLightbox from './ImageLightbox';
 
+// Lado máximo de la imagen subida desde galería (px). Mantiene el peso bajo el
+// límite del servidor sin perder legibilidad de la foto del producto.
+const MAX_IMAGE_DIM = 1280;
+
+/** Lee un archivo de imagen y devuelve un JPEG base64 redimensionado (≤ MAX_IMAGE_DIM). */
+function downscaleToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Imagen inválida'));
+      img.onload = () => {
+        const scale = Math.min(1, MAX_IMAGE_DIM / Math.max(img.width, img.height));
+        const w = Math.max(1, Math.round(img.width * scale));
+        const h = Math.max(1, Math.round(img.height * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { reject(new Error('No se pudo procesar la imagen')); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.8));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 interface PhotoCaptureProps {
   onPhotoReady: (imageUrl: string) => void;
   currentUrl?: string;
@@ -29,8 +59,8 @@ export default function PhotoCapture({ onPhotoReady, currentUrl, compact }: Phot
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64, folder: 'products' }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(data?.error || 'Error al subir la imagen');
       onPhotoReady(data.url);
       toast.success('Foto guardada');
       return data.url;
@@ -79,20 +109,26 @@ export default function PhotoCapture({ onPhotoReady, currentUrl, compact }: Phot
   };
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    const input = e.target;
+    const file = input.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       toast.error('Solo se permiten imágenes');
+      input.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const base64 = reader.result as string;
+    try {
+      // Redimensionamos la imagen de galería antes de subir (igual que la cámara):
+      // evita el 413 del servidor (límite 5MB) tras esperar toda la subida.
+      const base64 = await downscaleToBase64(file);
       setPreview(base64);
       const url = await uploadImage(base64);
       if (url) setPreview(url);
-    };
-    reader.readAsDataURL(file);
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'No se pudo procesar la imagen');
+    } finally {
+      input.value = ''; // permite volver a elegir el mismo archivo
+    }
   };
 
   const removePhoto = () => {

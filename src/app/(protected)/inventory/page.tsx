@@ -20,6 +20,7 @@ import type { InventoryItem } from '@/lib/types'
 import { cn, formatCurrency } from '@/lib/utils'
 import { downloadExcel } from '@/lib/export'
 import { useUser } from '@/lib/UserContext'
+import { getConfirmDestructive } from '@/lib/preferences'
 import { isOwnerSupported } from '@/lib/db'
 import PhotoCapture from '@/components/shared/PhotoCapture'
 import ImageLightbox from '@/components/shared/ImageLightbox'
@@ -374,6 +375,12 @@ export default function InventoryPage() {
     }
   }
 
+  // Respeta "Confirmar antes de borrar": ON (default) abre el modal; OFF borra directo.
+  function requestDelete(item: InventoryItem) {
+    if (getConfirmDestructive(owner)) setDeleteConfirm(item)
+    else handleDelete(item.id)
+  }
+
   async function handleDelete(id: number) {
     try {
       const { error } = await supabase.from('inventory').delete().eq('id', id)
@@ -591,7 +598,7 @@ export default function InventoryPage() {
                             <Edit2 className="h-3.5 w-3.5" />
                           </button>
                           <button
-                            onClick={() => setDeleteConfirm(item)}
+                            onClick={() => requestDelete(item)}
                             aria-label="Eliminar producto"
                             className="rounded-lg p-1.5 hover:bg-red-100 text-red-500"
                           >
@@ -657,7 +664,7 @@ export default function InventoryPage() {
                           <Edit2 className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => setDeleteConfirm(item)}
+                          onClick={() => requestDelete(item)}
                           aria-label="Eliminar producto"
                           className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center hover:bg-red-100 text-red-500"
                         >

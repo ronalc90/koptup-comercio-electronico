@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { Camera, Upload, Loader2, Sparkles, X, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { formatCurrency } from '@/lib/utils';
+import { useModalA11y } from '@/components/shared/useModalA11y';
 
 interface AnalyzedProduct {
   name: string;
@@ -32,6 +33,7 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
   const videoRef = useRef<HTMLVideoElement>(null);
   const [showCamera, setShowCamera] = useState(false);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  useModalA11y(() => { closeCamera(); onClose(); });
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -132,7 +134,7 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto" role="dialog" aria-modal="true">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <div className="flex items-center gap-2">

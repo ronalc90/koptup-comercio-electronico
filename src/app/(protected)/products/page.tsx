@@ -11,6 +11,8 @@ import ProductPhotoAI from '@/components/products/ProductPhotoAI'
 import PageHelpModal from '@/components/shared/PageHelpModal'
 import { PRODUCTS_HELP } from '@/lib/pageHelp'
 import { useUser } from '@/lib/UserContext'
+import { getConfirmDestructive } from '@/lib/preferences'
+import { MAX_IMAGE_BYTES, MAX_IMAGE_MB, ALLOWED_IMAGE_ACCEPT, isAllowedImageType } from '@/lib/imageUpload'
 import { useTenant } from '@/lib/TenantContext'
 import { isOwnerSupported } from '@/lib/db'
 import { productUsage, type ProductUsage } from '@/lib/plans'
@@ -275,12 +277,12 @@ export default function ProductsPage({
     const file = e.target.files?.[0]
     e.target.value = '' // permite re-subir el mismo archivo
     if (!file) return
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
+    if (!isAllowedImageType(file.type)) {
       toast.error('Formato no permitido (usa JPG, PNG o WEBP)')
       return
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('La imagen supera 5 MB')
+    if (file.size > MAX_IMAGE_BYTES) {
+      toast.error(`La imagen supera ${MAX_IMAGE_MB} MB`)
       return
     }
     setUploadingPhoto(true)
@@ -378,11 +380,18 @@ export default function ProductsPage({
     }
   }
 
-  async function handleDelete() {
-    if (!deleteTarget) return
+  // Respeta la preferencia "Confirmar antes de borrar": si está activada (default)
+  // abre el modal; si el usuario la desactivó, elimina directo.
+  function requestDelete(product: Product) {
+    if (getConfirmDestructive(owner)) setDeleteTarget(product)
+    else handleDelete(product)
+  }
+
+  async function handleDelete(target: Product | null = deleteTarget) {
+    if (!target) return
     setDeleting(true)
     try {
-      const { error } = await supabase.from('products').delete().eq('id', deleteTarget.id)
+      const { error } = await supabase.from('products').delete().eq('id', target.id)
       if (error) throw error
       toast.success('Producto eliminado')
       setDeleteTarget(null)
@@ -598,7 +607,7 @@ export default function ProductsPage({
                           <Pencil className="h-4 w-4" />
                         </button>
                         <button
-                          onClick={() => setDeleteTarget(product)}
+                          onClick={() => requestDelete(product)}
                           className="rounded-lg p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                           title="Eliminar"
                           aria-label="Eliminar producto"
@@ -663,7 +672,7 @@ export default function ProductsPage({
                       <Pencil className="h-4 w-4" />
                     </button>
                     <button
-                      onClick={() => setDeleteTarget(product)}
+                      onClick={() => requestDelete(product)}
                       aria-label="Eliminar producto"
                       className="rounded-lg p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-colors"
                     >
@@ -717,7 +726,7 @@ export default function ProductsPage({
             <input
               ref={photoInputRef}
               type="file"
-              accept="image/jpeg,image/png,image/webp"
+              accept={ALLOWED_IMAGE_ACCEPT}
               className="hidden"
               onChange={handlePhotoUpload}
             />
@@ -859,7 +868,7 @@ export default function ProductsPage({
               Cancelar
             </button>
             <button
-              onClick={handleDelete}
+              onClick={() => handleDelete()}
               disabled={deleting}
               className="flex-1 rounded-xl py-2.5 text-sm font-semibold text-white transition-all disabled:opacity-70"
               style={{ background: '#ef4444' }}

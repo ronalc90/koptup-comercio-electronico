@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 interface Alert {
   id: number;
@@ -30,10 +31,20 @@ export default function AlertsBanner() {
   }, []);
 
   async function resolve(id: number) {
+    // Update optimista: quitamos la alerta de la UI, pero si el PATCH falla la
+    // RESTAURAMOS (antes desaparecía de la vista pero seguía en BD y reaparecía
+    // al recargar, sin feedback).
+    const removed = alerts.find((x) => x.id === id);
     setAlerts((a) => a.filter((x) => x.id !== id));
-    fetch('/api/alerts', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
-    }).catch(() => {});
+    try {
+      const res = await fetch('/api/alerts', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }),
+      });
+      if (!res.ok) throw new Error('No se pudo resolver');
+    } catch {
+      if (removed) setAlerts((a) => [removed, ...a]);
+      toast.error('No se pudo marcar la alerta como resuelta');
+    }
   }
 
   if (alerts.length === 0) return null;

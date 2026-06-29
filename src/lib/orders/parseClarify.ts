@@ -100,14 +100,35 @@ export function buildCatalogIndex(
   return { byModel, knownModels: [...knownModels] };
 }
 
-/** Busca las variantes de un modelo por coincidencia difusa (token/substring). */
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+/** ¿`needle` aparece como palabra(s) COMPLETA(s) dentro de `haystack`? */
+function containsWhole(haystack: string, needle: string): boolean {
+  return new RegExp(`(^|\\s)${escapeRegExp(needle)}(\\s|$)`).test(haystack);
+}
+
+/**
+ * Busca las variantes de un modelo. Endurecido para no resolver el producto
+ * EQUIVOCADO (antes `key.includes(m)` o el match por la PRIMERA palabra empataba
+ * modelos similares como "bota dama" ↔ "bota niño"): exige igualdad o contención
+ * por palabra completa, ignorando términos de menos de 3 caracteres.
+ */
 export function lookupModel(idx: CatalogIndex, model: string): ModelVariants | null {
   const m = norm(model);
   if (!m) return null;
   if (idx.byModel.has(m)) return idx.byModel.get(m)!;
-  // Coincidencia difusa: el modelo del catálogo contiene el término o viceversa.
+  if (m.length < 3) return null;
+  // 1) Contención por palabra completa (en cualquier dirección).
   for (const [key, v] of idx.byModel) {
-    if (key.includes(m) || m.includes(key.split(/\s+/)[0])) return v;
+    if (key.length >= 3 && (containsWhole(key, m) || containsWhole(m, key))) return v;
+  }
+  // 2) Stem singular/plural SOLO entre términos de una palabra, donde uno es
+  //    prefijo del otro (pantufla ↔ pantuflas). No aplica a multi-palabra: así
+  //    "bota dama" no se confunde con "bota niño".
+  if (!m.includes(' ')) {
+    for (const [key, v] of idx.byModel) {
+      if (key.includes(' ') || key.length < 4 || m.length < 4) continue;
+      if (key.startsWith(m) || m.startsWith(key)) return v;
+    }
   }
   return null;
 }

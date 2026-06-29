@@ -54,6 +54,19 @@ describe('buildCatalogIndex / lookupModel', () => {
     expect(lookupModel(idx, 'pantuflas')).not.toBeNull();
     expect(lookupModel(idx, 'inexistente')).toBeNull();
   });
+
+  it('no confunde modelos que solo comparten la primera palabra', () => {
+    const idx2 = buildCatalogIndex(
+      [{ code: 'BD', name: 'Bota Dama' }, { code: 'BN', name: 'Bota Niño' }],
+      [
+        { model: 'Bota Dama', color: 'negro', size: '37' },
+        { model: 'Bota Niño', color: 'café', size: '30' },
+      ],
+    );
+    // "bota dama" NO debe resolver a "bota niño" (ni viceversa).
+    expect(lookupModel(idx2, 'bota dama')!.colors).toEqual(['negro']);
+    expect(lookupModel(idx2, 'bota niño')!.colors).toEqual(['café']);
+  });
 });
 
 describe('requiredFieldGaps: datos de despacho obligatorios (escenario F)', () => {

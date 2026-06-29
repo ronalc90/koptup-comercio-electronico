@@ -19,6 +19,7 @@ import {
 import { useUser } from '@/lib/UserContext';
 import { useTenant } from '@/lib/TenantContext';
 import { isLogoUrl } from '@/components/shared/LogoPicker';
+import { useModalA11y } from '@/components/shared/useModalA11y';
 
 type FontSize = PrintFontSize;
 
@@ -83,6 +84,7 @@ export default function DispatchGuide({ order, onClose }: DispatchGuideProps) {
     header: 11, body: 12, bold: 13, footer: 9,
   });
   const rootId = `dispatch-guide-${order.order_code || 'x'}`;
+  useModalA11y(onClose);
 
   useEffect(() => {
     setFontSizeState(getPrintFontSize(owner));
@@ -110,7 +112,7 @@ export default function DispatchGuide({ order, onClose }: DispatchGuideProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 no-print">
-      <div className="w-full max-w-xs bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col">
+      <div className="w-full max-w-xs bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col" role="dialog" aria-modal="true">
         {/* Guide preview — this is the ONLY print root when printing */}
         <div className="overflow-y-auto flex-1 px-4 pt-4">
           <div id={rootId} className="print-guide-root" data-font-size={fontSize}>
