@@ -15,6 +15,7 @@ export type ModuleKey =
   | 'inventario'
   | 'productos'
   | 'despachos'
+  | 'proveedores'
   | 'agentes'
   | 'config';
 
@@ -34,13 +35,14 @@ export const MODULE_REGISTRY: Record<ModuleKey, ModuleDef> = {
   inventario: { key: 'inventario', label: 'Inventario', route: '/inventory' },
   productos: { key: 'productos', label: 'Productos', route: '/products' },
   despachos: { key: 'despachos', label: 'Despacho', route: '/dispatch' },
+  proveedores: { key: 'proveedores', label: 'Proveedores', route: '/suppliers' },
   agentes: { key: 'agentes', label: 'Agentes IA', route: '/agents' },
   config: { key: 'config', label: 'Config', route: '/settings', core: true },
 };
 
 /** Orden de aparición en la navegación. */
 export const MODULE_ORDER: ModuleKey[] = [
-  'dashboard', 'pedidos', 'asistente', 'inventario', 'productos', 'despachos', 'agentes', 'config',
+  'dashboard', 'pedidos', 'asistente', 'inventario', 'productos', 'despachos', 'proveedores', 'agentes', 'config',
 ];
 
 export const ALL_MODULE_KEYS: ModuleKey[] = MODULE_ORDER.slice();

@@ -4,6 +4,7 @@ let _paymentTimingSupported: boolean | null = null;
 let _courierPendingRenamed: boolean | null = null;
 let _tenantSupported: boolean | null = null;
 let _orderQuantitySupported: boolean | null = null;
+let _supplierSupported: boolean | null = null;
 
 /**
  * Detecta si la migración multi-tenant (002) ya corrió comprobando la columna
@@ -92,6 +93,26 @@ export async function isOrderQuantitySupported(): Promise<boolean> {
     const { error } = await supabase.from('orders').select('quantity').limit(1);
     if (!error) {
       _orderQuantitySupported = true;
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Detecta si la columna `orders.supplier_id` (migración 016) existe. Mientras no
+ * haya corrido la migración, los pedidos no asocian proveedor y el call-site
+ * omite la columna (la app funciona igual). Cachea solo el `true`.
+ */
+export async function isSupplierSupported(): Promise<boolean> {
+  if (!supabaseConfigured) return false;
+  if (_supplierSupported === true) return true;
+  try {
+    const { error } = await supabase.from('orders').select('supplier_id').limit(1);
+    if (!error) {
+      _supplierSupported = true;
       return true;
     }
     return false;

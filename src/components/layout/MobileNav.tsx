@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   CreditCard,
   Building2,
+  Boxes,
 } from 'lucide-react';
 import { useTenant } from '@/lib/TenantContext';
 
@@ -27,6 +28,10 @@ const BUSINESS_NAV: NavItem[] = [
   { href: '/dispatch', label: 'Despacho', icon: Truck },
   { href: '/settings', label: 'Config', icon: Settings },
 ];
+
+// Item opcional de proveedores: solo para tenants que lo habilitan explícitamente
+// en navModules (no afecta a los tenants existentes). Se inserta antes de Config.
+const SUPPLIERS_ITEM: NavItem = { href: '/suppliers', label: 'Proveedores', icon: Boxes };
 
 // El `admin` es administrativo: gestiona equipo y cuenta, no opera el negocio.
 const ADMIN_NAV: NavItem[] = [
@@ -44,8 +49,12 @@ const SUPERADMIN_NAV: NavItem[] = [
 
 export default function MobileNav() {
   const pathname = usePathname();
-  const { role } = useTenant();
-  const navItems = role === 'superadmin' ? SUPERADMIN_NAV : role === 'admin' ? ADMIN_NAV : BUSINESS_NAV;
+  const { role, config } = useTenant();
+  let navItems = role === 'superadmin' ? SUPERADMIN_NAV : role === 'admin' ? ADMIN_NAV : BUSINESS_NAV;
+  // Negocios que habilitan proveedores explícitamente ven el acceso en móvil.
+  if (navItems === BUSINESS_NAV && config.navModules?.includes('proveedores')) {
+    navItems = [...BUSINESS_NAV.slice(0, -1), SUPPLIERS_ITEM, BUSINESS_NAV[BUSINESS_NAV.length - 1]];
+  }
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">

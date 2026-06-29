@@ -12,7 +12,7 @@ import AIOrderInput from '@/components/orders/AIOrderInput'
 import AIInventoryInput from '@/components/inventory/AIInventoryInput'
 import DispatchGuide from '@/components/dispatch/DispatchGuide'
 import { useUser } from '@/lib/UserContext'
-import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn } from '@/lib/db'
+import { isOwnerSupported, isPaymentTimingSupported, courierPendingColumn, isSupplierSupported } from '@/lib/db'
 import { syncInventoryOnOrderSave } from '@/lib/inventorySync'
 import { DELIVERY_TYPE_OPTIONS, type DeliveryType } from '@/lib/types'
 
@@ -267,6 +267,7 @@ export default function NewOrderPage({
       const hasOwner = await isOwnerSupported()
       const hasPaymentTiming = await isPaymentTimingSupported()
       const courierColumn = await courierPendingColumn()
+      const hasSupplier = await isSupplierSupported()
 
       const valueToCollect = parseFloat(form.value_to_collect) || 0
       const prepaidAmount = normalizePrepaidAmount(form, valueToCollect)
@@ -286,6 +287,9 @@ export default function NewOrderPage({
         payment_cash: parseFloat(form.payment_cash) || 0,
         payment_transfer: parseFloat(form.payment_transfer) || 0,
         product_cost,
+        // Proveedor congelado al vender (resuelto desde el producto). Solo si la
+        // migración 016 ya corrió; si no, se omite y el pedido queda sin proveedor.
+        ...(hasSupplier ? { supplier_id: selectedProduct?.supplier_id ?? null } : {}),
         delivery_type: form.delivery_type || '',
         vendor: form.vendor.trim() || vendorDisplayName(owner),
         delivery_status: form.delivery_status,
@@ -410,6 +414,7 @@ export default function NewOrderPage({
 
               const hasOwner = await isOwnerSupported();
               const courierColumnAi = await courierPendingColumn();
+              const hasSupplierAi = await isSupplierSupported();
               const payload: Record<string, unknown> = {
                 order_code,
                 client_name: parsed.client_name?.trim() ?? '',
@@ -425,6 +430,8 @@ export default function NewOrderPage({
                 payment_cash: 0,
                 payment_transfer: 0,
                 product_cost,
+                // Proveedor congelado al vender (resuelto desde el producto del catálogo).
+                ...(hasSupplierAi ? { supplier_id: selectedProduct?.supplier_id ?? null } : {}),
                 delivery_type: 'Mensajeria',
                 vendor: vendorDisplayName(owner),
                 delivery_status: 'Confirmado',
