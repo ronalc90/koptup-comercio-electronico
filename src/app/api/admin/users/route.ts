@@ -51,9 +51,28 @@ export async function POST(request: NextRequest) {
   }
 
   const db = getServiceClient();
+
+  // Tenant destino. Un admin normal solo crea usuarios en SU negocio. El
+  // superadmin opera la plataforma y DEBE indicar a qué negocio pertenece el
+  // usuario (no se asume el suyo, que históricamente es meraki).
+  let targetTenantId = auth.ctx.tenantId;
+  if (auth.ctx.role === 'superadmin') {
+    const tid = Number(body.tenantId);
+    if (!Number.isInteger(tid) || tid <= 0) {
+      return NextResponse.json({ error: 'Selecciona el negocio del usuario' }, { status: 400 });
+    }
+    const { data: t, error: tErr } = await db.from('tenants').select('id').eq('id', tid).maybeSingle();
+    if (tErr) {
+      console.error('admin/users POST validar tenant:', tErr.message);
+      return NextResponse.json({ error: 'No se pudo validar el negocio' }, { status: 500 });
+    }
+    if (!t) return NextResponse.json({ error: 'El negocio seleccionado no existe' }, { status: 400 });
+    targetTenantId = tid;
+  }
+
   const password_hash = await hashPassword(password);
   const { error } = await db.from('users').insert({
-    tenant_id: auth.ctx.tenantId,
+    tenant_id: targetTenantId,
     email,
     username: username || email,
     password_hash,
@@ -62,17 +81,18 @@ export async function POST(request: NextRequest) {
   if (error) {
     // 23505 = unique_violation (email ya existe en el tenant)
     const conflict = (error as { code?: string }).code === '23505';
+    if (!conflict) console.error('admin/users POST insert error:', error.message, { targetTenantId, email, role });
     return NextResponse.json(
-      { error: conflict ? 'Ya existe un usuario con ese email en tu negocio' : 'No se pudo crear el usuario' },
+      { error: conflict ? 'Ya existe un usuario con ese email en ese negocio' : `No se pudo crear el usuario: ${error.message}` },
       { status: conflict ? 409 : 500 },
     );
   }
   await recordAudit(db, {
-    tenantId: auth.ctx.tenantId,
+    tenantId: targetTenantId,
     actor: { userId: auth.ctx.userId, username: auth.ctx.username, role: auth.ctx.role },
     action: 'user_created',
     entity: 'user',
-    detail: { email, role },
+    detail: { email, role, tenantId: targetTenantId },
   });
   return NextResponse.json({ success: true });
 }

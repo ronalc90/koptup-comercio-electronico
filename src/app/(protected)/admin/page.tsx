@@ -37,10 +37,22 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [tenant, setTenant] = useState<TenantProfile | null>(null);
   const [audit, setAudit] = useState<AuditRow[]>([]);
-  const [form, setForm] = useState({ email: '', username: '', password: '', role: 'member' });
+  const [form, setForm] = useState({ email: '', username: '', password: '', role: 'member', tenantId: '' });
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
+  // Solo superadmin: lista de negocios para elegir a cuál pertenece el usuario.
+  const [tenantsList, setTenantsList] = useState<{ id: number; name: string }[]>([]);
+
+  // El superadmin no está atado a un negocio operativamente: debe ELEGIR el
+  // tenant del nuevo usuario. Cargamos la lista de negocios para el selector.
+  useEffect(() => {
+    if (role !== 'superadmin') return;
+    fetch('/api/superadmin/metrics', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d) => setTenantsList((d.metrics ?? []).map((t: { id: number; name: string }) => ({ id: t.id, name: t.name }))))
+      .catch((e) => console.error('cargar negocios para selector:', e));
+  }, [role]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -66,17 +78,28 @@ export default function AdminPage() {
 
   async function addUser() {
     if (!form.email || !form.password) { toast.error('Email y contraseña requeridos'); return; }
+    // El superadmin DEBE elegir el negocio (no se asigna a meraki por defecto).
+    if (role === 'superadmin' && !form.tenantId) { toast.error('Selecciona el negocio del usuario'); return; }
     setBusy(true);
     try {
       const res = await fetch('/api/admin/users', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...form,
+          tenantId: form.tenantId ? Number(form.tenantId) : undefined,
+        }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'No se pudo crear');
+      if (!res.ok) {
+        console.error('No se pudo crear el usuario:', res.status, data);
+        throw new Error(data.error || 'No se pudo crear');
+      }
       toast.success('Usuario creado');
-      setForm({ email: '', username: '', password: '', role: 'member' });
+      setForm({ email: '', username: '', password: '', role: 'member', tenantId: '' });
       await load();
     } catch (e) {
+      console.error('addUser error:', e);
       toast.error(e instanceof Error ? e.message : 'Error');
     } finally {
       setBusy(false);
@@ -143,6 +166,19 @@ export default function AdminPage() {
           <UserPlus className="w-5 h-5" style={{ color: 'var(--brand-primary, #7c3aed)' }} />
           <h2 className="font-bold text-gray-900 text-sm">Nuevo usuario</h2>
         </div>
+        {role === 'superadmin' && (
+          <div className="mb-2">
+            <label className="block text-xs font-medium text-gray-600 mb-1">Negocio (obligatorio)</label>
+            <select
+              className="w-full rounded-xl border px-3 py-2 text-sm"
+              value={form.tenantId}
+              onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
+            >
+              <option value="">Selecciona el negocio…</option>
+              {tenantsList.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          </div>
+        )}
         <div className="grid gap-2 sm:grid-cols-2">
           <input className="rounded-xl border px-3 py-2 text-sm" placeholder="email" value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })} />
