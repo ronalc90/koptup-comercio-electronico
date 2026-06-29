@@ -12,6 +12,14 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.053',
+    date: '2026-06-29',
+    highlights: [
+      'Cada negocio ve ejemplos y ayudas con SUS productos: los textos del asistente, los tips de ayuda, los ejemplos de inventario y la vista previa de la guía ahora usan las categorías de tu negocio (antes mostraban productos de otra tienda).',
+      'Nuevo módulo de Proveedores (consumo, cuentas por pagar con alerta de vencimiento y rotación) disponible para los negocios que lo habiliten.',
+    ],
+  },
+  {
     version: '1.052',
     date: '2026-06-28',
     highlights: [

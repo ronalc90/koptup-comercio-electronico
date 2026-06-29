@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Mic, MicOff, Send, Package, Check, X, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { useTenant } from '@/lib/TenantContext';
 
 interface ParsedInventoryItem {
   model: string;
@@ -27,6 +28,9 @@ interface AIInventoryInputProps {
 }
 
 export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputProps) {
+  const { config } = useTenant();
+  // Ejemplo adaptado al negocio (categoría del tenant), no a un producto fijo.
+  const ejemploInv = `10 ${config.categories[0] ?? 'productos'} talla 38 en canasta C015`;
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -172,7 +176,7 @@ export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputP
             <p className="text-lg font-medium text-gray-500">Asistente de Inventario</p>
             <p className="text-sm mt-2">Describe los items de inventario, escríbelos o usa el micrófono</p>
             <div className="mt-4 text-xs text-gray-400 space-y-1">
-              <p>Ejemplo: &ldquo;10 pantuflas vaquita blanca talla 38 en canasta C015&rdquo;</p>
+              <p>Ejemplo: &ldquo;{ejemploInv}&rdquo;</p>
             </div>
           </div>
         )}
@@ -279,7 +283,7 @@ export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputP
                 sendMessage(input);
               }
             }}
-            placeholder='Ej: "10 pantuflas vaquita blanca talla 38 en canasta C015"'
+            placeholder={`Ej: "${ejemploInv}"`}
             rows={1}
             className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32"
             style={{ minHeight: '42px' }}

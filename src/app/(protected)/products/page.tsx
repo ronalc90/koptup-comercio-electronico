@@ -769,7 +769,7 @@ export default function ProductsPage({
               type="text"
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-              placeholder="Pantufla acolchada talla M"
+              placeholder={`Ej: ${config.categories[0] ?? 'Producto'}`}
               className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
             />
           </div>

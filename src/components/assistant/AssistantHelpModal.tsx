@@ -1,6 +1,7 @@
 'use client';
 
 import { X, Sparkles, ShoppingBag, Package, Search, CheckCircle, RotateCcw, AlertTriangle, DollarSign, Receipt, FileText, MessageSquare } from 'lucide-react';
+import { useTenant } from '@/lib/TenantContext';
 
 interface Section {
   icon: React.ReactNode;
@@ -9,15 +10,21 @@ interface Section {
   examples: string[];
 }
 
-const SECTIONS: Section[] = [
+/**
+ * Ejemplos del asistente adaptados al negocio: `prod` (producto en singular) y
+ * `cat` (categoría tal como la nombra el tenant) salen de la config, de modo que
+ * cada negocio ve ejemplos con SUS productos (no los de otro tenant).
+ */
+function buildSections(prod: string, cat: string): Section[] {
+  return [
   {
     icon: <ShoppingBag className="w-4 h-4" />,
     title: 'Crear pedidos',
     color: 'bg-blue-50 text-blue-700 border-blue-100',
     examples: [
-      '"Carlos 3113339988 Cr 15 #80-25 vaquita blanca talla 38 $85.000"',
-      '"Pedido para María, Cll 72 #14-33, clásica negra, 90 mil"',
-      '"Juan 3201234567 Chía, maxisaco cool gris, $110.000, ya pagó por Nequi"',
+      `"Carlos 3113339988 Cr 15 #80-25, ${prod} talla 38, $85.000"`,
+      `"Pedido para María, Cll 72 #14-33, ${prod} gris, 90 mil"`,
+      `"Juan 3201234567 Chía, ${prod} azul, $110.000, ya pagó por Nequi"`,
     ],
   },
   {
@@ -25,9 +32,9 @@ const SECTIONS: Section[] = [
     title: 'Agregar inventario',
     color: 'bg-emerald-50 text-emerald-700 border-emerald-100',
     examples: [
-      '"Llegaron 5 vaquitas blancas talla 38 en C03 a 15000 cada una"',
-      '"Puse 3 maxisacos gris cool en C08 a $45.000"',
-      '"10 almohadas rosadas canasta A02, $18 mil"',
+      `"Llegaron 5 ${cat} talla 38 en C03 a 15.000 c/u"`,
+      `"Puse 3 ${cat} gris en C08 a $45.000"`,
+      `"10 ${cat} en canasta A02, $18 mil"`,
     ],
   },
   {
@@ -35,10 +42,10 @@ const SECTIONS: Section[] = [
     title: 'Buscar inventario y catálogo',
     color: 'bg-amber-50 text-amber-700 border-amber-100',
     examples: [
-      '"¿Cuántas vaquitas talla 38 tengo?"',
-      '"¿Dónde está la pantufla stitch azul?"',
-      '"Muéstrame las maxisacos"',
-      '"¿Cuánto cuesta la clásica?"',
+      `"¿Cuánto stock de ${cat} talla 38 tengo?"`,
+      `"¿Dónde hay ${prod} azul?"`,
+      `"Muéstrame el inventario de ${cat}"`,
+      `"¿Cuánto cuesta ${prod}?"`,
     ],
   },
   {
@@ -47,10 +54,10 @@ const SECTIONS: Section[] = [
     color: 'bg-purple-50 text-purple-700 border-purple-100',
     examples: [
       '"El pedido de Carlos ya lo entregaron"',
-      '"Bogo me pagó el de María"',
+      '"El mensajero me pagó el de María"',
       '"El de Juan lo mandé ayer"',
       '"Cancela el pedido #4041302"',
-      '"Ya me consignaron el de Paola, me llegó por transferencia 85 mil"',
+      '"Ya me consignaron el de Ana, me llegó por transferencia 85 mil"',
     ],
   },
   {
@@ -58,9 +65,9 @@ const SECTIONS: Section[] = [
     title: 'Actualizar costo de producto',
     color: 'bg-cyan-50 text-cyan-700 border-cyan-100',
     examples: [
-      '"Las pantuflas vaquita me costaron 15000 cada una"',
-      '"Sube el costo de la maxisaco ovejero a 45.000"',
-      '"El costo de las clásicas blancas es $12.500"',
+      `"Cada ${prod} me costó 15.000"`,
+      `"Sube el costo de ${prod} a 45.000"`,
+      `"El costo de ${cat} talla 38 es $12.500"`,
     ],
   },
   {
@@ -88,9 +95,9 @@ const SECTIONS: Section[] = [
     title: 'Productos defectuosos',
     color: 'bg-red-50 text-red-700 border-red-100',
     examples: [
-      '"Esta pantufla vaquita azul está rota"',
-      '"Tengo 3 maxisacos con manchas"',
-      '"1 almohada rosada llegó defectuosa"',
+      `"Tengo ${prod} azul con daño"`,
+      `"Tengo 3 ${cat} con manchas"`,
+      `"1 ${prod} llegó con falla"`,
     ],
   },
   {
@@ -153,13 +160,26 @@ const SECTIONS: Section[] = [
       '"Imprime la guía de Carlos"',
     ],
   },
-];
+  ];
+}
+
+/** Producto en singular para los ejemplos, derivado de la categoría del tenant. */
+function singularize(word: string): string {
+  const w = word.trim().toLowerCase();
+  if (w.endsWith('es')) return w.slice(0, -2);
+  if (w.endsWith('s')) return w.slice(0, -1);
+  return w;
+}
 
 interface AssistantHelpModalProps {
   onClose: () => void;
 }
 
 export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps) {
+  const { config } = useTenant();
+  const cat = config.categories[0] ?? 'productos';
+  const prod = singularize(cat);
+  const SECTIONS = buildSections(prod, cat);
   return (
     <div
       className="fixed inset-0 z-[60] flex items-end md:items-center justify-center bg-black/50 p-0 md:p-4"
@@ -221,7 +241,7 @@ export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps)
               <li className="flex gap-2">
                 <span className="text-purple-500">•</span>
                 <span>
-                  <strong>Puede hacer varias cosas en un mensaje</strong>. Ej: &quot;llegaron 5 maxisacos
+                  <strong>Puede hacer varias cosas en un mensaje</strong>. Ej: &quot;llegaron 5 {cat}
                   a 45 mil y pagué 25 mil de transporte&quot; = agrega inventario + registra gasto en un
                   solo paso.
                 </span>
@@ -229,8 +249,8 @@ export default function AssistantHelpModal({ onClose }: AssistantHelpModalProps)
               <li className="flex gap-2">
                 <span className="text-purple-500">•</span>
                 <span>
-                  <strong>Reconoce voz</strong>: si oye algo raro (&quot;te desarmadas&quot; en vez de
-                  &quot;almohadas&quot;), pregunta para confirmar.
+                  <strong>Reconoce voz</strong>: si oye algo raro o ambiguo, pregunta para confirmar
+                  en vez de adivinar.
                 </span>
               </li>
               <li className="flex gap-2">

@@ -50,7 +50,7 @@ export const ORDERS_HELP: PageHelpContent = {
       ],
     },
   ],
-  tip: 'También podés crear o cambiar el estado de un pedido hablando con el asistente: “Carlos 3113339988, vaquita talla 38, 85 mil” o “el pedido de María ya lo entregaron”.',
+  tip: 'También podés crear o cambiar el estado de un pedido hablando con el asistente: “Carlos 3113339988, {cat} talla 38, 85 mil” o “el pedido de María ya lo entregaron”.',
   accentFrom: '#2563eb',
   accentTo: '#60a5fa',
 };
@@ -78,7 +78,7 @@ export const INVENTORY_HELP: PageHelpContent = {
       ],
     },
   ],
-  tip: 'Si te llegó mercancía, se lo podés decir al asistente: “llegaron 5 vaquitas blancas talla 38 en C03 a 15.000” y queda cargado automáticamente.',
+  tip: 'Si te llegó mercancía, se lo podés decir al asistente: “llegaron 5 {cat} talla 38 en C03 a 15.000” y queda cargado automáticamente.',
   accentFrom: '#059669',
   accentTo: '#34d399',
 };
@@ -107,7 +107,7 @@ export const PRODUCTS_HELP: PageHelpContent = {
       ],
     },
   ],
-  tip: 'También podés decirle al asistente "Las pantuflas vaquita me costaron $15.000" y actualiza el costo solo. Si hay más de un producto que coincide, te pregunta cuál es el exacto antes de guardar.',
+  tip: 'También podés decirle al asistente "Las {cat} me costaron $15.000" y actualiza el costo solo. Si hay más de un producto que coincide, te pregunta cuál es el exacto antes de guardar.',
   accentFrom: '#0891b2',
   accentTo: '#22d3ee',
 };

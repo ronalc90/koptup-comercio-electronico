@@ -562,10 +562,10 @@ export default function SettingsPage() {
               className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl text-2xl font-black text-white"
               style={{ background: 'linear-gradient(135deg, #7c3aed, #f59e0b)' }}
             >
-              {(owner?.[0] ?? 'P').toUpperCase()}
+              {(owner?.[0] ?? 'U').toUpperCase()}
             </div>
             <div>
-              <p className="text-lg font-bold text-gray-900 capitalize">{owner || 'Paola'}</p>
+              <p className="text-lg font-bold text-gray-900 capitalize">{owner || 'Usuario'}</p>
               <p className="text-sm text-gray-500">{roleLabel(role)}</p>
               <p className="text-xs text-gray-400 mt-0.5">{config.name}</p>
             </div>
@@ -911,13 +911,13 @@ export default function SettingsPage() {
                   sizes={printFontSize === 'custom' ? printCustom : undefined}
                   fontSize={printFontSize === 'custom' ? undefined : printFontSize}
                   order={{
-                    order_code: 'TM-0001',
-                    client_name: 'Paola Rodríguez',
-                    phone: '3203880422',
+                    order_code: 'EJ-0001',
+                    client_name: 'Cliente de ejemplo',
+                    phone: config.phone || '3001234567',
                     address: 'Calle 123 #45-67',
-                    complement: 'Apto 301 · Bogotá',
-                    product_ref: 'P12',
-                    detail: '2 pares pantuflas · negro · talla 37',
+                    complement: 'Apto 301',
+                    product_ref: 'REF-01',
+                    detail: `2 x ${config.categories[0] ?? 'Producto'}`,
                     value_to_collect: 85000,
                     comment: 'Llamar antes de entregar',
                   }}

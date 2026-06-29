@@ -2,6 +2,7 @@
 
 import { X, HelpCircle } from 'lucide-react';
 import { useEffect, type ReactNode } from 'react';
+import { useTenant } from '@/lib/TenantContext';
 
 export interface HelpSection {
   title: string;
@@ -26,6 +27,12 @@ interface PageHelpModalProps {
 export default function PageHelpModal({ content, onClose }: PageHelpModalProps) {
   const from = content.accentFrom ?? '#7c3aed';
   const to = content.accentTo ?? '#9061f9';
+  // Los textos de ayuda usan el token {cat} para que los ejemplos hablen de los
+  // productos del NEGOCIO actual (no de un tenant fijo). Se resuelve al render.
+  const { config } = useTenant();
+  const cat = config.categories[0] ?? 'productos';
+  const fill = (s: string) => s.replace(/\{cat\}/g, cat);
+  const tip = content.tip ? fill(content.tip) : undefined;
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -69,7 +76,7 @@ export default function PageHelpModal({ content, onClose }: PageHelpModalProps) 
         </div>
 
         <div className="overflow-y-auto px-5 py-4 space-y-3 flex-1 min-h-0">
-          <p className="text-sm text-gray-700 leading-relaxed">{content.intro}</p>
+          <p className="text-sm text-gray-700 leading-relaxed">{fill(content.intro)}</p>
 
           {content.sections.map((s) => (
             <div key={s.title} className="rounded-xl border border-gray-100 bg-gray-50 p-3">
@@ -78,16 +85,16 @@ export default function PageHelpModal({ content, onClose }: PageHelpModalProps) 
                 {s.items.map((it, i) => (
                   <li key={i} className="flex gap-2 leading-relaxed">
                     <span className="text-gray-400 shrink-0">•</span>
-                    <span>{it}</span>
+                    <span>{fill(it)}</span>
                   </li>
                 ))}
               </ul>
             </div>
           ))}
 
-          {content.tip && (
+          {tip && (
             <div className="rounded-xl border border-purple-100 bg-purple-50/60 p-3 text-xs text-gray-700">
-              <strong className="text-purple-700">Tip:</strong> {content.tip}
+              <strong className="text-purple-700">Tip:</strong> {tip}
             </div>
           )}
         </div>
