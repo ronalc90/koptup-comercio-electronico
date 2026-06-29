@@ -68,9 +68,11 @@ export default function SuperadminPage() {
 
   const load = useCallback(async () => {
     const [m, b] = await Promise.all([
-      fetch('/api/superadmin/metrics', { cache: 'no-store' }).then((x) => x.json()).catch(() => ({})),
-      fetch('/api/superadmin/billing', { cache: 'no-store' }).then((x) => x.json()).catch(() => ({})),
+      fetch('/api/superadmin/metrics', { cache: 'no-store' }).then((x) => x.json()).catch((e) => { console.error('superadmin metrics:', e); return {}; }),
+      fetch('/api/superadmin/billing', { cache: 'no-store' }).then((x) => x.json()).catch((e) => { console.error('superadmin billing:', e); return {}; }),
     ]);
+    if (m.error) console.error('superadmin metrics error:', m.error);
+    if (b.error) console.error('superadmin billing error:', b.error);
     setTenants(m.metrics ?? []);
     setRevenue(b.total ?? 0);
   }, []);
@@ -78,10 +80,20 @@ export default function SuperadminPage() {
   useEffect(() => { load(); }, [load]);
 
   async function changePlan(id: number, plan: string) {
-    const res = await fetch('/api/superadmin/tenants', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, plan }),
-    });
-    if (res.ok) { toast.success('Plan actualizado'); await load(); } else toast.error('No se pudo cambiar el plan');
+    try {
+      const res = await fetch('/api/superadmin/tenants', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, plan }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { toast.success('Plan actualizado'); await load(); return; }
+      // Mostrar SIEMPRE el motivo real (ej. "tiene 198 productos; el plan free
+      // permite 50…") y dejarlo en consola para diagnóstico.
+      console.error('No se pudo cambiar el plan:', res.status, data);
+      toast.error(data.error || 'No se pudo cambiar el plan');
+    } catch (e) {
+      console.error('changePlan error:', e);
+      toast.error(e instanceof Error ? e.message : 'No se pudo cambiar el plan');
+    }
   }
 
   async function runAgentsNow() {
@@ -97,10 +109,18 @@ export default function SuperadminPage() {
   }
 
   async function toggleActive(t: TenantRow) {
-    const res = await fetch('/api/superadmin/tenants', {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, active: !t.active }),
-    });
-    if (res.ok) { toast.success('Actualizado'); await load(); } else toast.error('No se pudo actualizar');
+    try {
+      const res = await fetch('/api/superadmin/tenants', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, active: !t.active }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { toast.success('Actualizado'); await load(); return; }
+      console.error('No se pudo actualizar el negocio:', res.status, data);
+      toast.error(data.error || 'No se pudo actualizar');
+    } catch (e) {
+      console.error('toggleActive error:', e);
+      toast.error(e instanceof Error ? e.message : 'No se pudo actualizar');
+    }
   }
 
   function recordPayment(t: TenantRow) {

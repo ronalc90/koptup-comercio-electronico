@@ -184,7 +184,10 @@ export async function PATCH(request: NextRequest) {
   }
 
   const { error } = await db.from('tenants').update(updates).eq('id', id);
-  if (error) return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+  if (error) {
+    console.error('superadmin/tenants PATCH update error:', error.message, { id, updates });
+    return NextResponse.json({ error: `No se pudo actualizar el negocio: ${error.message}` }, { status: 500 });
+  }
 
   await recordAudit(db, {
     tenantId: id,
