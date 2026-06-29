@@ -6,12 +6,13 @@ const CONFIRMATION_PHRASE = 'Acepto';
 
 /**
  * Vacía todos los datos de negocio de la cuenta (pedidos, inventario,
- * productos, gastos) dejándola como nueva. Requiere que el usuario
- * envíe la frase de confirmación exacta "Acepto".
+ * productos, gastos, alertas y proveedores) dejándola como nueva. Requiere que
+ * el usuario envíe la frase de confirmación exacta "Acepto".
  *
  * Conserva:
  *   - la fila de settings con openai_api_key (la cuenta sigue operativa)
  *   - la sesión (la persona puede seguir usando la app tras el borrado).
+ *   - el historial de cargos (`charges`): es registro de facturación/licencia.
  */
 export async function POST(request: NextRequest) {
   const session = await getSession();
@@ -40,7 +41,9 @@ export async function POST(request: NextRequest) {
     const supabase = await getScopedServiceClient(session);
 
     // Borrar usando una condición siempre verdadera en la PK (id > 0).
-    const tables = ['orders', 'inventory', 'products', 'expenses'] as const;
+    // `suppliers` va al FINAL: products/orders lo referencian por FK
+    // (supplier_id, migración 016); para entonces ya están borrados.
+    const tables = ['orders', 'inventory', 'products', 'expenses', 'alerts', 'suppliers'] as const;
     const errors: string[] = [];
 
     for (const table of tables) {

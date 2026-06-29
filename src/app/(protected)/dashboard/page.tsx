@@ -576,7 +576,10 @@ export default function DashboardPage() {
               ) : (
                 <div className="divide-y divide-gray-50">
                   {recentOrders.map((order) => {
+                    // Fallback ante estados legacy/desconocidos en BD: sin esto,
+                    // s.cls/s.label reventarían el render de "Últimos pedidos".
                     const s = STATUS_STYLES[order.delivery_status]
+                      ?? { label: order.delivery_status || '—', cls: 'bg-gray-100 text-gray-600' }
                     return (
                       <button
                         key={order.id}

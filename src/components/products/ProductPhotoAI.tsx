@@ -111,7 +111,17 @@ export default function ProductPhotoAI({ onProductAnalyzed, onClose }: ProductPh
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setResult(data);
+      // Normalizamos el shape: si la IA omite `colors` o `suggested_cost`, el
+      // render (`result.colors.join`, `formatCurrency`) no debe reventar.
+      setResult({
+        name: typeof data.name === 'string' ? data.name : '',
+        category: typeof data.category === 'string' ? data.category : '',
+        code: typeof data.code === 'string' ? data.code : '',
+        colors: Array.isArray(data.colors) ? data.colors.filter((c: unknown) => typeof c === 'string') : [],
+        size: typeof data.size === 'string' ? data.size : null,
+        description: typeof data.description === 'string' ? data.description : '',
+        suggested_cost: Number(data.suggested_cost) || 0,
+      });
       toast.success('Producto analizado');
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Error al analizar');

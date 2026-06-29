@@ -432,9 +432,12 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: 'test' }),
       })
-      const data = await res.json()
-      if (!res.ok && data.error?.toLowerCase().includes('api key')) {
-        throw new Error(data.error)
+      const data = await res.json().catch(() => null)
+      // Cualquier respuesta no-OK es un fallo de conexión: solo declaramos éxito
+      // si el servidor respondió 2xx (antes solo se detectaba el error de "api key"
+      // y un 500/timeout/red caía a "exitosa" — falso positivo).
+      if (!res.ok) {
+        throw new Error(data?.error || 'No se pudo conectar con OpenAI')
       }
       toast.success('Conexión con OpenAI exitosa')
     } catch (err: unknown) {

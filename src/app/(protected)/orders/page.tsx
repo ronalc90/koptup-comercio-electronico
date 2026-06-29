@@ -267,13 +267,17 @@ export default function OrdersPage({
     : orders
 
   // KPI summary — usa filteredOrders para que reaccione a los filtros del listado.
+  // Un pedido cuenta como "recaudado" (recaudo/utilidad/entregados) si está
+  // Entregado O Pagado. Predicado único para que las tarjetas, el detalle del KPI
+  // y los cálculos no se desincronicen (antes el detalle solo miraba 'Entregado').
+  const isCollected = (o: Order) => o.delivery_status === 'Entregado' || o.delivery_status === 'Pagado'
   const kpiSource = filteredOrders
   const totalOrders = kpiSource.length
-  const delivered = kpiSource.filter((o) => o.delivery_status === 'Entregado' || o.delivery_status === 'Pagado').length
+  const delivered = kpiSource.filter(isCollected).length
   const returns = kpiSource.filter((o) => o.delivery_status === 'Devolucion').length
   const cancelled = kpiSource.filter((o) => o.delivery_status === 'Cancelado').length
   const totalRevenue = kpiSource
-    .filter((o) => ['Entregado', 'Pagado'].includes(o.delivery_status))
+    .filter(isCollected)
     .reduce((sum, o) => sum + (o.value_to_collect ?? 0), 0)
   const totalCosts = kpiSource.reduce((sum, o) => sum + (o.product_cost ?? 0), 0)
   const profit = totalRevenue - totalCosts
@@ -282,11 +286,11 @@ export default function OrdersPage({
   const kpiOrders = kpiFilter
     ? orders.filter((o) => {
         if (kpiFilter === 'total') return true
-        if (kpiFilter === 'entregado') return o.delivery_status === 'Entregado'
+        if (kpiFilter === 'entregado') return isCollected(o)
         if (kpiFilter === 'devolucion') return o.delivery_status === 'Devolucion'
         if (kpiFilter === 'cancelado') return o.delivery_status === 'Cancelado'
-        if (kpiFilter === 'recaudo') return o.delivery_status === 'Entregado'
-        if (kpiFilter === 'utilidad') return o.delivery_status === 'Entregado'
+        if (kpiFilter === 'recaudo') return isCollected(o)
+        if (kpiFilter === 'utilidad') return isCollected(o)
         return false
       })
     : []

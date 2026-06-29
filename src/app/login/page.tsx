@@ -298,6 +298,19 @@ export default function LoginPage() {
                 ¿Olvidaste tu contraseña?
               </button>
             </div>
+
+            {/* Registro de nuevos negocios/usuarios (requiere aprobación) */}
+            <div className="text-center border-t pt-3" style={{ borderColor: '#eef2f7' }}>
+              <p className="text-xs" style={{ color: '#64748b' }}>
+                ¿Nuevo negocio?{' '}
+                <a href="/register" className="font-semibold" style={{ color: '#7c3aed' }}>
+                  Regístrate aquí
+                </a>
+              </p>
+              <p className="mt-0.5 text-[11px]" style={{ color: '#94a3b8' }}>
+                Las cuentas nuevas requieren aprobación de un administrador.
+              </p>
+            </div>
           </form>
         </div>
 

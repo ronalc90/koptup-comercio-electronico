@@ -13,6 +13,8 @@ interface AdminUser {
   username: string | null;
   role: string;
   active: boolean;
+  status?: string;
+  rejected_at?: string | null;
 }
 interface TenantProfile {
   id: number;
@@ -110,8 +112,40 @@ export default function AdminPage() {
     const res = await fetch('/api/admin/users', {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, ...patch }),
     });
+    const data = await res.json().catch(() => ({}));
     if (res.ok) { toast.success('Actualizado'); await load(); }
-    else toast.error('No se pudo actualizar');
+    else { console.error('updateUser:', res.status, data); toast.error(data.error || 'No se pudo actualizar'); }
+  }
+
+  // Aprobar / rechazar / re-habilitar una solicitud de ingreso (modo B).
+  async function manageRequest(id: number, action: 'approve' | 'reject' | 'reenable') {
+    const res = await fetch('/api/admin/users', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, action }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { toast.success(action === 'approve' ? 'Aprobado' : action === 'reject' ? 'Rechazado' : 'Re-habilitado'); await load(); }
+    else { console.error('manageRequest:', res.status, data); toast.error(data.error || 'No se pudo procesar'); }
+  }
+
+  // Código de invitación del negocio (modo B).
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
+  useEffect(() => {
+    if (!roleAtLeast(role, 'admin')) return;
+    fetch('/api/admin/invite', { cache: 'no-store' }).then((r) => r.json())
+      .then((d) => setInviteCode(d.inviteCode ?? null))
+      .catch((e) => console.error('cargar invite:', e));
+  }, [role]);
+
+  async function genInvite() {
+    const res = await fetch('/api/admin/invite', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) { setInviteCode(data.inviteCode); toast.success('Código generado'); }
+    else { console.error('genInvite:', data); toast.error(data.error || 'No se pudo generar'); }
+  }
+  async function disableInvite() {
+    const res = await fetch('/api/admin/invite', { method: 'DELETE' });
+    if (res.ok) { setInviteCode(null); toast.success('Código desactivado'); }
+    else toast.error('No se pudo desactivar');
   }
 
   if (!roleAtLeast(role, 'admin')) {
@@ -198,11 +232,58 @@ export default function AdminPage() {
         </button>
       </div>
 
+      {/* Solicitudes de ingreso (modo B: empleados con código de invitación) */}
+      {users.some((u) => u.status === 'pending' || u.status === 'rejected') && (
+        <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+          <h2 className="font-bold text-gray-900 text-sm mb-3">Solicitudes de ingreso</h2>
+          <ul className="divide-y divide-gray-100">
+            {users.filter((u) => u.status === 'pending').map((u) => (
+              <li key={u.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                <div className="flex-1 min-w-0 basis-full sm:basis-auto">
+                  <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>
+                  <p className="text-xs text-amber-600 truncate">{u.email} · pendiente</p>
+                </div>
+                <button onClick={() => manageRequest(u.id, 'approve')} className="shrink-0 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white">Aprobar</button>
+                <button onClick={() => manageRequest(u.id, 'reject')} className="shrink-0 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-600">Rechazar</button>
+              </li>
+            ))}
+            {users.filter((u) => u.status === 'rejected').map((u) => (
+              <li key={u.id} className="flex flex-wrap items-center gap-2 py-2 text-sm opacity-70">
+                <div className="flex-1 min-w-0 basis-full sm:basis-auto">
+                  <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>
+                  <p className="text-xs text-red-400 truncate">{u.email} · rechazado (se elimina en ~30 días)</p>
+                </div>
+                <button onClick={() => manageRequest(u.id, 'reenable')} className="shrink-0 rounded-lg border border-purple-300 px-2.5 py-1.5 text-xs font-semibold text-purple-700">Re-habilitar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Código de invitación para que empleados se registren a este negocio */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
+        <h2 className="font-bold text-gray-900 text-sm mb-1">Invitar empleados</h2>
+        <p className="text-xs text-gray-500 mb-3">Comparte este enlace; quien se registre quedará pendiente de tu aprobación.</p>
+        {inviteCode ? (
+          <div className="space-y-2">
+            <div className="rounded-lg bg-gray-50 border px-3 py-2 text-xs break-all">/register?invite={inviteCode}</div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => { navigator.clipboard?.writeText(`${window.location.origin}/register?invite=${inviteCode}`); toast.success('Enlace copiado'); }}
+                className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white">Copiar enlace</button>
+              <button onClick={genInvite} className="rounded-lg border px-3 py-1.5 text-xs font-semibold text-gray-600">Regenerar</button>
+              <button onClick={disableInvite} className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600">Desactivar</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={genInvite} className="rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white">Generar código de invitación</button>
+        )}
+      </div>
+
       {/* Lista de usuarios */}
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">
-        <h2 className="font-bold text-gray-900 text-sm mb-3">Usuarios ({users.length})</h2>
+        <h2 className="font-bold text-gray-900 text-sm mb-3">Usuarios ({users.filter((u) => !u.status || u.status === 'approved').length})</h2>
         <ul className="divide-y divide-gray-100">
-          {users.map((u) => (
+          {users.filter((u) => !u.status || u.status === 'approved').map((u) => (
             <li key={u.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
               <div className="flex-1 min-w-0 basis-full sm:basis-auto">
                 <p className="font-semibold text-gray-900 truncate">{u.username || u.email}</p>

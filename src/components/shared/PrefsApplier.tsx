@@ -7,9 +7,11 @@ import {
   getUiFontSize,
   getUiDensity,
   getReduceMotion,
+  getCurrencyFormat,
   UI_FONT_SCALE,
   type ThemeMode,
 } from '@/lib/preferences';
+import { setCurrencyDecimals } from '@/lib/utils';
 
 function resolveTheme(mode: ThemeMode): 'light' | 'dark' {
   if (mode === 'system') {
@@ -49,6 +51,9 @@ export default function PrefsApplier() {
 
       const reduced = getReduceMotion(owner);
       root.dataset.reduceMotion = reduced ? '1' : '0';
+
+      // Formato de moneda (con/sin decimales) → afecta formatCurrency en toda la app.
+      setCurrencyDecimals(getCurrencyFormat(owner) === 'cop-decimals');
     }
 
     apply();

@@ -45,6 +45,10 @@ interface SaUser { id: number; email: string; username: string | null; role: str
 export default function SuperadminPage() {
   const { role } = useTenant();
   const [tenants, setTenants] = useState<TenantRow[]>([]);
+  const [regs, setRegs] = useState<{
+    pending: { id: number; name: string; industry: string | null; admin: { email: string } | null }[];
+    rejected: { id: number; name: string; admin: { email: string } | null; daysUntilPurge?: number }[];
+  }>({ pending: [], rejected: [] });
   const [revenue, setRevenue] = useState(0);
   const [form, setForm] = useState({ ...EMPTY });
   const [busy, setBusy] = useState(false);
@@ -75,7 +79,25 @@ export default function SuperadminPage() {
     if (b.error) console.error('superadmin billing error:', b.error);
     setTenants(m.metrics ?? []);
     setRevenue(b.total ?? 0);
+    const r = await fetch('/api/superadmin/registrations', { cache: 'no-store' })
+      .then((x) => x.json()).catch((e) => { console.error('superadmin registrations:', e); return {}; });
+    setRegs({ pending: r.pending ?? [], rejected: r.rejected ?? [] });
   }, []);
+
+  async function manageReg(tenantId: number, action: 'approve' | 'reject' | 'reenable') {
+    try {
+      const res = await fetch('/api/superadmin/registrations', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tenantId, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) { toast.success(action === 'approve' ? 'Negocio aprobado' : action === 'reject' ? 'Rechazado' : 'Re-habilitado'); await load(); return; }
+      console.error('manageReg:', res.status, data);
+      toast.error(data.error || 'No se pudo procesar la solicitud');
+    } catch (e) {
+      console.error('manageReg error:', e);
+      toast.error('No se pudo procesar la solicitud');
+    }
+  }
 
   useEffect(() => { load(); }, [load]);
 
@@ -296,6 +318,34 @@ export default function SuperadminPage() {
           </div>
         </div>
       </div>
+
+      {/* Solicitudes de registro de negocios (auto-registro, modo A) */}
+      {(regs.pending.length > 0 || regs.rejected.length > 0) && (
+        <div className="rounded-2xl border border-amber-100 bg-white p-4 shadow-sm">
+          <h2 className="font-bold text-gray-900 text-sm mb-3">Solicitudes de registro de negocios</h2>
+          <ul className="divide-y divide-gray-100">
+            {regs.pending.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
+                <div className="flex-1 min-w-0 basis-full sm:basis-auto">
+                  <p className="font-semibold text-gray-900 truncate">{r.name} <span className="text-xs font-normal text-gray-400">· {r.industry}</span></p>
+                  <p className="text-xs text-amber-600 truncate">{r.admin?.email} · pendiente</p>
+                </div>
+                <button onClick={() => manageReg(r.id, 'approve')} className="shrink-0 rounded-lg bg-green-600 px-2.5 py-1.5 text-xs font-semibold text-white">Aprobar</button>
+                <button onClick={() => manageReg(r.id, 'reject')} className="shrink-0 rounded-lg border border-gray-300 px-2.5 py-1.5 text-xs font-semibold text-gray-600">Rechazar</button>
+              </li>
+            ))}
+            {regs.rejected.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2 py-2 text-sm opacity-70">
+                <div className="flex-1 min-w-0 basis-full sm:basis-auto">
+                  <p className="font-semibold text-gray-900 truncate">{r.name}</p>
+                  <p className="text-xs text-red-400 truncate">{r.admin?.email} · rechazado · se elimina en {r.daysUntilPurge ?? 0} días</p>
+                </div>
+                <button onClick={() => manageReg(r.id, 'reenable')} className="shrink-0 rounded-lg border border-purple-300 px-2.5 py-1.5 text-xs font-semibold text-purple-700">Re-habilitar</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Alta de negocio (onboarding) */}
       <div className="rounded-2xl border border-gray-100 bg-white p-4 shadow-sm">

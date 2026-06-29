@@ -70,15 +70,22 @@ export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputP
         throw new Error(data.error || 'Error al procesar');
       }
 
+      // El render espera SIEMPRE un array. Cuando no está parseado, la IA manda
+      // `partial` como objeto único → lo envolvemos para poder mostrarlo (antes
+      // se asignaba el objeto y `.length`/`.map` lo ignoraban en silencio).
+      const parsedItems: ParsedInventoryItem[] = data.parsed
+        ? (Array.isArray(data.items) ? data.items : [])
+        : (data.partial ? [data.partial] : []);
+
       const assistantMsg: ChatMessage = {
         role: 'assistant',
         content: data.message || 'Items procesados',
-        parsedItems: data.parsed ? data.items : data.partial,
+        parsedItems,
       };
 
       setMessages(prev => [...prev, assistantMsg]);
 
-      if (data.parsed && data.items && data.items.length > 0) {
+      if (data.parsed && Array.isArray(data.items) && data.items.length > 0) {
         setPendingItems(data.items);
       }
     } catch (error: unknown) {
@@ -284,6 +291,7 @@ export default function AIInventoryInput({ onItemsConfirmed }: AIInventoryInputP
               }
             }}
             placeholder={`Ej: "${ejemploInv}"`}
+            aria-label="Mensaje de inventario para el asistente"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32"
             style={{ minHeight: '42px' }}

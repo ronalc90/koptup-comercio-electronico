@@ -5,12 +5,23 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+// Decimales del formato de moneda. Lo fija PrefsApplier según la preferencia
+// `currency_format` del owner (mismo patrón que el tenant activo), de modo que la
+// opción "Con decimales" de Configuración SÍ tenga efecto en toda la app sin
+// tener que pasar el owner a cada `formatCurrency`. SSR usa el default (0).
+let _currencyDecimals = 0;
+
+/** Activa/desactiva los decimales del formato de moneda en toda la app. */
+export function setCurrencyDecimals(withDecimals: boolean): void {
+  _currencyDecimals = withDecimals ? 2 : 0;
+}
+
 export function formatCurrency(value: number): string {
   return new Intl.NumberFormat('es-CO', {
     style: 'currency',
     currency: 'COP',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+    minimumFractionDigits: _currencyDecimals,
+    maximumFractionDigits: _currencyDecimals,
   }).format(value);
 }
 

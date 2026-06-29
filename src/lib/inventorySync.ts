@@ -37,21 +37,41 @@ interface SyncArgs {
   product: Product | null;
 }
 
+const norm = (s: string): string => s.toLowerCase().trim().replace(/\s+/g, ' ');
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/** ¿`needle` aparece como palabra(s) COMPLETA(s) dentro de `haystack`? */
+function containsWhole(haystack: string, needle: string): boolean {
+  return new RegExp(`(^|\\s)${escapeRegExp(needle)}(\\s|$)`).test(haystack);
+}
+
+/**
+ * Empareja un ítem de inventario contra los términos del pedido. Endurecido para
+ * NO descontar stock del producto equivocado (antes `t.includes(model)` o el
+ * match por la PRIMERA palabra empataba modelos cortos/similares como
+ * "bota dama" ↔ "bota niño"):
+ *   - ignora modelos/términos de menos de 3 caracteres,
+ *   - prioriza igualdad exacta,
+ *   - si no, exige contención por palabra COMPLETA en cualquier dirección.
+ */
 function bestMatch(
   items: Array<{ id: number; model: string; quantity: number }>,
   haystacks: string[],
 ): { id: number; model: string; quantity: number } | null {
-  const tokens = haystacks
-    .map((h) => h.toLowerCase().trim())
-    .filter(Boolean);
-  if (!tokens.length) return null;
+  const terms = haystacks.map(norm).filter((t) => t.length >= 3);
+  if (!terms.length) return null;
+
+  // 1) Igualdad exacta modelo === término.
   for (const item of items) {
-    const model = (item.model || '').toLowerCase();
-    if (!model) continue;
-    for (const t of tokens) {
-      if (t.includes(model) || model.includes(t.split(/\s+/)[0])) {
-        return item;
-      }
+    const model = norm(item.model || '');
+    if (model.length >= 3 && terms.some((t) => t === model)) return item;
+  }
+  // 2) Contención por palabra completa (en cualquier dirección).
+  for (const item of items) {
+    const model = norm(item.model || '');
+    if (model.length < 3) continue;
+    for (const t of terms) {
+      if (containsWhole(t, model) || containsWhole(model, t)) return item;
     }
   }
   return null;
@@ -71,7 +91,10 @@ export async function syncInventoryOnOrderSave(args: SyncArgs): Promise<Inventor
   // 1) Buscar en inventario usando el término más específico primero
   let query = supabase.from('inventory').select('id, model, quantity, product_id').eq('status', 'Bueno');
   if (hasOwner) query = query.eq('owner', owner);
-  const { data: inv } = await query;
+  const { data: inv, error: readError } = await query;
+  // Si la lectura falla, NO seguimos: crear un registro en cero "porque no se
+  // encontró" duplicaría inventario existente. Mejor un noop explícito.
+  if (readError) return wrap({ kind: 'noop' });
   const items = inv ?? [];
 
   // Match exacto por product_id si el catálogo lo define, si no por modelo

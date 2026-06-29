@@ -276,6 +276,7 @@ export default function AIOrderInput({ onOrderConfirmed }: AIOrderInputProps) {
               }
             }}
             placeholder="Pega el pedido aquí o usa el micrófono..."
+            aria-label="Mensaje del pedido para el asistente"
             rows={1}
             className="flex-1 resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent max-h-32"
             style={{ minHeight: '42px' }}

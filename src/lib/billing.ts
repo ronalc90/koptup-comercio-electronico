@@ -64,6 +64,10 @@ export interface StripeBillingEffect {
 export function billingEffectForEvent(eventType: string): StripeBillingEffect {
   switch (eventType) {
     // El pago de una factura (primera y renovaciones) extiende 1 mes y cobra.
+    // OJO: Stripe emite `invoice.paid` Y `invoice.payment_succeeded` por el MISMO
+    // pago, con `event.id` distinto. Ambos se mapean a "extender" porque cualquiera
+    // basta como señal; la NO duplicación la garantiza la clave de idempotencia
+    // por factura (`billingIdempotencyKey`), no el tipo de evento.
     case 'invoice.paid':
     case 'invoice.payment_succeeded':
       return { extendLicense: true, billingStatus: 'active' };
@@ -78,6 +82,26 @@ export function billingEffectForEvent(eventType: string): StripeBillingEffect {
     default:
       return { extendLicense: false, billingStatus: null };
   }
+}
+
+/**
+ * Clave de idempotencia para registrar un cargo / extender licencia.
+ *
+ * Se deriva de la FACTURA, no del evento: en los eventos de factura
+ * (`invoice.paid` / `invoice.payment_succeeded`) `event.data.object` ES la
+ * factura, así que su `id` (in_…) es ESTABLE entre los dos eventos gemelos del
+ * mismo pago. Usar el id de factura como clave hace que el segundo evento (y los
+ * reintentos de Stripe) choquen con el índice único `uq_charges_stripe_event` y
+ * no vuelvan a cobrar ni extender. Las renovaciones mensuales generan facturas
+ * distintas, así que siguen registrándose como cargos separados.
+ *
+ * Se prefija `inv:` para no colisionar con las filas históricas que guardaban el
+ * `event.id` (evt_…). Si no hay id de factura, cae al `fallback` (event.id).
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function billingIdempotencyKey(obj: any, fallback: string): string {
+  const invoiceId = obj?.id;
+  return typeof invoiceId === 'string' && invoiceId ? `inv:${invoiceId}` : fallback;
 }
 
 /**

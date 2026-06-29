@@ -171,6 +171,7 @@ export async function POST(request: NextRequest) {
 
       const rows: Record<string, unknown>[] = [];
       const errors: string[] = [];
+      let insertedCount = 0;
 
       sheet.eachRow((row, rowNumber) => {
         if (rowNumber === 1) return; // Skip header
@@ -216,14 +217,19 @@ export async function POST(request: NextRequest) {
         }
         if (type === 'inventory') {
           if (!record.status) record.status = 'Bueno';
-          if (!record.quantity) record.quantity = 1;
+          // Solo defaultear cuando falta la celda: una cantidad legítima 0
+          // (agotado) NO debe convertirse en 1.
+          if (record.quantity === undefined || record.quantity === null) record.quantity = 1;
           if (!record.model) {
             errors.push(`Fila ${rowNumber}: falta modelo`);
             return;
           }
         }
         if (type === 'products') {
-          if (!record.active) record.active = true;
+          // Solo defaultear cuando falta la celda: un producto marcado "Inactivo"
+          // ya viene como `false` y NO debe forzarse a `true` (antes era
+          // imposible importar un producto inactivo).
+          if (record.active === undefined) record.active = true;
           if (!record.code && !record.name) {
             errors.push(`Fila ${rowNumber}: falta código o nombre`);
             return;
@@ -249,19 +255,23 @@ export async function POST(request: NextRequest) {
             }
           }
         }
-        // Insert in batches of 50
+        // Insert in batches of 50. Contamos las filas REALMENTE insertadas
+        // (antes se restaba 1 por mensaje de error, no las filas del lote
+        // fallido, inflando el total reportado).
         for (let i = 0; i < rows.length; i += 50) {
           const batch = rows.slice(i, i + 50);
           const { error } = await supabase.from(table).insert(batch);
           if (error) {
             errors.push(`Error BD en lote ${Math.floor(i/50)+1}: ${error.message}`);
+          } else {
+            insertedCount += batch.length;
           }
         }
       }
 
       results.push({
         type: type,
-        inserted: rows.length - errors.filter(e => e.startsWith('Error BD')).length,
+        inserted: insertedCount,
         errors,
       });
     }

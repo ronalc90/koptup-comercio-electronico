@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getStripe, planForPriceId } from '@/lib/stripe';
 import { getServiceClient } from '@/lib/supabase';
-import { addMonths, billingEffectForEvent } from '@/lib/billing';
+import { addMonths, billingEffectForEvent, billingIdempotencyKey } from '@/lib/billing';
 import { isPlan, planPrice, type Plan } from '@/lib/plans';
 
 export const dynamic = 'force-dynamic';
@@ -65,40 +65,48 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ received: true });
     }
 
-    // billingStatus === 'active'
+    // billingStatus === 'active'. `statusUpdate` es la parte que NO extiende la
+    // licencia (estado + plan): es segura de re-aplicar las veces que haga falta.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const update: any = { billing_status: 'active' };
-    if (plan && plan !== 'free') update.plan = plan;
+    const statusUpdate: any = { billing_status: 'active' };
+    if (plan && plan !== 'free') statusUpdate.plan = plan;
 
     if (effect.extendLicense) {
       const today = new Date().toISOString().slice(0, 10);
       const { data: t } = await db.from('tenants').select('license_until').eq('id', tenantId).maybeSingle();
       const base = t?.license_until && (t.license_until as string) > today ? (t.license_until as string) : today;
       const newUntil = addMonths(base, 1);
-      update.license_until = newUntil;
 
-      // IDEMPOTENCIA: registramos el cargo con el id del evento (índice único)
-      // ANTES de extender la licencia. Si Stripe reenvía el mismo evento, el
-      // insert choca (23505) y salimos sin volver a cobrar ni extender.
-      if (plan) {
-        const { error: cErr } = await db.from('charges').insert({
-          tenant_id: tenantId,
-          amount: planPrice(plan),
-          concept: `Stripe: plan ${plan} (1 mes)`,
-          period_start: base,
-          period_end: newUntil,
-          stripe_event_id: event.id,
-        });
-        if (cErr) {
-          if ((cErr as { code?: string }).code === '23505') {
-            return NextResponse.json({ received: true, duplicate: true }); // evento ya procesado
-          }
-          throw new Error(cErr.message || 'No se pudo registrar el cargo');
+      // IDEMPOTENCIA: registramos el cargo (clave = id de FACTURA, no de evento)
+      // ANTES de extender. Esto deduplica los dos eventos gemelos del mismo pago
+      // (invoice.paid / invoice.payment_succeeded) Y los reintentos de Stripe.
+      // Se registra SIEMPRE que haya que extender, aunque el plan no se resuelva,
+      // para no perder la barrera de idempotencia.
+      const idemKey = billingIdempotencyKey(obj, event.id);
+      const { error: cErr } = await db.from('charges').insert({
+        tenant_id: tenantId,
+        amount: plan ? planPrice(plan) : 0,
+        concept: plan ? `Stripe: plan ${plan} (1 mes)` : 'Stripe: renovación (1 mes)',
+        period_start: base,
+        period_end: newUntil,
+        stripe_event_id: idemKey,
+      });
+      if (cErr) {
+        if ((cErr as { code?: string }).code === '23505') {
+          // Ya procesado (evento gemelo o reintento). La extensión ya se aplicó
+          // una vez; NO volvemos a extender license_until (sería doble extensión).
+          // Re-aplicamos solo el estado/plan por si la primera vez el insert tuvo
+          // éxito pero el update de tenants falló (insert ok + update KO → 500 →
+          // reintento): así el tenant queda consistente sin cobrar de más.
+          await db.from('tenants').update(statusUpdate).eq('id', tenantId);
+          return NextResponse.json({ received: true, duplicate: true });
         }
+        throw new Error(cErr.message || 'No se pudo registrar el cargo');
       }
-      await db.from('tenants').update(update).eq('id', tenantId);
+      // Insert nuevo OK → extendemos la licencia (única vez por factura).
+      await db.from('tenants').update({ ...statusUpdate, license_until: newUntil }).eq('id', tenantId);
     } else {
-      await db.from('tenants').update(update).eq('id', tenantId);
+      await db.from('tenants').update(statusUpdate).eq('id', tenantId);
     }
     return NextResponse.json({ received: true });
   } catch (e: unknown) {

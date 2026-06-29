@@ -88,12 +88,21 @@ Responde SIEMPRE en JSON:
       response_format: { type: 'json_object' },
     });
 
-    const content = completion.choices[0]?.message?.content;
+    const choice = completion.choices[0];
+    const content = choice?.message?.content;
     if (!content) {
       return NextResponse.json({ error: 'Sin respuesta de la IA' }, { status: 500 });
     }
-
-    return NextResponse.json(JSON.parse(content));
+    if (choice?.finish_reason === 'length') {
+      return NextResponse.json({ error: 'La respuesta de la IA quedó incompleta.' }, { status: 422 });
+    }
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      return NextResponse.json({ error: 'No se pudo interpretar la respuesta de la IA' }, { status: 422 });
+    }
+    return NextResponse.json(parsed);
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
     console.error('Product analyze error:', msg);

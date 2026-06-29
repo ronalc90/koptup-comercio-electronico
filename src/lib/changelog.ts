@@ -12,6 +12,16 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.054',
+    date: '2026-06-29',
+    highlights: [
+      'Registro con aprobación: ahora hay una página pública para registrarse. Un NEGOCIO nuevo puede solicitar su cuenta (la aprueba la plataforma) y un EMPLEADO puede unirse a un negocio existente con su enlace de invitación (lo aprueba el admin de ese negocio).',
+      'Nadie entra hasta ser aprobado. Los administradores ven las solicitudes pendientes y pueden aprobar, rechazar o re-habilitar; las rechazadas se eliminan solas a los 30 días.',
+      'Cada negocio puede generar y compartir su enlace de invitación desde Administración.',
+      'Mejoras de plataforma: el superadmin ve la marca koptup (no la de un negocio), al crear usuarios elige el negocio, y los errores ahora muestran el motivo real.',
+    ],
+  },
+  {
     version: '1.053',
     date: '2026-06-29',
     highlights: [
