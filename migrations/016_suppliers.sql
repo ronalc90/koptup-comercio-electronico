@@ -52,6 +52,13 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE UNIQUE INDEX IF NOT EXISTS uq_suppliers_tenant_name
   ON suppliers(tenant_id, lower(name));
 
+-- Clave única (tenant_id, id): destino de la FK compuesta de products/orders, para
+-- que un producto/pedido NO pueda referenciar un proveedor de OTRO tenant (defensa
+-- en profundidad de aislamiento, además de RLS).
+DO $$ BEGIN
+  ALTER TABLE suppliers ADD CONSTRAINT uq_suppliers_tenant_id UNIQUE (tenant_id, id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
 -- RLS: aislamiento por tenant idéntico al patrón de 003_strict_rls.sql, más el
 -- DROP de la policy anon por defensa en profundidad.
 ALTER TABLE suppliers ENABLE ROW LEVEL SECURITY;
@@ -62,17 +69,30 @@ CREATE POLICY tenant_isolation ON suppliers FOR ALL
   WITH CHECK (tenant_id = jwt_tenant_id());
 
 -- 2) supplier_id en products (catálogo) — nullable = "sin asignar" ------------
+-- FK COMPUESTA (tenant_id, supplier_id) → suppliers(tenant_id, id): garantiza que
+-- el proveedor sea del MISMO tenant. Con MATCH SIMPLE, si supplier_id es NULL la FK
+-- no se valida (los existentes quedan "sin asignar" sin romper). NO usamos
+-- ON DELETE SET NULL porque tenant_id es NOT NULL; los proveedores se desactivan
+-- (active=false), no se borran.
 DO $$ BEGIN
-  ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id INTEGER
-    REFERENCES suppliers(id) ON DELETE SET NULL;
+  ALTER TABLE products ADD COLUMN IF NOT EXISTS supplier_id INTEGER;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE products ADD CONSTRAINT fk_products_supplier_tenant
+    FOREIGN KEY (tenant_id, supplier_id) REFERENCES suppliers(tenant_id, id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_products_supplier ON products(supplier_id);
 
 -- 3) supplier_id en orders (línea = fila) — congelado al vender ----------------
 DO $$ BEGIN
-  ALTER TABLE orders ADD COLUMN IF NOT EXISTS supplier_id INTEGER
-    REFERENCES suppliers(id) ON DELETE SET NULL;
+  ALTER TABLE orders ADD COLUMN IF NOT EXISTS supplier_id INTEGER;
 EXCEPTION WHEN duplicate_column THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE orders ADD CONSTRAINT fk_orders_supplier_tenant
+    FOREIGN KEY (tenant_id, supplier_id) REFERENCES suppliers(tenant_id, id);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 
 CREATE INDEX IF NOT EXISTS idx_orders_supplier ON orders(supplier_id);

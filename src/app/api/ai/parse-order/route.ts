@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
 
     const [cfg, productsRes, inventoryRes] = await Promise.all([
       loadTenantConfig(ctx.tenantId, ctx.tenantSlug),
-      client.from('products').select('code, name, cost, supplier_id'),
+      client.from('products').select('code, name, cost'),
       client.from('inventory').select('model, color, size').eq('status', 'Bueno').gt('quantity', 0),
     ]);
 
