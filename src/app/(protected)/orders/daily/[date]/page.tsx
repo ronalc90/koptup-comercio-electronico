@@ -17,7 +17,7 @@ import type { Order, DailyKPIs } from '@/lib/types'
 import { cn, formatCurrency, getDayOfWeek, sameVendor, vendorDisplayName } from '@/lib/utils'
 import { phaseLabel } from '@/lib/orders/phases'
 import { useUser } from '@/lib/UserContext'
-import { isOwnerSupported, courierPendingColumn } from '@/lib/db'
+import { isOwnerSupported, courierPendingColumn, isOrderShippingSupported } from '@/lib/db'
 import WhatsAppLink from '@/components/shared/WhatsAppLink'
 import OrderReceipt from '@/components/orders/OrderReceipt'
 import { DELIVERY_TYPE_OPTIONS as DELIVERY_TYPE_DEFS, getCourierPending } from '@/lib/types'
@@ -128,6 +128,15 @@ interface OrderRowBaseProps {
   onUpdate: (id: number, changes: Partial<Order>) => Promise<void>
   vendorOptions: string[]
   onReceipt: (order: Order) => void
+  /** Fases de alistamiento disponibles (migración 018 aplicada). */
+  phasesEnabled: boolean
+}
+
+/** Opciones de estado según haya migración de fases (018) o no. */
+function statusOptionsFor(phasesEnabled: boolean): readonly string[] {
+  return phasesEnabled
+    ? DELIVERY_STATUS_OPTIONS
+    : DELIVERY_STATUS_OPTIONS.filter((s) => s !== 'EnAlistamiento' && s !== 'Alistado')
 }
 
 function useOrderRowState(order: Order, onUpdate: OrderRowBaseProps['onUpdate']) {
@@ -151,7 +160,7 @@ function vendorOptionsWith(order: Order, vendorOptions: string[]): string[] {
   return [...vendorOptions, current]
 }
 
-function OrderTableRow({ order, onUpdate, vendorOptions, onReceipt }: OrderRowBaseProps) {
+function OrderTableRow({ order, onUpdate, vendorOptions, onReceipt, phasesEnabled }: OrderRowBaseProps) {
   const { saving, handleChange } = useOrderRowState(order, onUpdate)
   const options = vendorOptionsWith(order, vendorOptions)
 
@@ -183,7 +192,7 @@ function OrderTableRow({ order, onUpdate, vendorOptions, onReceipt }: OrderRowBa
             STATUS_COLORS[order.delivery_status] ?? 'bg-gray-100 text-gray-600',
           )}
         >
-          {DELIVERY_STATUS_OPTIONS.map((s) => (
+          {statusOptionsFor(phasesEnabled).map((s) => (
             <option key={s} value={s}>
               {phaseLabel(s)}
             </option>
@@ -236,7 +245,7 @@ function OrderTableRow({ order, onUpdate, vendorOptions, onReceipt }: OrderRowBa
   )
 }
 
-function OrderMobileCard({ order, onUpdate, vendorOptions, onReceipt }: OrderRowBaseProps) {
+function OrderMobileCard({ order, onUpdate, vendorOptions, onReceipt, phasesEnabled }: OrderRowBaseProps) {
   const [expanded, setExpanded] = useState(false)
   const { saving, handleChange } = useOrderRowState(order, onUpdate)
   const options = vendorOptionsWith(order, vendorOptions)
@@ -303,7 +312,7 @@ function OrderMobileCard({ order, onUpdate, vendorOptions, onReceipt }: OrderRow
                 disabled={saving}
                 className="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-xs outline-none"
               >
-                {DELIVERY_STATUS_OPTIONS.map((s) => (
+                {statusOptionsFor(phasesEnabled).map((s) => (
                   <option key={s} value={s}>
                     {phaseLabel(s)}
                   </option>
@@ -430,6 +439,9 @@ export default function DailyOrdersPage({
   const [loading, setLoading] = useState(true)
   const [supabaseOk, setSupabaseOk] = useState(true)
   const [receiptOrder, setReceiptOrder] = useState<Order | null>(null)
+  const [phasesEnabled, setPhasesEnabled] = useState(false)
+
+  useEffect(() => { isOrderShippingSupported().then(setPhasesEnabled).catch(() => {}) }, [])
 
   const fetchOrders = useCallback(async () => {
     setLoading(true)
@@ -628,7 +640,7 @@ export default function DailyOrdersPage({
               </thead>
               <tbody>
                 {orders.map((order) => (
-                  <OrderTableRow key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} onReceipt={setReceiptOrder} />
+                  <OrderTableRow key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} onReceipt={setReceiptOrder} phasesEnabled={phasesEnabled} />
                 ))}
               </tbody>
             </table>
@@ -637,7 +649,7 @@ export default function DailyOrdersPage({
           {/* Mobile cards */}
           <div className="flex flex-col gap-3 md:hidden">
             {orders.map((order) => (
-              <OrderMobileCard key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} onReceipt={setReceiptOrder} />
+              <OrderMobileCard key={order.id} order={order} onUpdate={handleUpdateOrder} vendorOptions={vendorOptions} onReceipt={setReceiptOrder} phasesEnabled={phasesEnabled} />
             ))}
           </div>
         </>
