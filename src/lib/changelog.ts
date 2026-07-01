@@ -12,6 +12,17 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: '1.058',
+    date: '2026-07-01',
+    highlights: [
+      'Nuevo panel "Consumo de proveedores" en el inicio: con un clic ves por Día, Semana o Mes cuánto consumiste de cada proveedor y cuánto le debes (con semáforo de vencimiento).',
+      'Pedidos con fases: además de Confirmado/Despachado/Entregado, ahora puedes marcar "En alistamiento" y "Alistado" para seguir el pedido paso a paso en bodega.',
+      'Recibo de alistamiento imprimible desde cada pedido, con los datos del cliente, el detalle y un código QR que lleva a tu catálogo.',
+      'Catálogo público de tu negocio en línea (con tu marca): comparte el enlace o el QR y tus clientes ven tus productos con foto y precio. Ahora los productos tienen un campo de "Precio de venta".',
+      'Transportadora: al despachar se crea la guía y se guarda el número de seguimiento; el estado del pedido puede avanzar a "Entregado" automáticamente cuando la transportadora lo confirma.',
+    ],
+  },
+  {
     version: '1.057',
     date: '2026-06-29',
     highlights: [
