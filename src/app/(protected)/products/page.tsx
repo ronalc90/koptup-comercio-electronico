@@ -13,6 +13,7 @@ import { PRODUCTS_HELP } from '@/lib/pageHelp'
 import { useUser } from '@/lib/UserContext'
 import { getConfirmDestructive } from '@/lib/preferences'
 import { MAX_IMAGE_BYTES, MAX_IMAGE_MB, ALLOWED_IMAGE_ACCEPT, isAllowedImageType } from '@/lib/imageUpload'
+import { isProductPriceSupported } from '@/lib/db'
 import { useTenant } from '@/lib/TenantContext'
 import { isOwnerSupported } from '@/lib/db'
 import { productUsage, type ProductUsage } from '@/lib/plans'
@@ -24,6 +25,7 @@ const EMPTY_FORM = {
   code: '',
   name: '',
   cost: '',
+  price: '',
   category: '',
   active: true,
   image_url: '',
@@ -258,6 +260,7 @@ export default function ProductsPage({
       code: product.code,
       name: product.name,
       cost: String(product.cost),
+      price: product.price != null ? String(product.price) : '',
       category: product.category || categories[0] || CATCH_ALL_CATEGORY,
       active: product.active,
       image_url: product.image_url ?? '',
@@ -336,9 +339,16 @@ export default function ProductsPage({
       toast.error(`Ya existe un producto con el código "${codeUpper}"`)
       return
     }
+    // Precio de venta (opcional) para el catálogo público.
+    const price = form.price && String(form.price).trim() ? parseCopAmount(form.price) : null
+    if (form.price && String(form.price).trim() && price === null) {
+      toast.error('El precio debe ser un número válido (ej: 90000)')
+      return
+    }
     setSaving(true)
     try {
       const hasOwner = await isOwnerSupported()
+      const hasPrice = await isProductPriceSupported()
       const payload: Record<string, unknown> = {
         code: form.code.trim().toUpperCase(),
         name: form.name.trim(),
@@ -347,6 +357,7 @@ export default function ProductsPage({
         active: form.active,
         image_url: form.image_url || null,
       }
+      if (hasPrice) payload.price = price
       if (hasOwner) payload.owner = owner
       if (editingProduct) {
         const { error } = await supabase
@@ -802,6 +813,25 @@ export default function ProductsPage({
             )}
           </div>
 
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-gray-600">
+              Precio de venta (COP) <span className="font-normal text-gray-400">— opcional, se muestra en el catálogo</span>
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={form.price}
+              onChange={(e) => setForm((f) => ({ ...f, price: e.target.value }))}
+              placeholder="90000  o  $90.000"
+              className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-100"
+            />
+            {form.price && parseCopAmount(form.price) !== null && (
+              <p className="text-[11px] text-gray-500">
+                Se mostrará como {formatCurrency(parseCopAmount(form.price) ?? 0)}
+              </p>
+            )}
+          </div>
+
           {/* Active toggle */}
           <label className="flex cursor-pointer items-center gap-3">
             <div className="relative">
@@ -893,6 +923,7 @@ export default function ProductsPage({
               code: (analyzed.code || '').slice(0, 10),
               name: analyzed.name,
               cost: String(analyzed.suggested_cost),
+              price: '',
               category: categories.includes(analyzed.category) ? analyzed.category : CATCH_ALL_CATEGORY,
               active: true,
               image_url: analyzed.image_url ?? '',
