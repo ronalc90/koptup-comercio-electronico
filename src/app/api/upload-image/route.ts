@@ -1,13 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestScopedClient } from '@/lib/tenantServer';
-import { MAX_IMAGE_BYTES, MAX_IMAGE_MB, isAllowedImageType } from '@/lib/imageUpload';
+import { MAX_IMAGE_BYTES, MAX_IMAGE_MB, isAllowedImageType, sanitizeUploadFolder } from '@/lib/imageUpload';
 
 export async function POST(request: NextRequest) {
   try {
-    const { image, folder } = await request.json();
+    const { image, folder: rawFolder } = await request.json();
 
     if (!image) {
       return NextResponse.json({ error: 'No image provided' }, { status: 400 });
+    }
+
+    // `folder` viene del cliente y se mete en la ruta de Storage: solo se acepta
+    // un segmento [a-z0-9_-] (sin `/` ni `..`) para no salir de `t{tenantId}/`.
+    const folder = sanitizeUploadFolder(rawFolder);
+    if (!folder) {
+      return NextResponse.json({ error: 'Carpeta inválida (solo a-z, 0-9, - y _)' }, { status: 400 });
     }
 
     // Cliente acotado al tenant + carpeta namespaced por tenant: los assets de
@@ -44,7 +51,7 @@ export async function POST(request: NextRequest) {
     // Generate unique filename
     const timestamp = Date.now();
     const randomId = Math.random().toString(36).slice(2, 8);
-    const filePath = `t${ctx.tenantId}/${folder || 'products'}/${timestamp}-${randomId}.${ext}`;
+    const filePath = `t${ctx.tenantId}/${folder}/${timestamp}-${randomId}.${ext}`;
 
     const { error } = await supabase.storage
       .from('product-images')
