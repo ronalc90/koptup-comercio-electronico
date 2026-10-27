@@ -3,6 +3,7 @@ import { getServiceClient } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 import { roleAtLeast } from '@/lib/tenant';
 import { recordAudit } from '@/lib/audit';
+import { hasValidCronSecret } from '@/lib/cronAuth';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,8 +13,7 @@ export const dynamic = 'force-dynamic';
 const PURGE_DAYS = 30;
 
 async function authorize(request: NextRequest): Promise<boolean> {
-  const secret = process.env.CRON_SECRET;
-  if (secret && request.headers.get('authorization') === `Bearer ${secret}`) return true;
+  if (hasValidCronSecret(request.headers.get('authorization'), process.env.CRON_SECRET)) return true;
   const ctx = await getSession();
   return !!ctx && roleAtLeast(ctx.role, 'superadmin');
 }
