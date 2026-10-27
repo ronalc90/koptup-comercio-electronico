@@ -17,6 +17,8 @@ const tenantRows: Record<number, { slug: string; name?: string; logo?: string }>
 };
 /** Identificadores con los que `lookupUser` consultó email/username (para el test de saneo). */
 let ilikeCalls: Array<{ column: string; value: string }> = [];
+/** Filtros `.eq()` aplicados a la tabla users (p. ej. active=true). */
+let userEqCalls: Array<{ column: string; value: unknown }> = [];
 
 vi.mock('./db', () => ({
   isTenantSupported: () => Promise.resolve(tenantSupported),
@@ -24,14 +26,16 @@ vi.mock('./db', () => ({
 
 vi.mock('./supabase', () => {
   // Builder encadenable mínimo que imita la API de PostgREST usada por auth.ts:
-  //   from(table).select(cols).ilike(col, val).limit(n).maybeSingle()
+  //   from('users').select(cols).ilike(col, val).eq('active', true).order(..).limit(n).maybeSingle()
   //   from('tenants').select(cols).eq('id', id).maybeSingle()
   function makeBuilder(table: string) {
     let matchColumn: string | null = null;
     let matchValue: string | null = null;
+    const eqFilters: Record<string, unknown> = {};
     const builder: Record<string, unknown> = {
       select: () => builder,
       limit: () => builder,
+      order: () => builder,
       ilike: (column: string, value: string) => {
         ilikeCalls.push({ column, value });
         matchColumn = column;
@@ -39,8 +43,14 @@ vi.mock('./supabase', () => {
         return builder;
       },
       eq: (column: string, value: unknown) => {
-        matchColumn = column;
-        matchValue = String(value);
+        if (table === 'tenants') {
+          matchColumn = column;
+          matchValue = String(value);
+        } else {
+          // En users, .eq() es un filtro adicional (no la columna de búsqueda).
+          eqFilters[column] = value;
+          userEqCalls.push({ column, value });
+        }
         return builder;
       },
       maybeSingle: () => {
@@ -50,10 +60,13 @@ vi.mock('./supabase', () => {
           return Promise.resolve({ data, error: null });
         }
         // tabla users: solo hace match si la columna consultada coincide con la
-        // fila simulada (email o username), igual que la BD real.
+        // fila simulada (email o username) y pasa los filtros .eq(), igual que
+        // la BD real. Como ILIKE, `\_` es un `_` literal (sin comodines).
         if (userRow && matchColumn && userRow[matchColumn] != null) {
           const stored = String(userRow[matchColumn]).toLowerCase();
-          if (stored === (matchValue ?? '').toLowerCase()) {
+          const literal = (matchValue ?? '').replace(/\\_/g, '_').toLowerCase();
+          const passesEq = Object.entries(eqFilters).every(([c, v]) => userRow![c] === v);
+          if (stored === literal && passesEq) {
             return Promise.resolve({ data: userRow, error: null });
           }
         }
@@ -81,6 +94,8 @@ beforeEach(() => {
   tenantSupported = false;
   userRow = null;
   ilikeCalls = [];
+  userEqCalls = [];
+  vi.unstubAllEnvs();
 });
 
 describe('hashPassword / verifyPassword', () => {
@@ -318,5 +333,89 @@ describe('lookupUser: saneo del identificador (regresión inyección)', () => {
     expect(res.success).toBe(false);
     // sin caracteres válidos, lookupUser ni siquiera consulta la BD
     expect(ilikeCalls.length).toBe(0);
+  });
+});
+
+describe('lookupUser: identificador literal y solo usuarios activos', () => {
+  async function row(over: Partial<Record<string, unknown>> = {}) {
+    return {
+      id: 5,
+      tenant_id: 1,
+      email: 'paola@meraki.test',
+      username: 'paola',
+      password_hash: await hashPassword('clave-buena-1'),
+      role: 'admin',
+      active: true,
+      ...over,
+    };
+  }
+
+  it('el `_` no es comodín: "p_ola" NO entra como "paola"', async () => {
+    userRow = await row();
+    tenantSupported = true;
+    const res = await login('p_ola', 'clave-buena-1');
+    expect(res.success).toBe(false);
+    expect(ilikeCalls.every((c) => c.value === 'p\\_ola')).toBe(true);
+  });
+
+  it('un username con `_` real sigue pudiendo entrar', async () => {
+    userRow = await row({ username: 'juan_perez', email: 'juan@x.test' });
+    tenantSupported = true;
+    const res = await login('juan_perez', 'clave-buena-1');
+    expect(res.success).toBe(true);
+  });
+
+  it('cada búsqueda filtra active=true (una fila pendiente no tapa a la real)', async () => {
+    // Fila pendiente creada por el registro público con el email de la víctima:
+    // no debe devolverse a login.
+    userRow = await row({ id: 99, tenant_id: 7, active: false, status: 'pending' });
+    tenantSupported = true;
+    const res = await login('paola@meraki.test', 'clave-buena-1');
+    expect(res.success).toBe(false);
+    expect(ilikeCalls.length).toBe(2);
+    expect(userEqCalls.filter((c) => c.column === 'active' && c.value === true).length).toBe(2);
+  });
+});
+
+describe('producción: sin respaldo hardcodeado ni tokens sin userId', () => {
+  it('en producción el respaldo NO entra aunque isTenantSupported falle', async () => {
+    // Simula Supabase caído: lookupUser no encuentra fila e isTenantSupported
+    // devuelve false. Antes esto daba superadmin con ronald/1234.
+    vi.stubEnv('NODE_ENV', 'production');
+    tenantSupported = false;
+    userRow = null;
+    const res = await login('ronald', '1234');
+    expect(res.success).toBe(false);
+    expect(res.token).toBeUndefined();
+    expect(res.error).toBe('Usuario o contraseña incorrectos');
+  });
+
+  it('en producción verifySession rechaza un token sin userId', async () => {
+    const legacy = await createSession({
+      userId: null,
+      username: 'ronald',
+      email: null,
+      tenantId: 1,
+      tenantSlug: 'meraki',
+      role: 'superadmin',
+    });
+    expect(await verifySession(legacy)).not.toBeNull(); // dev/test: se acepta
+    vi.stubEnv('NODE_ENV', 'production');
+    expect(await verifySession(legacy)).toBeNull();
+  });
+
+  it('en producción un token con userId sigue siendo válido', async () => {
+    const token = await createSession({
+      userId: 42,
+      username: 'paola',
+      email: null,
+      tenantId: 1,
+      tenantSlug: 'meraki',
+      role: 'admin',
+    });
+    vi.stubEnv('NODE_ENV', 'production');
+    const ctx = await verifySession(token);
+    expect(ctx?.userId).toBe(42);
+    expect(ctx?.role).toBe('admin');
   });
 });

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '@/lib/admin';
 import { getServiceClient } from '@/lib/supabase';
 import { hashPassword, validatePassword } from '@/lib/auth';
-import { roleAtLeast } from '@/lib/tenant';
+import { isRole, roleAtLeast } from '@/lib/tenant';
 import { recordAudit, type AuditAction } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -150,6 +150,28 @@ export async function PATCH(request: NextRequest) {
   }
 
   const db = getServiceClient();
+
+  // Rango del usuario AFECTADO: un admin no puede degradar, desactivar ni
+  // rechazar a alguien de rango superior. El superadmin de la plataforma vive en
+  // el tenant 1, así que sin esto el admin de ese negocio podía quitarle el rol
+  // o la cuenta (y el cron de purga borraba a los rechazados a los 30 días).
+  const { data: target, error: targetErr } = await db
+    .from('users')
+    .select('role')
+    .eq('id', id)
+    .eq('tenant_id', auth.ctx.tenantId)
+    .maybeSingle();
+  if (targetErr) {
+    console.error('admin/users PATCH buscar usuario:', targetErr.message, { id });
+    return NextResponse.json({ error: 'Error del servidor' }, { status: 500 });
+  }
+  if (!target) {
+    return NextResponse.json({ error: 'Usuario no encontrado en tu negocio' }, { status: 404 });
+  }
+  if (isRole(target.role) && !roleAtLeast(auth.ctx.role, target.role)) {
+    return NextResponse.json({ error: 'No puedes modificar a un usuario con un rol superior al tuyo' }, { status: 403 });
+  }
+
   // Doble filtro id + tenant_id: un admin no puede tocar usuarios de otro tenant.
   // `.select()` nos da las filas afectadas: si es 0, el usuario NO es de este
   // negocio → 404 y NO se audita (evita respuestas/auditoría engañosas en IDOR).

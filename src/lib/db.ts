@@ -10,10 +10,25 @@ let _orderShippingSupported: boolean | null = null;
 let _tenantShippingConfigSupported: boolean | null = null;
 
 /**
+ * ¿El error de PostgREST dice que la columna consultada NO existe? (42703 =
+ * undefined_column de Postgres; PGRST204 = columna fuera del schema cache).
+ */
+function isMissingColumnError(error: { code?: string } | null | undefined): boolean {
+  return error?.code === '42703' || error?.code === 'PGRST204';
+}
+
+/**
  * Detecta si la migración multi-tenant (002) ya corrió comprobando la columna
  * `tenant_id` en `orders`. Mientras devuelva false, el guard multi-tenant
  * permanece desarmado y la app funciona EXACTAMENTE igual que antes.
  * Cachea el resultado.
+ *
+ * FAIL-CLOSED: solo devuelve false si la columna NO existe de verdad. Ante
+ * cualquier otro error (red, 5xx, timeout, schema cache recargando) devuelve
+ * true SIN cachear: antes devolvía false y, en ese request, las rutas recibían
+ * el service client SIN acotar (todas las filas de todos los negocios; el
+ * "vaciar cuenta" borraba las de todos) y el login abría el respaldo de
+ * credenciales hardcodeadas.
  */
 export async function isTenantSupported(): Promise<boolean> {
   if (!supabaseConfigured) return false;
@@ -27,9 +42,9 @@ export async function isTenantSupported(): Promise<boolean> {
       _tenantSupported = true;
       return true;
     }
-    return false;
+    return !isMissingColumnError(error);
   } catch {
-    return false;
+    return true;
   }
 }
 
