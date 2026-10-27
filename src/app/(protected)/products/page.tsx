@@ -634,7 +634,7 @@ export default function ProductsPage({
           </div>
 
           {/* Mobile cards */}
-          <div className="grid gap-3 md:hidden">
+          <div className="grid grid-cols-1 gap-3 md:hidden">
             {filtered.map((product) => (
               <div
                 key={product.id}
@@ -654,24 +654,26 @@ export default function ProductsPage({
                     </span>
                   )}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                       <span className="font-mono text-xs font-bold text-purple-600">
                         {product.code}
                       </span>
                       <CategoryBadge category={product.category} />
                     </div>
-                    <p className="mt-1 truncate font-semibold text-gray-800">{product.name}</p>
+                    <p className="mt-1 line-clamp-2 break-words font-semibold text-gray-800">{product.name}</p>
                     <p className="mt-0.5 text-sm font-medium text-gray-600">
                       {formatCurrency(product.cost)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  {/* Estado arriba y acciones debajo: en fila dejaban ~70 px para el
+                      nombre a 360 px y la categoría se montaba sobre "Activo". */}
+                  <div className="grid shrink-0 grid-cols-2 items-center justify-items-end gap-1">
                     {product.active ? (
-                      <span className="inline-block whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                      <span className="col-span-2 inline-block whitespace-nowrap rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                         Activo
                       </span>
                     ) : (
-                      <span className="inline-block whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
+                      <span className="col-span-2 inline-block whitespace-nowrap rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-500">
                         Inactivo
                       </span>
                     )}

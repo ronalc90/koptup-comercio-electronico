@@ -73,7 +73,7 @@ export default function AgentsPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Agentes IA</h1>
           <p className="text-sm text-gray-500">Análisis automático de tu negocio. Datos solo de tu tienda.</p>
@@ -81,7 +81,7 @@ export default function AgentsPage() {
         <button
           onClick={load}
           disabled={loading}
-          className="inline-flex items-center gap-2 rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
+          className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-xl bg-purple-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60"
           style={{ background: 'var(--brand-primary, #7c3aed)' }}
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -115,7 +115,7 @@ export default function AgentsPage() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {AGENTS.map(({ key, label, desc, icon: Icon }) => {
           const r = reports[key];
           const report = r && !('error' in r) ? (r as AgentReport) : null;

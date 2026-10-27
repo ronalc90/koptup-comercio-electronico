@@ -65,8 +65,8 @@ export default async function CatalogPage({ params }: { params: Promise<{ slug: 
         <div className="mx-auto max-w-5xl px-4 py-6 flex items-center gap-3">
           <span className="text-3xl" aria-hidden="true">{cfg.logo}</span>
           <div className="min-w-0">
-            <h1 className="text-xl font-bold text-gray-900 truncate">{cfg.name}</h1>
-            {cfg.tagline && <p className="text-sm text-gray-500 truncate">{cfg.tagline}</p>}
+            <h1 className="text-xl font-bold text-gray-900 break-words sm:truncate">{cfg.name}</h1>
+            {cfg.tagline && <p className="text-sm text-gray-500 break-words sm:truncate">{cfg.tagline}</p>}
           </div>
         </div>
       </header>

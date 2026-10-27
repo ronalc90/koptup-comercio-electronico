@@ -98,8 +98,10 @@ export default function SupplierConsumo() {
               <li key={r.id ?? 'na'} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium text-gray-900 truncate flex items-center gap-1.5">
-                    {r.status && <span className={`inline-block h-2 w-2 rounded-full ${STATUS_DOT[r.status]}`} />}
-                    {r.name}
+                    {r.status && <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${STATUS_DOT[r.status]}`} />}
+                    {/* En un contenedor flex el texto suelto no recibe la elipsis:
+                        va en su propio span para que se corte con "…". */}
+                    <span className="min-w-0 truncate">{r.name}</span>
                   </p>
                   <p className="text-xs text-gray-400">{r.units} u · consumo {formatCurrency(r.cost)}</p>
                 </div>

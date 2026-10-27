@@ -60,17 +60,17 @@ function KPICard({ label, value, icon, color, onClick }: KPICardProps) {
     <button
       type="button"
       onClick={onClick}
-      className="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm border border-gray-100 text-left transition-all active:scale-[0.97] hover:shadow-md w-full"
+      className="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white p-3 sm:p-4 shadow-sm border border-gray-100 text-left transition-all active:scale-[0.97] hover:shadow-md w-full"
     >
       <div
-        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+        className="flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-xl text-white"
         style={{ background: color }}
       >
         {icon}
       </div>
       <div className="min-w-0">
         <p className="truncate text-xs text-gray-500">{label}</p>
-        <p className="truncate font-bold text-gray-900">{value}</p>
+        <p className="truncate text-sm sm:text-base font-bold text-gray-900">{value}</p>
       </div>
     </button>
   )

@@ -456,7 +456,7 @@ export default function DashboardPage() {
             <div className="rounded-2xl bg-white border border-gray-100 shadow-sm p-4">
               <h2 className="text-sm font-semibold text-gray-700 mb-4 truncate">Recaudo por día</h2>
               {chartData.some((d) => d.revenue > 0) ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-md:overflow-visible max-md:[&_svg]:overflow-visible">
                 <ResponsiveContainer width="100%" height={200}>
                   <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
@@ -536,7 +536,7 @@ export default function DashboardPage() {
                     Sin datos de recaudo
                   </div>
                 ) : (
-                  <ResponsiveContainer width="100%" height={180}>
+                  <ResponsiveContainer width="100%" height={180} className="max-md:[&_.recharts-pie-label-text]:hidden">
                     <PieChart>
                       <Pie
                         data={paymentPieData}
@@ -598,7 +598,7 @@ export default function DashboardPage() {
                             #{order.order_code} · {order.order_date} · {order.vendor}
                           </p>
                         </div>
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex flex-col items-end gap-1 sm:flex-row sm:items-center sm:gap-3 shrink-0">
                           <span className="font-semibold text-sm text-gray-900">
                             {formatCurrency(order.value_to_collect)}
                           </span>
