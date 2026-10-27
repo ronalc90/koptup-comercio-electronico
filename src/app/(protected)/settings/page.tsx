@@ -995,8 +995,9 @@ export default function SettingsPage() {
         </Section>
         )}
 
-        {/* Zona peligrosa — borra datos del negocio; no aplica al superadmin */}
-        {role !== 'superadmin' && (
+        {/* Zona peligrosa — borra datos del negocio; solo el admin del negocio
+            (el endpoint responde 403 a member/viewer; no aplica al superadmin) */}
+        {role === 'admin' && (
         <Section
           icon={<ShieldAlert className="h-4 w-4" />}
           title="Zona peligrosa"

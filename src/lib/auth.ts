@@ -98,17 +98,23 @@ export async function createSession(ctx: TenantContext): Promise<string> {
 
 /**
  * Verifica el token y devuelve el contexto de tenant. Los tokens legacy (sin
- * claims de tenant) se interpretan como meraki/admin para no expulsar sesiones
- * ya abiertas.
+ * claims de tenant) caen a meraki con rol mínimo (viewer).
+ *
+ * En PRODUCCIÓN un token sin `userId` se rechaza: todo login legítimo sale de la
+ * tabla `users` (userId numérico) y `getSession` solo revalida contra la BD los
+ * tokens CON userId. Un token sin userId solo lo emitía el respaldo hardcodeado
+ * pre-migración, y su rol (p. ej. superadmin) se aceptaba tal cual 30 días.
  */
 export async function verifySession(token: string): Promise<TenantContext | null> {
   try {
     const { payload } = await jwtVerify(token, SECRET);
+    const userId = typeof payload.userId === 'number' ? payload.userId : null;
+    if (userId == null && process.env.NODE_ENV === 'production') return null;
     // Mínimo privilegio: si el claim de rol no es válido, NO asumimos admin.
     const role = isRole(payload.role) ? (payload.role as Role) : 'viewer';
     return {
       username: (payload.username as string) ?? 'Paola',
-      userId: typeof payload.userId === 'number' ? payload.userId : null,
+      userId,
       email: typeof payload.email === 'string' ? payload.email : null,
       tenantId: typeof payload.tenantId === 'number' ? payload.tenantId : DEFAULT_TENANT_ID,
       tenantSlug: typeof payload.tenantSlug === 'string' ? payload.tenantSlug : DEFAULT_TENANT_SLUG,
@@ -183,13 +189,23 @@ async function lookupUser(identifier: string): Promise<UserRow | null> {
   // un login/email; si queda vacío, no hay match.
   const safe = identifier.replace(/[^a-z0-9@._-]/gi, '');
   if (!safe) return null;
+  // En ILIKE el `_` es comodín de un carácter ('p_ola' casaba con 'paola'): se
+  // escapa para que el login compare el identificador literal.
+  const pattern = safe.replace(/_/g, '\\_');
   try {
     const db = getServiceClient();
     const cols = 'id, tenant_id, email, username, password_hash, role, active, status';
     // Dos consultas explícitas en vez de `.or` interpolado: más seguro y claro.
-    const byEmail = await db.from('users').select(cols).ilike('email', safe).limit(1).maybeSingle();
+    // Solo filas ACTIVAS y en orden estable: email/username no son únicos entre
+    // negocios, y el registro público crea filas inactivas (pendientes). Sin
+    // este filtro, registrar un negocio con el email o el nombre de otra persona
+    // podía "tapar" su fila real y dejarla sin poder entrar. Un usuario inactivo
+    // obtiene el mismo mensaje genérico de siempre.
+    const byEmail = await db.from('users').select(cols).ilike('email', pattern)
+      .eq('active', true).order('id', { ascending: true }).limit(1).maybeSingle();
     if (byEmail.data) return byEmail.data as UserRow;
-    const byUser = await db.from('users').select(cols).ilike('username', safe).limit(1).maybeSingle();
+    const byUser = await db.from('users').select(cols).ilike('username', pattern)
+      .eq('active', true).order('id', { ascending: true }).limit(1).maybeSingle();
     if (byUser.data) return byUser.data as UserRow;
     return null;
   } catch {
@@ -249,10 +265,11 @@ export async function login(
     return { success: true, token: await createSession(context), context };
   }
 
-  // 2) Respaldo hardcodeado SOLO en estado pre-migración (sin tabla `users`).
-  //    Una vez aplicada la migración, la tabla `users` (bcrypt) es la ÚNICA
-  //    fuente: nada de credenciales en texto plano puede iniciar sesión.
-  if (await isTenantSupported()) {
+  // 2) Respaldo hardcodeado SOLO en desarrollo/test y en estado pre-migración
+  //    (sin tabla `users`). En PRODUCCIÓN nunca: si Supabase falla (caída,
+  //    timeout), lookupUser no encuentra la fila y antes eso abría este mapa de
+  //    contraseñas públicas (ronald/1234 = superadmin).
+  if (process.env.NODE_ENV === 'production' || await isTenantSupported()) {
     // Usuario inexistente post-migración: quema el mismo tiempo de bcrypt que un
     // usuario real para no filtrar por timing quién existe.
     await verifyPassword(password, TIMING_DUMMY_HASH);

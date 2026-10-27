@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import { getScopedServiceClient } from '@/lib/tenantServer';
+import { roleAtLeast } from '@/lib/tenant';
 import { DESTRUCTIVE_CONFIRM_PHRASE as CONFIRMATION_PHRASE } from '@/lib/assistant/constants';
 
 /**
  * Vacía todos los datos de negocio de la cuenta (pedidos, inventario,
  * productos, gastos, alertas y proveedores) dejándola como nueva. Requiere que
  * el usuario envíe la frase de confirmación exacta "Acepto".
+ *
+ * Solo el ADMIN del negocio (o superior): es una acción de cuenta, irreversible.
+ * Antes bastaba cualquier sesión, incluida la de "Solo lectura" (viewer).
  *
  * Conserva:
  *   - la fila de settings con openai_api_key (la cuenta sigue operativa)
@@ -17,6 +21,12 @@ export async function POST(request: NextRequest) {
   const session = await getSession();
   if (!session) {
     return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
+  }
+  if (!roleAtLeast(session.role, 'admin')) {
+    return NextResponse.json(
+      { error: 'Solo el administrador del negocio puede eliminar todos los datos' },
+      { status: 403 },
+    );
   }
 
   let body: { confirmation?: unknown };
