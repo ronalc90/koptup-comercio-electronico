@@ -316,7 +316,7 @@ El monto se normaliza en el servidor (no se confía en el número que devuelve e
 
 ### Requisitos
 
-- Node.js **≥ 20.9** (el repositorio trae `.nvmrc` con la versión 20).
+- Node.js **22** (el repositorio trae `.nvmrc` con la versión 22 y `engines` fija `22.x`, la misma que usa la CI; Vercel ya no admite Node 20).
 - Un proyecto de [Supabase](https://supabase.com) (sirve el plan gratuito).
 - Opcional: una API key de [OpenAI](https://platform.openai.com) para las funciones de IA.
 
