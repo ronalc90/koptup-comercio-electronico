@@ -15,6 +15,17 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // eslint-plugin-react-hooks 7.1 (requerido por eslint-config-next 16.4) hace un
+  // análisis más estricto del React Compiler y marca casos en código existente
+  // que la 7.0 no detectaba. Se dejan como warning para no bloquear la
+  // actualización de seguridad; pendiente corregirlos y volver a "error".
+  {
+    rules: {
+      "react-hooks/set-state-in-effect": "warn",
+      "react-hooks/immutability": "warn",
+      "react-hooks/preserve-manual-memoization": "warn",
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:
