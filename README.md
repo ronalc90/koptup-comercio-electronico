@@ -348,7 +348,7 @@ Completa `.env.local` (el propio `.env.example` explica cada variable):
 | `SUPABASE_ACCESS_TOKEN` | No | Solo para aplicar SQL con `npm run db:exec` |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_PRO`, `STRIPE_PRICE_ENTERPRISE` | No | Cobro en línea de licencias. Sin ellas, el pago queda desactivado |
 
-> El código también lee `SHIPPING_ENC_KEY` y `SHIPPING_WEBHOOK_SECRET` (integración con transportadora) y `AUTH_STRICT_SECRET` (hace que la app no arranque en producción si `AUTH_SECRET` es débil). Aún no están en `.env.example`; agrégalas si usas esas funciones.
+> El código también lee `SHIPPING_ENC_KEY` y `SHIPPING_WEBHOOK_SECRET` (integración con transportadora) y `AUTH_STRICT_SECRET` (con `1` o `true`, hace que la app no arranque en producción si `AUTH_SECRET` es débil). Aún no están en `.env.example`; agrégalas si usas esas funciones.
 
 ### 3. Base de datos
 
