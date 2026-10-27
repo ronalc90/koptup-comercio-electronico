@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Dependencias de npm: un solo PR semanal por directorio con las versiones menores y parches.
+  # Las versiones mayores se actualizan a mano, porque pueden romper la API.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      dependencias:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+  # Imágenes base de los Dockerfile, con la misma política que npm.
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      imagenes-docker:
+        update-types: [minor, patch]
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
