@@ -16,7 +16,11 @@ export default function MobileNav() {
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:hidden">
       {/* Safe area background */}
       <div className="bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-[0_-1px_0_0_rgba(0,0,0,0.06)]">
-        <div className="flex items-end justify-around px-1 pt-2 pb-2 max-w-screen overflow-x-auto" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
+        {/* Con 8 módulos los rótulos no caben en celdas iguales: cada enlace
+            crece desde su ancho mínimo de contenido (min-w-min) y el gap evita
+            que dos rótulos queden pegados. Si aun así no caben (≤320 px), la
+            barra hace scroll horizontal desde el inicio (justify-between). */}
+        <div className="flex items-end justify-between gap-0.5 px-0.5 pt-2 pb-2 max-w-screen overflow-x-auto" style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
           {navItems.map(({ href, label, icon: Icon, accent }) => {
             const isActive = pathname === href || (href !== '/dashboard' && pathname.startsWith(href) && href !== '/orders');
             const isNewOrder = accent;
@@ -26,7 +30,7 @@ export default function MobileNav() {
                 <Link
                   key={href}
                   href={href}
-                  className="flex flex-col items-center gap-1 flex-1 min-w-0 py-1"
+                  className="flex flex-col items-center gap-1 flex-1 min-w-min py-1"
                 >
                   <span
                     className={`
@@ -40,7 +44,7 @@ export default function MobileNav() {
                   >
                     <Icon className="w-5 h-5 text-white" strokeWidth={2.5} />
                   </span>
-                  <span className={`text-[10px] font-semibold leading-none ${
+                  <span className={`text-center text-[10px] font-semibold leading-none tracking-tight ${
                     isActive ? 'text-purple-700' : 'text-purple-600'
                   }`}>
                     {label}
@@ -53,7 +57,7 @@ export default function MobileNav() {
               <Link
                 key={href}
                 href={href}
-                className="flex flex-col items-center gap-1 flex-1 min-w-0 py-1 rounded-xl transition-all duration-200 active:scale-95"
+                className="flex flex-col items-center gap-1 flex-1 min-w-min py-1 rounded-xl transition-all duration-200 active:scale-95"
               >
                 <span
                   className={`
@@ -69,7 +73,7 @@ export default function MobileNav() {
                   />
                 </span>
                 <span
-                  className={`text-[10px] font-medium leading-none transition-colors duration-200 ${
+                  className={`text-center text-[10px] font-medium leading-none tracking-tight transition-colors duration-200 ${
                     isActive ? 'text-purple-700' : 'text-gray-400'
                   }`}
                 >
