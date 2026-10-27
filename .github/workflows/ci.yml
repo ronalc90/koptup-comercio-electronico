@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Si llega un push nuevo a la misma rama o PR, se cancela el run anterior:
+# solo interesa el resultado del último commit.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Lint, typecheck, pruebas y build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Pruebas unitarias (Vitest)
+        run: npm test
+
+      # Next.js incrusta las variables NEXT_PUBLIC_* en el bundle al compilar.
+      # Sin ellas, src/lib/supabase.ts queda fijo en el cliente simulado y el
+      # build no compila el mismo camino que en Vercel. Por eso se pasan valores
+      # FICTICIOS: el dominio .invalid está reservado (RFC 2606) y nunca resuelve,
+      # y la llave no es un JWT. El build no se conecta a Supabase.
+      # NUNCA pongas aquí valores reales: lo que va en NEXT_PUBLIC_* queda visible
+      # en el bundle, y este workflow también corre en PRs.
+      # El aviso "[SEGURIDAD] AUTH_SECRET no está definida" del build es esperado:
+      # es un secreto del servidor y el CI no lo necesita.
+      - name: Build (next build)
+        run: npm run build
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.invalid
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
