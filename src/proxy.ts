@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_NAME, LEGACY_COOKIE_NAME } from '@/lib/sessionCookie';
 
-const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/logout', '/api/auth/register', '/api/ai/suggest-business'];
+// Rutas exactas que no exigen cookie de sesión. El webhook de Stripe vive bajo
+// /api/billing (protegido), pero Stripe no manda cookie: si el proxy le exige
+// sesión responde 401 y los pagos nunca activan la licencia. Se autentica con la
+// firma `stripe-signature` (STRIPE_WEBHOOK_SECRET) dentro de la propia ruta.
+// Coincidencia EXACTA: el resto de /api/billing sigue protegido.
+const PUBLIC_PATHS = ['/login', '/register', '/api/auth/login', '/api/auth/logout', '/api/auth/register', '/api/ai/suggest-business', '/api/billing/webhook'];
 const PROTECTED_PREFIXES = ['/dashboard', '/orders', '/inventory', '/products', '/dispatch', '/settings', '/assistant', '/agents', '/admin', '/superadmin', '/billing', '/api/ai', '/api/agents', '/api/automations', '/api/admin', '/api/superadmin', '/api/billing', '/api/alerts', '/api/settings', '/api/export', '/api/import', '/api/upload-image', '/api/account', '/api/orders'];
 
 export function proxy(request: NextRequest) {
