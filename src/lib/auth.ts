@@ -22,7 +22,7 @@ import { COOKIE_NAME, LEGACY_COOKIE_NAME } from './sessionCookie';
  *     (eso tumbaría la app si el secreto de Vercel no estuviera bien); se loguea
  *     un error FUERTE para que el operador lo corrija (definir AUTH_SECRET en
  *     Vercel). Para forzar el arranque-falla duro una vez verificado el entorno,
- *     definir `AUTH_STRICT_SECRET=1`.
+ *     definir `AUTH_STRICT_SECRET=1` (o `true`).
  *   - En dev/test se usa el valor provisto o un secreto de desarrollo explícito
  *     (distinto del antiguo valor por defecto débil ya eliminado).
  */
@@ -42,7 +42,9 @@ function resolveAuthSecret(): string {
     const msg = `[SEGURIDAD] ${reason} Definí un valor aleatorio de ≥${MIN_SECRET_LENGTH} chars `
       + 'en Vercel (openssl rand -hex 32). Con un secreto débil se pueden falsificar sesiones.';
     // Opt-in al fail-fast duro una vez verificado el entorno de producción.
-    if (process.env.AUTH_STRICT_SECRET === '1') throw new Error(msg);
+    // Acepta `1` o `true` (sin distinguir mayúsculas ni espacios).
+    const strict = process.env.AUTH_STRICT_SECRET?.trim().toLowerCase();
+    if (strict === '1' || strict === 'true') throw new Error(msg);
     console.error(msg);
   }
   return provided || DEV_SECRET;

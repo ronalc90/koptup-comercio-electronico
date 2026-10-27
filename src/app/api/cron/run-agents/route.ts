@@ -3,6 +3,7 @@ import { getServiceClient } from '@/lib/supabase';
 import { getSession } from '@/lib/auth';
 import { roleAtLeast } from '@/lib/tenant';
 import { runAndPersistForTenant } from '@/lib/agents/runAndPersist';
+import { hasValidCronSecret } from '@/lib/cronAuth';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -13,8 +14,7 @@ export const maxDuration = 60;
 // "protegidas" del proxy porque el cron no manda cookie.
 
 async function authorize(request: NextRequest): Promise<boolean> {
-  const secret = process.env.CRON_SECRET;
-  if (secret && request.headers.get('authorization') === `Bearer ${secret}`) return true;
+  if (hasValidCronSecret(request.headers.get('authorization'), process.env.CRON_SECRET)) return true;
   const ctx = await getSession();
   return !!ctx && roleAtLeast(ctx.role, 'superadmin');
 }
